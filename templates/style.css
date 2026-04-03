@@ -1,0 +1,125 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #0f0f0f;
+  color: #e5e5e5;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header {
+  width: 100%;
+  max-width: 720px;
+  padding: 1.2rem 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+#chat {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  overflow-y: auto;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  scroll-behavior: smooth;
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 0.75rem 1rem;
+  border-radius: 1.2rem;
+  line-height: 1.55;
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: #2f6df5;
+  color: #fff;
+  border-bottom-right-radius: 0.3rem;
+}
+
+.bubble.bot {
+  align-self: flex-start;
+  background: #1e1e1e;
+  color: #e5e5e5;
+  border-bottom-left-radius: 0.3rem;
+}
+
+.bubble.typing {
+  color: #666;
+  font-style: italic;
+}
+
+#input-area {
+  width: 100%;
+  max-width: 720px;
+  padding: 1rem;
+  border-top: 1px solid #1e1e1e;
+  display: flex;
+  gap: 0.6rem;
+}
+
+#user-input {
+  flex: 1;
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  border-radius: 0.8rem;
+  color: #e5e5e5;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  outline: none;
+  resize: none;
+  height: 44px;
+  max-height: 160px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+#user-input:focus { border-color: #2f6df5; }
+
+#send-btn {
+  background: #2f6df5;
+  border: none;
+  border-radius: 0.8rem;
+  color: #fff;
+  padding: 0 1.1rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+#send-btn:hover { background: #1a5de0; }
+#send-btn:disabled { background: #1e2a40; cursor: not-allowed; }
+
+.bubble.bot p { margin: 0.3rem 0; }
+.bubble.bot p:first-child { margin-top: 0; }
+.bubble.bot p:last-child { margin-bottom: 0; }
+.bubble.bot ul, .bubble.bot ol { padding-left: 1.2rem; margin: 0.3rem 0; }
+.bubble.bot li { margin: 0.15rem 0; }
+.bubble.bot strong { color: #fff; }
+.bubble.bot code {
+  background: #2a2a2a;
+  padding: 0.1em 0.35em;
+  border-radius: 0.3rem;
+  font-size: 0.875em;
+}
+.bubble.bot pre {
+  background: #2a2a2a;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 0.4rem 0;
+}
+.bubble.bot pre code { background: none; padding: 0; }
