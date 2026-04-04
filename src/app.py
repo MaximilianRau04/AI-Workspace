@@ -70,6 +70,25 @@ def set_config():
     return jsonify({"ok": True})
 
 
+def _parse_error(e: Exception) -> dict:
+    msg = str(e)
+    if "429" in msg or "quota" in msg.lower() or "rate" in msg.lower():
+        retry = None
+        import re
+        m = re.search(r"retry_delay\s*\{\s*seconds:\s*(\d+)", msg)
+        if m:
+            retry = int(m.group(1))
+        return {
+            "type": "rate_limit",
+            "title": "Rate limit reached",
+            "detail": "You've hit the free tier limit for Gemini API requests.",
+            "retry_after": retry,
+        }
+    if "401" in msg or "403" in msg or "API key" in msg.lower():
+        return {"type": "auth", "title": "Invalid API key", "detail": "Check your GEMINI_API_KEY in .env."}
+    return {"type": "generic", "title": "Something went wrong", "detail": msg}
+
+
 @app.route("/chat", methods=["POST"])
 def chat_endpoint():
     data = request.get_json()
@@ -98,7 +117,7 @@ def chat_endpoint():
                 'total':     usage.total_token_count,
             })}\n\n"
         except Exception as e:
-            yield f"data: {json.dumps('[ERROR] ' + str(e))}\n\n"
+            yield f"event: error\ndata: {json.dumps(_parse_error(e))}\n\n"
             return
         finally:
             yield "data: \"[DONE]\"\n\n"
