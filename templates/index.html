@@ -7,13 +7,62 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header>🤖 ChatBot</header>
+  <header>
+    <span>🤖 ChatBot</span>
+    <div id="header-right">
+      <div id="token-display" title="">
+        <svg id="token-ring" viewBox="0 0 36 36" width="36" height="36">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#2a2a2a" stroke-width="3.5"/>
+          <circle id="token-arc" cx="18" cy="18" r="15.9" fill="none"
+            stroke="#2f6df5" stroke-width="3.5"
+            stroke-dasharray="0 100" stroke-dashoffset="25"
+            stroke-linecap="round"/>
+        </svg>
+        <span id="token-label">—</span>
+      </div>
+<button id="settings-btn" title="System Prompt">⚙️</button>
+    </div>
+  </header>
+
+  <div id="docs-modal" hidden>
+    <div id="docs-box">
+      <h2>Documents</h2>
+      <ul id="docs-list"></ul>
+      <p id="upload-status"></p>
+      <div id="settings-actions">
+        <button id="docs-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-modal" hidden>
+    <div id="settings-box">
+      <h2>System Prompt</h2>
+      <textarea id="system-prompt-input" placeholder="Describe the bot's behavior, tone, language, restrictions…"></textarea>
+      <div id="settings-actions">
+        <button id="settings-cancel">Cancel</button>
+        <button id="settings-save">Save & Reload</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="drop-overlay" hidden>
+    <span>Drop document here</span>
+  </div>
 
   <div id="chat"></div>
 
+  <div id="attachment-bar" hidden>
+    <span id="attachment-name"></span>
+    <button id="attachment-remove">✕</button>
+  </div>
+
   <div id="input-area">
+    <button id="upload-btn" title="Attach document">📎</button>
+    <input type="file" id="upload-input" accept=".txt,.md,.pdf" hidden />
     <textarea id="user-input" placeholder="Type a message…" rows="1"></textarea>
     <button id="send-btn">&#9658;</button>
+    <button id="stop-btn" hidden>&#9646;&#9646;</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

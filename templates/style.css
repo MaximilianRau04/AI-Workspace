@@ -18,7 +18,199 @@ header {
   font-weight: 600;
   letter-spacing: 0.02em;
   border-bottom: 1px solid #1e1e1e;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+
+#header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#token-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: default;
+}
+
+#token-ring { flex-shrink: 0; }
+
+#token-arc { transition: stroke-dasharray 0.5s ease; }
+
+#token-label {
+  font-size: 0.78rem;
+  color: #888;
+  white-space: nowrap;
+}
+
+
+#docs-box {
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#docs-box h2 { font-size: 1rem; font-weight: 600; }
+
+#docs-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+#docs-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.875rem;
+  color: #ccc;
+}
+
+#docs-list li button {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+}
+
+#docs-list li button:hover { color: #c0392b; }
+
+#docs-list .empty {
+  color: #444;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 0.5rem 0;
+  border: none;
+  background: none;
+}
+
+#upload-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #2e2e2e;
+  border-radius: 0.6rem;
+  padding: 0.65rem;
+  font-size: 0.875rem;
+  color: #666;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+#upload-label:hover { border-color: #2f6df5; color: #aaa; }
+
+#upload-status {
+  font-size: 0.8rem;
+  color: #666;
+  min-height: 1rem;
+  text-align: center;
+}
+
+#settings-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+  padding: 0.2rem;
+}
+
+#settings-btn:hover { opacity: 1; }
+
+#settings-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+#settings-modal[hidden] { display: none; }
+
+#settings-box {
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#settings-box h2 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+#system-prompt-input {
+  background: #0f0f0f;
+  border: 1px solid #2e2e2e;
+  border-radius: 0.6rem;
+  color: #e5e5e5;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  padding: 0.75rem;
+  resize: vertical;
+  min-height: 180px;
+  outline: none;
+}
+
+#system-prompt-input:focus { border-color: #2f6df5; }
+
+#settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+#settings-cancel {
+  background: #2a2a2a;
+  border: none;
+  border-radius: 0.6rem;
+  color: #e5e5e5;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+#settings-cancel:hover { background: #333; }
+
+#settings-save {
+  background: #2f6df5;
+  border: none;
+  border-radius: 0.6rem;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+#settings-save:hover { background: #1a5de0; }
 
 #chat {
   flex: 1;
@@ -61,6 +253,88 @@ header {
   font-style: italic;
 }
 
+.msg-attachment {
+  align-self: flex-end;
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  color: #aaa;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg-attachment::before { content: "📎 "; }
+
+#drop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(47, 109, 245, 0.12);
+  border: 2px dashed #2f6df5;
+  border-radius: 1rem;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  margin: 0.75rem;
+}
+
+#drop-overlay[hidden] { display: none; }
+
+#drop-overlay span {
+  background: #0f0f0f;
+  color: #2f6df5;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid #2f6df5;
+}
+
+#attachment-bar {
+  width: 100%;
+  max-width: 720px;
+  padding: 0.4rem 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+#attachment-bar[hidden] { display: none; }
+
+#attachment-name {
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  color: #aaa;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#attachment-name::before {
+  content: "📎 ";
+}
+
+#attachment-remove {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0;
+}
+
+#attachment-remove:hover { color: #c0392b; }
+
 #input-area {
   width: 100%;
   max-width: 720px;
@@ -88,6 +362,19 @@ header {
 
 #user-input:focus { border-color: #2f6df5; }
 
+#upload-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+  padding: 0 0.2rem;
+}
+
+#upload-btn:hover { opacity: 1; }
+
 #send-btn {
   background: #2f6df5;
   border: none;
@@ -102,6 +389,20 @@ header {
 
 #send-btn:hover { background: #1a5de0; }
 #send-btn:disabled { background: #1e2a40; cursor: not-allowed; }
+
+#stop-btn {
+  background: #3a3a3a;
+  border: none;
+  border-radius: 0.8rem;
+  color: #e5e5e5;
+  padding: 0 1.1rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+#stop-btn:hover { background: #c0392b; }
 
 .bubble.bot p { margin: 0.3rem 0; }
 .bubble.bot p:first-child { margin-top: 0; }
