@@ -1,6 +1,10 @@
 import os
 import sys
 import json
+import re
+import asyncio
+import io
+import edge_tts
 from flask import Flask, request, jsonify, render_template, Response, stream_with_context
 from werkzeug.utils import secure_filename
 import google.generativeai as genai
@@ -166,6 +170,53 @@ def delete_doc():
     if os.path.exists(path):
         os.remove(path)
     return jsonify({"ok": True})
+
+
+TTS_VOICE = "de-DE-ConradNeural"
+
+
+@app.route("/tts", methods=["POST"])
+def tts():
+    text = request.get_json().get("text", "").strip()
+    if not text:
+        return "", 400
+    text = re.sub(r"[#*`_>~\[\]|]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    async def _synthesize():
+        buf = io.BytesIO()
+        communicate = edge_tts.Communicate(text, TTS_VOICE)
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                buf.write(chunk["data"])
+        return buf.getvalue()
+
+    audio = asyncio.run(_synthesize())
+    return Response(audio, mimetype="audio/mpeg")
+
+
+@app.route("/stt", methods=["POST"])
+def stt():
+    import speech_recognition as sr_lib
+    from pydub import AudioSegment
+    audio_file = request.files.get("audio")
+    if not audio_file:
+        return jsonify({"error": "No audio"}), 400
+    # convert webm → wav in memory
+    webm = AudioSegment.from_file(audio_file, format="webm")
+    wav_io = io.BytesIO()
+    webm.export(wav_io, format="wav")
+    wav_io.seek(0)
+    recognizer = sr_lib.Recognizer()
+    with sr_lib.AudioFile(wav_io) as source:
+        audio = recognizer.record(source)
+    try:
+        text = recognizer.recognize_google(audio, language="de-DE")
+        return jsonify({"text": text})
+    except sr_lib.UnknownValueError:
+        return jsonify({"text": ""})
+    except sr_lib.RequestError as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

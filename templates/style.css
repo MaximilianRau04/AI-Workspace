@@ -400,6 +400,17 @@ header {
 }
 
 #mic-btn:hover { opacity: 1; }
+
+#mic-btn.recording {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px #e74c3c);
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 4px #e74c3c); }
+  50%       { transform: scale(1.25); filter: drop-shadow(0 0 10px #e74c3c); }
+}
 #mic-btn.recording {
   opacity: 1;
   animation: pulse 1s infinite;

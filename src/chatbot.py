@@ -3,10 +3,8 @@ import sys
 import os
 from dotenv import load_dotenv
 
-# 1. Load the .env file (requires 'pip install python-dotenv')
 load_dotenv()
 
-# 2. Read the API key from the environment variable
 API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not API_KEY:
@@ -16,20 +14,17 @@ if not API_KEY:
 
 genai.configure(api_key=API_KEY)
 
-# 3. Select the model
 try:
     model = genai.GenerativeModel('gemini-2.5-flash')
 except Exception as e:
     print(f"❌ Error while loading the model: {e}")
     sys.exit(1)
 
-# 4. Start a chat session
 chat = model.start_chat(history=[])
 
 print("🤖 Hello! I am your chatbot. (Type 'end' to exit the chat)")
 print("-" * 60)
 
-# 5. Main conversation loop
 while True:
     user_input = input("You: ")
 

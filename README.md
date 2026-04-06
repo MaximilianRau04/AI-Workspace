@@ -27,7 +27,7 @@ venv\Scripts\activate      # Windows
 **3. Install dependencies**
 
 ```bash
-pip install google-generativeai python-dotenv flask
+pip install google-generativeai google-genai python-dotenv flask pypdf edge-tts
 ```
 
 **4. Create a `.env` file**
@@ -60,19 +60,31 @@ Then open your browser and go to `http://localhost:5000`.
 
 The web interface uses Flask and serves a chat UI where you can talk to the bot directly in the browser.
 
+**Features:**
+- Streaming responses with typewriter effect
+- Voice input (click microphone button — Chrome/Edge only)
+- Voice output via [edge-tts](https://github.com/rany2/edge-tts) (Microsoft Neural Voices, requires internet)
+- Document upload for RAG (txt, md, pdf) via button or drag & drop
+- Persistent conversation history with auto-summarization
+- Configurable system prompt via the ⚙️ settings button
+- Token usage indicator in the header
+
 ## Project Structure
 
 ```
 ChatBot/
 ├── src/
-│   ├── app.py                  # Flask web server
-│   ├── chatbot.py              # Terminal chatbot
-│   └── templates/
-│       └── index.html          # Chat UI
-│   └── static/
-│       ├── css/style.css       # Styles
-│       └── js/chat.js          # Frontend logic
-├── .env                        # Your API key (not tracked by git)
+│   ├── app.py              # Flask web server
+│   ├── chatbot.py          # Terminal chatbot
+│   ├── history.py          # Conversation persistence & summarization
+│   └── rag.py              # RAG: document indexing & retrieval
+├── templates/
+│   ├── index.html          # Chat UI
+│   ├── style.css           # Styles
+│   └── chat.js             # Frontend logic
+├── docs/                   # Uploaded documents (not tracked by git)
+├── system_prompt.txt       # Editable system prompt
+├── .env                    # Your API key (not tracked by git)
 ├── .gitignore
 └── README.md
 ```

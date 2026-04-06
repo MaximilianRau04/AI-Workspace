@@ -99,6 +99,7 @@ async function sendMessage() {
         if (payload === "[DONE]") {
           const plainText = bubble.textContent;
           bubble.innerHTML = marked.parse(plainText);
+          speak(plainText);
           stopped = true;
           break;
         }
@@ -109,12 +110,6 @@ async function sendMessage() {
           await new Promise(r => setTimeout(r, 10));
         }
       }
-    }
-
-    if (!abortController.signal.aborted && bubble.isConnected) {
-      const plainText = bubble.textContent;
-      bubble.innerHTML = marked.parse(plainText);
-      speak(plainText);
     }
   } catch (e) {
     if (e.name !== "AbortError") bubble.textContent = "Connection error.";
@@ -143,66 +138,113 @@ input.addEventListener("input", () => {
   input.style.height = Math.min(input.scrollHeight, 160) + "px";
 });
 
-// --- Voice input (STT) — Push to talk ---
+// --- Voice input (STT) ---
 const micBtn = document.getElementById("mic-btn");
 let recognition = null;
+let isRecording = false;
 
-if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.lang = "de-DE";
-  recognition.interimResults = false;
-  recognition.continuous = false;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-  recognition.onresult = (e) => {
-    input.value = e.results[0][0].transcript;
-    input.style.height = "44px";
-    input.style.height = Math.min(input.scrollHeight, 160) + "px";
-  };
-  recognition.onend = () => micBtn.classList.remove("recording");
-  recognition.onerror = () => micBtn.classList.remove("recording");
-
-  const startRec = () => { recognition.start(); micBtn.classList.add("recording"); };
-  const stopRec  = () => { recognition.stop(); };
-
-  micBtn.addEventListener("mousedown",  startRec);
-  micBtn.addEventListener("mouseup",    stopRec);
-  micBtn.addEventListener("mouseleave", stopRec);
-  micBtn.addEventListener("touchstart", (e) => { e.preventDefault(); startRec(); });
-  micBtn.addEventListener("touchend",   stopRec);
-  micBtn.title = "Hold to speak";
-} else {
-  micBtn.title = "Voice input not supported in this browser";
-  micBtn.style.opacity = "0.2";
-  micBtn.style.cursor = "default";
+function beep(frequency, duration, type = "sine", volume = 0.3) {
+  const osc  = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + duration);
 }
+
+function playStartSound() {
+  beep(440, 0.08);
+  setTimeout(() => beep(660, 0.12), 80);
+}
+
+function playStopSound() {
+  beep(660, 0.08);
+  setTimeout(() => beep(440, 0.12), 80);
+}
+
+let mediaRecorder = null;
+let audioChunks = [];
+
+async function startRecording() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+      return;
+  }
+  audioChunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+  mediaRecorder.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop());
+    const blob = new Blob(audioChunks, { type: "audio/webm" });
+    const form = new FormData();
+    form.append("audio", blob, "audio.webm");
+    try {
+      const res  = await fetch("/stt", { method: "POST", body: form });
+      const data = await res.json();
+      if (data.text) {
+        input.value = data.text;
+        input.style.height = "44px";
+        input.style.height = Math.min(input.scrollHeight, 160) + "px";
+        input.focus();
+      }
+    } catch { /* silent */ }
+    isRecording = false;
+    micBtn.classList.remove("recording");
+    micBtn.title = "Click to speak";
+  };
+  playStartSound();
+  mediaRecorder.start();
+  isRecording = true;
+  micBtn.classList.add("recording");
+  micBtn.title = "Click to stop";
+}
+
+micBtn.addEventListener("click", () => {
+  if (isRecording && mediaRecorder) {
+    playStopSound();
+    mediaRecorder.stop();
+  } else {
+    startRecording();
+  }
+});
 
 // --- Voice output (TTS) ---
 const ttsBtn = document.getElementById("tts-btn");
 let ttsEnabled = false;
 
-// voices load asynchronously — wait for them
-let voices = [];
-speechSynthesis.onvoiceschanged = () => { voices = speechSynthesis.getVoices(); };
-voices = speechSynthesis.getVoices();
+let currentAudio = null;
 
 ttsBtn.addEventListener("click", () => {
   ttsEnabled = !ttsEnabled;
   ttsBtn.textContent = ttsEnabled ? "🔊" : "🔇";
   ttsBtn.classList.toggle("active", ttsEnabled);
-  if (!ttsEnabled) speechSynthesis.cancel();
+  if (!ttsEnabled && currentAudio) { currentAudio.pause(); currentAudio = null; }
 });
 
-function speak(text) {
+async function speak(text) {
   if (!ttsEnabled) return;
-  speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  // prefer a German voice, fall back to whatever is available
-  const deVoice = voices.find(v => v.lang.startsWith("de"));
-  if (deVoice) utt.voice = deVoice;
-  utt.lang = deVoice ? deVoice.lang : "de-DE";
-  utt.rate = 1;
-  speechSynthesis.speak(utt);
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  try {
+    const res = await fetch("/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    currentAudio.play();
+    currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; };
+  } catch { /* silent */ }
 }
 
 // --- Drag & drop ---
