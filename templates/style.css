@@ -10,6 +10,137 @@ body {
   align-items: center;
 }
 
+/* --- Sidebar --- */
+
+#sidebar {
+  position: fixed;
+  top: 0;
+  left: -280px;
+  width: 280px;
+  height: 100%;
+  background: #111;
+  border-right: 1px solid #1e1e1e;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  transition: left 0.22s ease;
+}
+
+#sidebar.open { left: 0; }
+
+#sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1rem 0.85rem;
+  border-bottom: 1px solid #1e1e1e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+#new-chat-btn {
+  background: #2f6df5;
+  border: none;
+  border-radius: 0.5rem;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#new-chat-btn:hover { background: #1a5de0; }
+
+#session-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.4rem 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.session-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.session-item:hover { background: #1a1a1a; }
+.session-item.active { background: #1e2a40; }
+
+.session-title {
+  font-size: 0.875rem;
+  color: #bbb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-item.active .session-title { color: #e5e5e5; }
+
+.session-date {
+  font-size: 0.7rem;
+  color: #444;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.session-delete {
+  background: none;
+  border: none;
+  color: #444;
+  cursor: pointer;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.15rem 0.2rem;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.session-item:hover .session-delete { opacity: 1; }
+.session-delete:hover { color: #c0392b !important; }
+
+.session-empty {
+  color: #444;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+#sidebar-toggle {
+  position: fixed;
+  left: 0;
+  top: 0.7rem;
+  z-index: 51;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-left: none;
+  border-radius: 0 0.45rem 0.45rem 0;
+  color: #aaa;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  transition: left 0.22s ease, color 0.15s;
+}
+
+#sidebar-toggle:hover { color: #e5e5e5; }
+#sidebar-toggle.open { left: 280px; }
+
+/* --- Header --- */
+
 header {
   width: 100%;
   max-width: 720px;
@@ -21,6 +152,13 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+#header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-left: 2rem; /* Platz für den fixed Toggle-Button */
 }
 
 #header-right {

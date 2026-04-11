@@ -34,8 +34,20 @@ model = genai.GenerativeModel(
     system_instruction=load_system_prompt() or None,
 )
 
-messages, summary = history.load()
-chat = model.start_chat(history=history.build_initial_history(messages, summary))
+# Session management
+history.migrate_legacy()
+
+sessions = history.list_sessions()
+if sessions:
+    current_session = history.load_session(sessions[0]["id"])
+else:
+    current_session = history.create_session()
+
+chat = model.start_chat(
+    history=history.build_initial_history(
+        current_session["messages"], current_session["summary"]
+    )
+)
 
 app = Flask(
     __name__,
@@ -57,7 +69,7 @@ def get_config():
 
 @app.route("/config", methods=["POST"])
 def set_config():
-    global model, chat, messages, summary
+    global model, chat, current_session
     data = request.get_json()
     new_prompt = data.get("system_prompt", "").strip()
 
@@ -68,11 +80,68 @@ def set_config():
         "gemini-2.5-flash",
         system_instruction=new_prompt or None,
     )
-    messages, summary = history.load()
-    chat = model.start_chat(history=history.build_initial_history(messages, summary))
-
+    chat = model.start_chat(
+        history=history.build_initial_history(
+            current_session["messages"], current_session["summary"]
+        )
+    )
     return jsonify({"ok": True})
 
+
+# --- Session endpoints ---
+
+@app.route("/sessions", methods=["GET"])
+def get_sessions():
+    return jsonify({
+        "sessions": history.list_sessions(),
+        "current_id": current_session["id"],
+    })
+
+
+@app.route("/sessions/new", methods=["POST"])
+def new_session():
+    global current_session, chat
+    current_session = history.create_session()
+    chat = model.start_chat(history=[])
+    return jsonify({"id": current_session["id"]})
+
+
+@app.route("/sessions/<session_id>", methods=["GET"])
+def load_session_route(session_id):
+    global current_session, chat
+    session = history.load_session(session_id)
+    if not session:
+        return jsonify({"error": "Session not found"}), 404
+    current_session = session
+    chat = model.start_chat(
+        history=history.build_initial_history(session["messages"], session["summary"])
+    )
+    return jsonify({
+        "id": session["id"],
+        "title": session.get("title") or "",
+        "messages": session["messages"],
+    })
+
+
+@app.route("/sessions/<session_id>", methods=["DELETE"])
+def delete_session_route(session_id):
+    global current_session, chat
+    history.delete_session(session_id)
+    if current_session["id"] == session_id:
+        remaining = history.list_sessions()
+        if remaining:
+            current_session = history.load_session(remaining[0]["id"])
+        else:
+            current_session = history.create_session()
+        chat = model.start_chat(
+            history=history.build_initial_history(
+                current_session["messages"], current_session["summary"]
+            )
+        )
+    return jsonify({"ok": True, "current_id": current_session["id"]})
+
+
+# --- Helper functions ---
 
 def _parse_error(e: Exception) -> dict:
     msg = str(e)
@@ -93,6 +162,20 @@ def _parse_error(e: Exception) -> dict:
     return {"type": "generic", "title": "Something went wrong", "detail": msg}
 
 
+def _generate_title(user_msg: str, bot_msg: str) -> str:
+    prompt = (
+        "Generate a very short title (max 5 words, no quotes, no punctuation at the end) "
+        "for this conversation based on the first exchange. "
+        "Use the same language as the conversation. Respond with only the title.\n\n"
+        f"User: {user_msg[:300]}\n"
+        f"Assistant: {bot_msg[:300]}"
+    )
+    response = model.generate_content(prompt)
+    return response.text.strip().strip('"\'').strip()[:60]
+
+
+# --- Chat endpoint ---
+
 @app.route("/chat", methods=["POST"])
 def chat_endpoint():
     data = request.get_json()
@@ -103,10 +186,12 @@ def chat_endpoint():
     attached_file = data.get("attached_file")
 
     def generate():
-        global messages, summary
+        global current_session
+        is_first_message = len(current_session["messages"]) == 0
         full_reply = ""
         context = rag.retrieve(user_message, filename=attached_file)
         augmented = f"{context}\n\nUser: {user_message}" if context else user_message
+
         try:
             response = chat.send_message(augmented, stream=True)
             for chunk in response:
@@ -122,17 +207,29 @@ def chat_endpoint():
             })}\n\n"
         except Exception as e:
             yield f"event: error\ndata: {json.dumps(_parse_error(e))}\n\n"
-            return
-        finally:
             yield "data: \"[DONE]\"\n\n"
+            return
 
-        messages.append({"role": "user", "parts": [user_message]})  # save original, not augmented
-        messages.append({"role": "model", "parts": [full_reply]})
+        # Save messages
+        current_session["messages"].append({"role": "user", "parts": [user_message]})
+        current_session["messages"].append({"role": "model", "parts": [full_reply]})
 
-        if history.needs_summarization(messages):
-            messages, summary = history.summarize(messages, model)
+        if history.needs_summarization(current_session["messages"]):
+            new_msgs, new_summary = history.summarize(current_session["messages"], model)
+            current_session["messages"] = new_msgs
+            current_session["summary"] = new_summary
 
-        history.save(messages, summary)
+        # Generate title on first exchange
+        if is_first_message and full_reply:
+            try:
+                title = _generate_title(user_message, full_reply)
+                current_session["title"] = title
+                yield f"event: title\ndata: {json.dumps({'id': current_session['id'], 'title': title})}\n\n"
+            except Exception:
+                pass
+
+        history.save_session(current_session)
+        yield "data: \"[DONE]\"\n\n"
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")
 

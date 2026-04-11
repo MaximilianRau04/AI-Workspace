@@ -8,10 +8,24 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Sidebar toggle (fixed, slides with sidebar) -->
+  <button id="sidebar-toggle" title="Chat history">☰</button>
+
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <span>Chats</span>
+      <button id="new-chat-btn" title="New Chat">+</button>
+    </div>
+    <div id="session-list"></div>
+  </aside>
+
   <header>
-    <span>🤖 ChatBot</span>
+    <div id="header-left">
+      <span>🤖 ChatBot</span>
+    </div>
     <div id="header-right">
-      <div id="token-display" title="">
+      <div id="token-display" title="Token usage">
         <svg id="token-ring" viewBox="0 0 36 36" width="36" height="36">
           <circle cx="18" cy="18" r="15.9" fill="none" stroke="#2a2a2a" stroke-width="3.5"/>
           <circle id="token-arc" cx="18" cy="18" r="15.9" fill="none"

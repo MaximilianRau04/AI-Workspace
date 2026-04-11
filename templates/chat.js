@@ -95,6 +95,12 @@ async function sendMessage() {
           break;
         }
 
+        if (eventType === "title") {
+          updateSessionTitle(payload.id, payload.title);
+          eventType = "message";
+          continue;
+        }
+
         eventType = "message";
         if (payload === "[DONE]") {
           const plainText = bubble.textContent;
@@ -137,6 +143,160 @@ input.addEventListener("input", () => {
   input.style.height = "44px";
   input.style.height = Math.min(input.scrollHeight, 160) + "px";
 });
+
+// --- Sidebar ---
+
+const sidebarToggle  = document.getElementById("sidebar-toggle");
+const sidebar        = document.getElementById("sidebar");
+const newChatBtn     = document.getElementById("new-chat-btn");
+const sessionList    = document.getElementById("session-list");
+
+let currentSessionId = null;
+
+function openSidebar() {
+  sidebar.classList.add("open");
+  sidebarToggle.classList.add("open");
+  loadSessions();
+}
+
+function closeSidebar() {
+  sidebar.classList.remove("open");
+  sidebarToggle.classList.remove("open");
+}
+
+sidebarToggle.addEventListener("click", (e) => {
+  e.stopPropagation();
+  sidebar.classList.contains("open") ? closeSidebar() : openSidebar();
+});
+
+
+function formatDate(isoStr) {
+  if (!isoStr) return "";
+  const d = new Date(isoStr + "Z");
+  const now = new Date();
+  const diffMs = now - d;
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return "Heute";
+  if (diffDays === 1) return "Gestern";
+  if (diffDays < 7) return d.toLocaleDateString("de-DE", { weekday: "short" });
+  return d.toLocaleDateString("de-DE", { day: "numeric", month: "short" });
+}
+
+function renderSessionList(sessions, activeId) {
+  sessionList.innerHTML = "";
+  if (!sessions.length) {
+    const empty = document.createElement("div");
+    empty.className = "session-empty";
+    empty.textContent = "Noch keine Chats";
+    sessionList.appendChild(empty);
+    return;
+  }
+  for (const s of sessions) {
+    const item = document.createElement("div");
+    item.className = "session-item" + (s.id === activeId ? " active" : "");
+    item.dataset.id = s.id;
+
+    const titleEl = document.createElement("span");
+    titleEl.className = "session-title";
+    titleEl.textContent = s.title || "New Chat";
+
+    const dateEl = document.createElement("span");
+    dateEl.className = "session-date";
+    dateEl.textContent = formatDate(s.updated_at);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "session-delete";
+    deleteBtn.textContent = "✕";
+    deleteBtn.title = "Löschen";
+    deleteBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm("Diesen Chat löschen?")) return;
+      const res = await fetch(`/sessions/${s.id}`, { method: "DELETE" });
+      const data = await res.json();
+      currentSessionId = data.current_id;
+      if (data.current_id !== s.id) {
+        await renderCurrentSession(data.current_id);
+      }
+      loadSessions();
+    });
+
+    item.appendChild(titleEl);
+    item.appendChild(dateEl);
+    item.appendChild(deleteBtn);
+
+    item.addEventListener("click", async () => {
+      if (s.id === currentSessionId) return;
+      await switchSession(s.id);
+    });
+
+    sessionList.appendChild(item);
+  }
+}
+
+async function loadSessions() {
+  const res = await fetch("/sessions");
+  const data = await res.json();
+  currentSessionId = data.current_id;
+  renderSessionList(data.sessions, data.current_id);
+}
+
+async function switchSession(sessionId) {
+  const res = await fetch(`/sessions/${sessionId}`);
+  const data = await res.json();
+  currentSessionId = data.id;
+  chat.innerHTML = "";
+  renderMessages(data.messages);
+}
+
+async function renderCurrentSession(sessionId) {
+  const res = await fetch(`/sessions/${sessionId}`);
+  const data = await res.json();
+  chat.innerHTML = "";
+  renderMessages(data.messages);
+}
+
+function renderMessages(messages) {
+  for (const m of messages) {
+    if (m.role === "user") {
+      addBubble(m.parts[0], "user");
+    } else if (m.role === "model") {
+      const bubble = document.createElement("div");
+      bubble.className = "bubble bot";
+      bubble.innerHTML = marked.parse(m.parts[0]);
+      chat.appendChild(bubble);
+    }
+  }
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function updateSessionTitle(id, title) {
+  const item = sessionList.querySelector(`[data-id="${id}"]`);
+  if (item) {
+    const titleEl = item.querySelector(".session-title");
+    if (titleEl) titleEl.textContent = title;
+  }
+}
+
+newChatBtn.addEventListener("click", async () => {
+  const res = await fetch("/sessions/new", { method: "POST" });
+  const data = await res.json();
+  currentSessionId = data.id;
+  chat.innerHTML = "";
+  renderSessionList(await fetch("/sessions").then(r => r.json()).then(d => d.sessions), currentSessionId);
+  input.focus();
+});
+
+// On page load: show current session messages
+(async () => {
+  const res = await fetch("/sessions");
+  const data = await res.json();
+  currentSessionId = data.current_id;
+  if (currentSessionId) {
+    const sessRes = await fetch(`/sessions/${currentSessionId}`);
+    const sess = await sessRes.json();
+    renderMessages(sess.messages);
+  }
+})();
 
 // --- Voice input (STT) ---
 const micBtn = document.getElementById("mic-btn");
@@ -411,7 +571,6 @@ settingsBtn.addEventListener("click", async () => {
 settingsCancel.addEventListener("click", () => {
   settingsModal.hidden = true;
 });
-
 
 settingsSave.addEventListener("click", async () => {
   settingsSave.disabled = true;
