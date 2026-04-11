@@ -71,6 +71,38 @@ body {
   gap: 0.15rem;
 }
 
+#sidebar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #1e1e1e;
+  gap: 0.5rem;
+}
+
+#sidebar-username {
+  font-size: 0.8rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#logout-btn {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.2rem 0.3rem;
+  border-radius: 0.4rem;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+#logout-btn:hover { color: #e74c3c; background: #2a1010; }
+
 .session-item {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -280,6 +312,19 @@ header {
 }
 
 #settings-btn:hover { opacity: 1; }
+
+#header-logout-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+  padding: 0.2rem;
+  color: inherit;
+}
+
+#header-logout-btn:hover { opacity: 1; color: #e74c3c; }
 
 #settings-modal {
   position: fixed;
@@ -732,6 +777,9 @@ body.light .session-item.active .session-title { color: #111; }
 body.light .session-date { color: #bbb; }
 body.light .session-delete { color: #ccc; }
 body.light .session-empty { color: #bbb; }
+body.light #sidebar-footer { border-top-color: #e0e0e0; }
+body.light #sidebar-username { color: #aaa; }
+body.light #logout-btn { color: #bbb; }
 
 body.light .bubble.bot {
   background: #e8e8e8;

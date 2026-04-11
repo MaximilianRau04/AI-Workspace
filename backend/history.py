@@ -3,55 +3,34 @@ import os
 import uuid
 from datetime import datetime
 
-LEGACY_HISTORY_FILE = os.path.join(os.path.dirname(__file__), "..", "chat_history.json")
-CHATS_DIR = os.path.join(os.path.dirname(__file__), "..", "chats")
+CHATS_BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "chats")
 
 MAX_MESSAGES = 20
 KEEP_AFTER_SUMMARY = 10
 
 
-def _session_path(session_id: str) -> str:
-    return os.path.join(CHATS_DIR, f"{session_id}.json")
+def _chats_dir(user_id: str) -> str:
+    return os.path.join(CHATS_BASE_DIR, user_id)
+
+
+def _session_path(session_id: str, user_id: str) -> str:
+    return os.path.join(_chats_dir(user_id), f"{session_id}.json")
 
 
 def _now_iso() -> str:
     return datetime.utcnow().isoformat()
 
 
-def migrate_legacy() -> None:
-    """Migrate chat_history.json to chats/ directory if it exists."""
-    if not os.path.exists(LEGACY_HISTORY_FILE):
-        return
-    os.makedirs(CHATS_DIR, exist_ok=True)
-    if os.listdir(CHATS_DIR):
-        return  # already migrated
-    with open(LEGACY_HISTORY_FILE) as f:
-        data = json.load(f)
-    messages = data.get("messages", [])
-    summary = data.get("summary", "")
-    if not messages and not summary:
-        return
-    session = {
-        "id": str(uuid.uuid4()),
-        "title": "Vorheriges Gespräch",
-        "messages": messages,
-        "summary": summary,
-        "created_at": _now_iso(),
-        "updated_at": _now_iso(),
-    }
-    with open(_session_path(session["id"]), "w") as f:
-        json.dump(session, f, indent=2, ensure_ascii=False)
-
-
-def list_sessions() -> list:
-    """Return all sessions sorted by updated_at descending."""
-    os.makedirs(CHATS_DIR, exist_ok=True)
+def list_sessions(user_id: str) -> list:
+    """Return all sessions for a user, sorted by updated_at descending."""
+    d = _chats_dir(user_id)
+    os.makedirs(d, exist_ok=True)
     sessions = []
-    for fname in os.listdir(CHATS_DIR):
+    for fname in os.listdir(d):
         if not fname.endswith(".json"):
             continue
         try:
-            with open(os.path.join(CHATS_DIR, fname)) as f:
+            with open(os.path.join(d, fname), encoding="utf-8") as f:
                 data = json.load(f)
             sessions.append({
                 "id": data["id"],
@@ -64,23 +43,25 @@ def list_sessions() -> list:
     return sessions
 
 
-def load_session(session_id: str) -> dict | None:
-    path = _session_path(session_id)
+def load_session(session_id: str, user_id: str) -> dict | None:
+    path = _session_path(session_id, user_id)
     if not os.path.exists(path):
         return None
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_session(session: dict) -> None:
-    os.makedirs(CHATS_DIR, exist_ok=True)
+def save_session(session: dict, user_id: str) -> None:
+    d = _chats_dir(user_id)
+    os.makedirs(d, exist_ok=True)
     session["updated_at"] = _now_iso()
-    with open(_session_path(session["id"]), "w") as f:
+    with open(_session_path(session["id"], user_id), "w", encoding="utf-8") as f:
         json.dump(session, f, indent=2, ensure_ascii=False)
 
 
-def create_session() -> dict:
-    os.makedirs(CHATS_DIR, exist_ok=True)
+def create_session(user_id: str) -> dict:
+    d = _chats_dir(user_id)
+    os.makedirs(d, exist_ok=True)
     now = _now_iso()
     session = {
         "id": str(uuid.uuid4()),
@@ -90,28 +71,28 @@ def create_session() -> dict:
         "created_at": now,
         "updated_at": now,
     }
-    save_session(session)
+    save_session(session, user_id)
     return session
 
 
-def delete_session(session_id: str) -> None:
-    path = _session_path(session_id)
+def delete_session(session_id: str, user_id: str) -> None:
+    path = _session_path(session_id, user_id)
     if os.path.exists(path):
         os.remove(path)
 
 
 def build_initial_history(messages: list, summary: str) -> list:
     """Build history list for Gemini, prepending summary if present."""
-    history = []
+    hist = []
     if summary:
-        history.append({"role": "user", "parts": [
+        hist.append({"role": "user", "parts": [
             f"Here is a summary of our previous conversation:\n{summary}"
         ]})
-        history.append({"role": "model", "parts": [
+        hist.append({"role": "model", "parts": [
             "Understood. I'll keep that context in mind."
         ]})
-    history.extend(messages)
-    return history
+    hist.extend(messages)
+    return hist
 
 
 def needs_summarization(messages: list) -> bool:

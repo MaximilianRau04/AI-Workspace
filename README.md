@@ -1,11 +1,11 @@
 # ChatBot
 
-A simple terminal-based chatbot powered by Google Gemini (gemini-2.5-flash).
+A web-based chatbot powered by Google Gemini (gemini-2.5-flash) with user accounts, persistent chat history, voice in/out, and document RAG.
 
 ## Requirements
 
-- Python 3.8+
-- A [Google Gemini API key](https://aistudio.google.com/app/apikey) 
+- Python 3.10+
+- A [Google Gemini API key](https://aistudio.google.com/app/apikey)
 
 ## Setup
 
@@ -16,7 +16,7 @@ git clone https://github.com/your-username/ChatBot.git
 cd ChatBot
 ```
 
-**2. Create a virtual environment (recommended)**
+**2. Create a virtual environment**
 
 ```bash
 python -m venv venv
@@ -27,80 +27,88 @@ venv\Scripts\activate      # Windows
 **3. Install dependencies**
 
 ```bash
-pip install google-generativeai google-genai python-dotenv flask pypdf edge-tts
+pip install google-generativeai google-genai python-dotenv flask pypdf edge-tts SpeechRecognition pydub
 ```
 
 **4. Create a `.env` file**
 
-Create a file named `.env` in the project root and add your API key:
-
 ```
-GEMINI_API_KEY=your_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+SECRET_KEY=your_random_secret_key_here
 ```
 
-Never commit this file — it is already listed in `.gitignore`.
+Generate a secure `SECRET_KEY`:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Never commit `.env` — it is already listed in `.gitignore`.
 
 ## Usage
 
-### Terminal
-
 ```bash
-python src/chatbot.py
+python backend/app.py
 ```
 
-Type your message and press Enter. To exit, type `end`, `exit`, or `quit`.
+Open `http://localhost:5000` in your browser.
 
-### Web Interface
+You will be redirected to the login page. Register a new account and you're ready to chat.
 
-```bash
-python src/app.py
-```
+## Features
 
-Then open your browser and go to `http://localhost:5000`.
-
-The web interface uses Flask and serves a chat UI where you can talk to the bot directly in the browser.
-
-**Features:**
-- Streaming responses with typewriter effect
-- Voice input (click microphone button — Chrome/Edge only)
-- Voice output via [edge-tts](https://github.com/rany2/edge-tts) (Microsoft Neural Voices, requires internet)
-- Document upload for RAG (txt, md, pdf) via button or drag & drop
-- Persistent conversation history with auto-summarization
-- Configurable system prompt via the ⚙️ settings button
-- Token usage indicator in the header
+- **User accounts** — register & login with username / password; each user has their own isolated chat history
+- **Streaming responses** with typewriter effect
+- **Persistent chat sessions** with sidebar for switching between conversations
+- **Auto-summarization** — old messages are summarized automatically to keep context efficient
+- **Voice input** — click the microphone button (Chrome / Edge only)
+- **Voice output** — toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
+- **Document RAG** — upload `.txt`, `.md`, or `.pdf` files via button or drag & drop; the bot retrieves relevant passages automatically
+- **Configurable system prompt** — via the ⚙️ settings button
+- **Token usage indicator** — ring graph in the header
+- **Light / dark theme** toggle
 
 ## Project Structure
 
 ```
 ChatBot/
-├── src/
-│   ├── app.py              # Flask web server
-│   ├── chatbot.py          # Terminal chatbot
-│   ├── history.py          # Conversation persistence & summarization
-│   └── rag.py              # RAG: document indexing & retrieval
-├── templates/
-│   ├── index.html          # Chat UI
-│   ├── style.css           # Styles
-│   └── chat.js             # Frontend logic
+├── backend/
+│   ├── app.py              # Flask app: setup & blueprint registration
+│   ├── auth_store.py       # User storage (users.json, password hashing)
+│   ├── history.py          # Per-user session persistence & summarization
+│   ├── rag.py              # Document indexing & retrieval
+│   ├── state.py            # Per-user in-memory chat state
+│   ├── utils.py            # Shared helpers (login_required decorator)
+│   └── routes/
+│       ├── auth.py         # /login  /register  /logout  /me
+│       ├── chat.py         # /chat (streaming)
+│       ├── config.py       # /config
+│       ├── docs.py         # /docs  /docs/upload  /docs/delete
+│       ├── sessions.py     # /sessions  /sessions/new  /sessions/<id>
+│       └── voice.py        # /tts  /stt
+├── frontend/
+│   ├── index.html          # Main chat UI
+│   ├── login.html          # Login / register page
+│   ├── assets/
+│   │   └── style.css       # Styles (dark + light theme)
+│   └── modules/
+│       ├── main.js         # JS entry point
+│       ├── chat.js         # Streaming & message rendering
+│       ├── docs.js         # Document modal
+│       ├── settings.js     # System prompt modal & token display
+│       ├── sidebar.js      # Session list, logout
+│       └── voice.js        # Microphone & TTS
+├── chats/                  # Per-user chat sessions (not tracked by git)
 ├── docs/                   # Uploaded documents (not tracked by git)
+├── users.json              # User accounts (not tracked by git)
 ├── system_prompt.txt       # Editable system prompt
-├── .env                    # Your API key (not tracked by git)
-├── .gitignore
+├── .env                    # API key & secret key (not tracked by git)
 └── README.md
 ```
 
-## Using a Different AI Provider
-
-This chatbot uses Google Gemini by default, but you can swap it out for another provider (e.g. OpenAI, Anthropic, Mistral). You will need to:
-
-1. Install the corresponding SDK (e.g. `pip install openai`)
-2. Replace the `google.generativeai` import and API calls in `chatbot.py` with the provider's SDK
-3. Update the environment variable name in `.env` accordingly (e.g. `OPENAI_API_KEY`)
-
-The core chat loop logic stays the same — only the model initialization and `send_message` call need to be adapted.
-
 ## Security
 
-- The API key is stored in `.env` and never hardcoded in the source.
-- `.env` is excluded from version control via `.gitignore`.
-- If you accidentally expose your key, regenerate it immediately at [Google AI Studio](https://aistudio.google.com/app/apikey).
+- Passwords are hashed with `werkzeug.security` (PBKDF2 + salt) — never stored in plain text.
+- The Flask session is signed with `SECRET_KEY`; use a long random value in production.
+- `GEMINI_API_KEY` and `SECRET_KEY` live in `.env` and are excluded from version control.
+- If you accidentally expose your Gemini key, regenerate it at [Google AI Studio](https://aistudio.google.com/app/apikey).

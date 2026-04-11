@@ -5,3 +5,4 @@ chat_history.json
 rag_index.json
 docs/
 chats/
+users.json

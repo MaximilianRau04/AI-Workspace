@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChatBot</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
   <!-- Sidebar toggle (fixed, slides with sidebar) -->
@@ -21,6 +21,10 @@
       <button id="new-chat-btn" title="New Chat">+</button>
     </div>
     <div id="session-list"></div>
+    <div id="sidebar-footer">
+      <span id="sidebar-username"></span>
+      <button id="logout-btn" title="Log out">⏻</button>
+    </div>
   </aside>
 
   <header>
@@ -40,6 +44,7 @@
       </div>
       <button id="tts-btn" title="Toggle voice output">🔇</button>
       <button id="settings-btn" title="System Prompt">⚙️</button>
+      <button id="header-logout-btn" title="Abmelden">⏻</button>
     </div>
   </header>
 
@@ -91,6 +96,15 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js"></script>
-  <script type="module" src="main.js"></script>
+  <script type="module" src="modules/main.js"></script>
+  <script>
+    // Redirect to login on 401 from any fetch
+    const _origFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const res = await _origFetch(...args);
+      if (res.status === 401) { window.location.href = "/login"; }
+      return res;
+    };
+  </script>
 </body>
 </html>

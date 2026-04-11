@@ -1,10 +1,12 @@
 import { renderMessages, resetForNewSession } from './chat.js';
 
-const sidebarToggle = document.getElementById("sidebar-toggle");
-const sidebar       = document.getElementById("sidebar");
-const newChatBtn    = document.getElementById("new-chat-btn");
-const sessionList   = document.getElementById("session-list");
-const input         = document.getElementById("user-input");
+const sidebarToggle   = document.getElementById("sidebar-toggle");
+const sidebar         = document.getElementById("sidebar");
+const newChatBtn      = document.getElementById("new-chat-btn");
+const sessionList     = document.getElementById("session-list");
+const input           = document.getElementById("user-input");
+const sidebarUsername = document.getElementById("sidebar-username");
+const logoutBtn       = document.getElementById("logout-btn");
 
 let currentSessionId = null;
 
@@ -123,9 +125,23 @@ newChatBtn.addEventListener("click", async () => {
   input.focus();
 });
 
+// --- Logout ---
+
+async function logout() {
+  await fetch("/logout", { method: "POST" });
+  window.location.href = "/login";
+}
+
+logoutBtn.addEventListener("click", logout);
+document.getElementById("header-logout-btn").addEventListener("click", logout);
+
 // --- Init (page load) ---
 
 export async function initSidebar() {
+  const meRes  = await fetch("/me");
+  const meData = await meRes.json();
+  if (sidebarUsername) sidebarUsername.textContent = meData.username ?? "";
+
   const res  = await fetch("/sessions");
   const data = await res.json();
   currentSessionId = data.current_id;
