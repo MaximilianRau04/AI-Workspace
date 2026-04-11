@@ -11,6 +11,9 @@
   <!-- Sidebar toggle (fixed, slides with sidebar) -->
   <button id="sidebar-toggle" title="Chat history">☰</button>
 
+  <!-- Theme toggle (fixed, far right) -->
+  <button id="theme-btn" title="Theme wechseln">☀️</button>
+
   <!-- Sidebar -->
   <aside id="sidebar">
     <div id="sidebar-header">
@@ -22,7 +25,7 @@
 
   <header>
     <div id="header-left">
-      <span>🤖 ChatBot</span>
+      <span>ChatBot</span>
     </div>
     <div id="header-right">
       <div id="token-display" title="Token usage">
@@ -68,6 +71,11 @@
 
   <div id="chat"></div>
 
+  <div id="edit-indicator" hidden>
+    <span>Nachricht bearbeiten</span>
+    <button id="edit-cancel" title="Abbrechen">✕</button>
+  </div>
+
   <div id="attachment-bar" hidden>
     <span id="attachment-name"></span>
     <button id="attachment-remove">✕</button>
@@ -82,7 +90,7 @@
     <button id="stop-btn" hidden>&#9646;&#9646;</button>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="chat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>

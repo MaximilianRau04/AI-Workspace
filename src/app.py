@@ -178,12 +178,22 @@ def _generate_title(user_msg: str, bot_msg: str) -> str:
 
 @app.route("/chat", methods=["POST"])
 def chat_endpoint():
+    global current_session, chat
     data = request.get_json()
     user_message = data.get("message", "").strip()
     if not user_message:
         return jsonify({"error": "Empty message"}), 400
 
     attached_file = data.get("attached_file")
+    pair_index = data.get("pair_index")  # set when editing an existing message
+
+    if pair_index is not None:
+        current_session["messages"] = current_session["messages"][:pair_index * 2]
+        chat = model.start_chat(
+            history=history.build_initial_history(
+                current_session["messages"], current_session["summary"]
+            )
+        )
 
     def generate():
         global current_session

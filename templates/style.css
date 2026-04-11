@@ -15,7 +15,7 @@ body {
 #sidebar {
   position: fixed;
   top: 0;
-  left: -280px;
+  left: 0;
   width: 280px;
   height: 100%;
   background: #111;
@@ -23,10 +23,16 @@ body {
   z-index: 50;
   display: flex;
   flex-direction: column;
-  transition: left 0.22s ease;
+  transform: translateX(-100%);
+  box-shadow: none;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.28s ease;
 }
 
-#sidebar.open { left: 0; }
+#sidebar.open {
+  transform: translateX(0);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.55);
+}
 
 #sidebar-header {
   display: flex;
@@ -101,7 +107,7 @@ body {
   border: none;
   color: #444;
   cursor: pointer;
-  font-size: 0.72rem;
+  font-size: 1rem;
   line-height: 1;
   padding: 0.15rem 0.2rem;
   opacity: 0;
@@ -133,11 +139,11 @@ body {
   line-height: 1;
   padding: 0.45rem 0.6rem;
   cursor: pointer;
-  transition: left 0.22s ease, color 0.15s;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s;
 }
 
 #sidebar-toggle:hover { color: #e5e5e5; }
-#sidebar-toggle.open { left: 280px; }
+#sidebar-toggle.open { transform: translateX(280px) rotate(90deg); }
 
 /* --- Header --- */
 
@@ -362,8 +368,55 @@ header {
   scroll-behavior: smooth;
 }
 
+/* --- Message wrappers --- */
+
+.user-wrap {
+  align-self: flex-end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  max-width: 82%;
+}
+
+.bot-wrap {
+  align-self: flex-start;
+  max-width: 82%;
+}
+
+/* Action button group */
+.msg-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 0.15rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.user-wrap:hover .msg-actions,
+.bot-wrap:hover .msg-actions { opacity: 1; }
+
+.bot-wrap .msg-actions {
+  margin-top: 0.25rem;
+}
+
+.msg-action-btn {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 1.5rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.4rem;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.msg-action-btn:hover { color: #ccc; background: #2a2a2a; }
+
+/* --- Bubbles --- */
+
 .bubble {
-  max-width: 80%;
   padding: 0.75rem 1rem;
   border-radius: 1.2rem;
   line-height: 1.55;
@@ -373,14 +426,12 @@ header {
 }
 
 .bubble.user {
-  align-self: flex-end;
   background: #2f6df5;
   color: #fff;
   border-bottom-right-radius: 0.3rem;
 }
 
 .bubble.bot {
-  align-self: flex-start;
   background: #1e1e1e;
   color: #e5e5e5;
   border-bottom-left-radius: 0.3rem;
@@ -492,6 +543,7 @@ header {
   padding: 1rem;
   border-top: 1px solid #1e1e1e;
   display: flex;
+  align-items: flex-end;
   gap: 0.6rem;
 }
 
@@ -507,11 +559,38 @@ header {
   resize: none;
   height: 44px;
   max-height: 160px;
-  overflow-y: auto;
+  overflow-y: hidden;
   line-height: 1.5;
 }
 
 #user-input:focus { border-color: #2f6df5; }
+#user-input.editing { border-color: #e67e22; }
+
+#edit-indicator {
+  width: 100%;
+  max-width: 720px;
+  padding: 0.35rem 1rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #e67e22;
+}
+
+#edit-indicator[hidden] { display: none; }
+
+#edit-indicator button {
+  background: none;
+  border: none;
+  color: #e67e22;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  opacity: 0.7;
+  line-height: 1;
+}
+
+#edit-indicator button:hover { opacity: 1; }
 
 #tts-btn {
   background: none;
@@ -578,6 +657,7 @@ header {
   border-radius: 0.8rem;
   color: #fff;
   padding: 0 1.1rem;
+  min-height: 44px;
   font-size: 1.1rem;
   cursor: pointer;
   transition: background 0.15s;
@@ -593,6 +673,7 @@ header {
   border-radius: 0.8rem;
   color: #e5e5e5;
   padding: 0 1.1rem;
+  min-height: 44px;
   font-size: 1rem;
   cursor: pointer;
   transition: background 0.15s;
@@ -618,6 +699,133 @@ header {
   padding: 0.75rem;
   border-radius: 0.5rem;
   overflow-x: auto;
-  margin: 0.4rem 0;
+  margin: 0;
 }
 .bubble.bot pre code { background: none; padding: 0; }
+
+
+/* ===================== Light Mode ===================== */
+
+body.light { background: #f5f5f5; color: #111; }
+
+body.light header { border-bottom-color: #e0e0e0; }
+
+body.light #sidebar {
+  background: #fafafa;
+  border-right-color: #e0e0e0;
+}
+body.light #sidebar-header {
+  border-bottom-color: #e0e0e0;
+  color: #aaa;
+}
+body.light #sidebar-toggle {
+  background: #fff;
+  border-color: #ddd;
+  color: #666;
+}
+body.light #sidebar-toggle:hover { color: #111; }
+
+body.light .session-item:hover { background: #efefef; }
+body.light .session-item.active { background: #ddeaff; }
+body.light .session-title { color: #444; }
+body.light .session-item.active .session-title { color: #111; }
+body.light .session-date { color: #bbb; }
+body.light .session-delete { color: #ccc; }
+body.light .session-empty { color: #bbb; }
+
+body.light .bubble.bot {
+  background: #e8e8e8;
+  color: #111;
+}
+body.light .bubble.bot strong { color: #000; }
+body.light .bubble.bot code { background: #d4d4d4; }
+body.light .bubble.bot pre { background: #f0f0f0; }
+
+body.light #user-input {
+  background: #fff;
+  border-color: #d5d5d5;
+  color: #111;
+}
+
+body.light #input-area { border-top-color: #e0e0e0; }
+
+body.light #attachment-name {
+  background: #efefef;
+  border-color: #ddd;
+  color: #555;
+}
+
+body.light #token-ring circle:first-child { stroke: #ddd; }
+body.light #token-label { color: #777; }
+
+body.light #settings-box,
+body.light #docs-box {
+  background: #fff;
+  border-color: #e0e0e0;
+}
+body.light #system-prompt-input {
+  background: #f5f5f5;
+  border-color: #ddd;
+  color: #111;
+}
+body.light #settings-cancel { background: #e8e8e8; color: #111; }
+body.light #settings-cancel:hover { background: #ddd; }
+
+body.light #docs-list li {
+  background: #f5f5f5;
+  border-color: #ddd;
+  color: #333;
+}
+
+body.light #drop-overlay span {
+  background: #fff;
+}
+
+body.light .msg-action-btn { color: #bbb; }
+body.light .msg-action-btn:hover { color: #333; background: #e0e0e0; }
+
+body.light #stop-btn { background: #ddd; color: #333; }
+body.light #stop-btn:hover { background: #c0392b; color: #fff; }
+
+#theme-btn {
+  position: fixed;
+  right: 0;
+  top: 0.7rem;
+  z-index: 51;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-right: none;
+  border-radius: 0.45rem 0 0 0.45rem;
+  color: #aaa;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.15s;
+}
+#theme-btn:hover { color: #e5e5e5; }
+body.light #theme-btn {
+  background: #fff;
+  border-color: #ddd;
+  color: #666;
+}
+body.light #theme-btn:hover { color: #111; }
+
+@keyframes theme-spin {
+  0%   { transform: scale(1)    rotate(0deg); }
+  40%  { transform: scale(1.35) rotate(200deg); }
+  100% { transform: scale(1)    rotate(360deg); }
+}
+
+#theme-btn.spinning { animation: theme-spin 0.45s ease; }
+
+/* Smooth color transition when switching themes */
+body,
+#sidebar, #sidebar-toggle, #sidebar-header,
+.session-item, .session-title,
+header, #settings-box, #docs-box,
+.bubble.bot, #user-input, #attachment-name,
+#stop-btn, #system-prompt-input,
+#docs-list li {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
