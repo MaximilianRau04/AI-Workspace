@@ -6,6 +6,7 @@
   <title>ChatBot</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="assets/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
 </head>
 <body>
   <!-- Sidebar toggle (fixed, slides with sidebar) -->
@@ -77,8 +78,8 @@
   <div id="chat"></div>
 
   <div id="edit-indicator" hidden>
-    <span>Nachricht bearbeiten</span>
-    <button id="edit-cancel" title="Abbrechen">✕</button>
+    <span>edit message</span>
+    <button id="edit-cancel" title="Cancel">✕</button>
   </div>
 
   <div id="attachment-bar" hidden>
@@ -95,7 +96,8 @@
     <button id="stop-btn" hidden>&#9646;&#9646;</button>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
   <script type="module" src="modules/main.js"></script>
   <script>
     // Redirect to login on 401 from any fetch

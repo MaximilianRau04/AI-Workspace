@@ -126,20 +126,34 @@ export function addBotWrap(pairIndex) {
   const bubble = document.createElement("div");
   bubble.className = "bubble bot";
 
-  const actions = document.createElement("div");
-  actions.className = "msg-actions";
-
-  const copyBtn = makeActionBtn("⧉", "Copy");
-  copyBtn.addEventListener("click", () =>
-    flashCopy(copyBtn, () => bubble.dataset.plain || bubble.innerText)
-  );
-  actions.appendChild(copyBtn);
-
   wrap.appendChild(bubble);
-  wrap.appendChild(actions);
   chatEl.appendChild(wrap);
   chatEl.scrollTop = chatEl.scrollHeight;
   return wrap;
+}
+
+function addCodeCopyButtons(bubble) {
+  bubble.querySelectorAll("pre").forEach(pre => {
+    if (pre.parentElement.classList.contains("code-block-wrap")) return;
+
+    // Syntax highlighting
+    const codeEl = pre.querySelector("code");
+    if (codeEl && typeof hljs !== "undefined") {
+      hljs.highlightElement(codeEl);
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "code-block-wrap";
+    pre.replaceWith(wrap);
+    wrap.appendChild(pre);
+
+    const btn = document.createElement("button");
+    btn.className = "code-copy-btn";
+    btn.title = "Copy";
+    btn.textContent = "⧉";
+    btn.addEventListener("click", () => flashCopy(btn, () => pre.innerText));
+    wrap.appendChild(btn);
+  });
 }
 
 export function setStreaming(active) {
@@ -157,8 +171,15 @@ export function renderMessages(messages) {
     if (messages[i + 1]) {
       const bw = addBotWrap(pairIdx);
       const b  = bw.querySelector(".bubble.bot");
-      b.dataset.plain = messages[i + 1].parts[0];
-      b.innerHTML = marked.parse(messages[i + 1].parts[0]);
+      const plain = messages[i + 1].parts[0];
+      b.dataset.plain = plain;
+      try {
+        b.innerHTML = marked.parse(plain);
+        addCodeCopyButtons(b);
+      } catch (e) {
+        console.error("Render error:", e);
+        b.textContent = plain;
+      }
 
     }
   }
@@ -259,6 +280,7 @@ export async function sendMessage() {
           bubble.dataset.plain = plainText;
           try {
             bubble.innerHTML = marked.parse(plainText);
+            addCodeCopyButtons(bubble);
           } catch (e) {
             console.error("Render error:", e);
             bubble.textContent = plainText;

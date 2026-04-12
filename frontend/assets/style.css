@@ -11,7 +11,6 @@ body {
 }
 
 /* --- Sidebar --- */
-
 #sidebar {
   position: fixed;
   top: 0;
@@ -178,7 +177,6 @@ body {
 #sidebar-toggle.open { transform: translateX(280px) rotate(90deg); }
 
 /* --- Header --- */
-
 header {
   width: 100%;
   max-width: 720px;
@@ -196,7 +194,7 @@ header {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding-left: 2rem; /* Platz für den fixed Toggle-Button */
+  padding-left: 2rem; 
 }
 
 #header-right {
@@ -414,7 +412,6 @@ header {
 }
 
 /* --- Message wrappers --- */
-
 .user-wrap {
   align-self: flex-end;
   display: flex;
@@ -460,7 +457,6 @@ header {
 .msg-action-btn:hover { color: #ccc; background: #2a2a2a; }
 
 /* --- Bubbles --- */
-
 .bubble {
   padding: 0.75rem 1rem;
   border-radius: 1.2rem;
@@ -739,18 +735,45 @@ header {
   border-radius: 0.3rem;
   font-size: 0.875em;
 }
+.code-block-wrap {
+  position: relative;
+  margin: 0.5rem 0;
+}
+
+.code-block-wrap:hover .code-copy-btn { opacity: 1; }
+
+.code-copy-btn {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  opacity: 0;
+  background: #3a3a3a;
+  border: none;
+  border-radius: 0.3rem;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  line-height: 1.4;
+}
+.code-copy-btn:hover { color: #fff; background: #555; }
+
 .bubble.bot pre {
-  background: #2a2a2a;
-  padding: 0.75rem;
+  padding: 0;
   border-radius: 0.5rem;
-  overflow-x: auto;
+  overflow: hidden;
   margin: 0;
 }
-.bubble.bot pre code { background: none; padding: 0; }
-
+.bubble.bot pre code {
+  display: block;
+  padding: 0.75rem !important;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background: #0d1117 !important; /* github-dark fallback before hljs loads */
+}
 
 /* ===================== Light Mode ===================== */
-
 body.light { background: #f5f5f5; color: #111; }
 
 body.light header { border-bottom-color: #e0e0e0; }
@@ -787,7 +810,10 @@ body.light .bubble.bot {
 }
 body.light .bubble.bot strong { color: #000; }
 body.light .bubble.bot code { background: #d4d4d4; }
-body.light .bubble.bot pre { background: #f0f0f0; }
+body.light .bubble.bot pre { background: transparent; }
+body.light .bubble.bot pre code { background: #0d1117 !important; } /* keep dark code blocks in light mode */
+body.light .code-copy-btn { background: #ddd; color: #666; }
+body.light .code-copy-btn:hover { background: #bbb; color: #111; }
 
 body.light #user-input {
   background: #fff;
