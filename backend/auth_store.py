@@ -1,52 +1,43 @@
-import json
-import os
+import sqlite3
 import uuid
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-USERS_FILE = os.path.join(os.path.dirname(__file__), "..", "users.json")
-
-
-def _load() -> dict:
-    if not os.path.exists(USERS_FILE):
-        return {}
-    with open(USERS_FILE, encoding="utf-8") as f:
-        return json.load(f)
-
-
-def _save(data: dict) -> None:
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+import db
 
 
 def register(username: str, password: str) -> dict | None:
     """Create a new user. Returns user dict on success, None if username taken."""
     if not username or not password:
         return None
-    data = _load()
-    for user in data.values():
-        if user["username"].lower() == username.lower():
-            return None
     user_id = str(uuid.uuid4())
-    user = {
-        "id": user_id,
-        "username": username,
-        "password_hash": generate_password_hash(password),
-    }
-    data[user_id] = user
-    _save(data)
-    return user
+    try:
+        with db.get_conn() as conn:
+            conn.execute(
+                "INSERT INTO users (id, username, password_hash) VALUES (?, ?, ?)",
+                (user_id, username, generate_password_hash(password)),
+            )
+        return {"id": user_id, "username": username}
+    except sqlite3.IntegrityError:
+        return None
 
 
 def authenticate(username: str, password: str) -> dict | None:
     """Return user dict if credentials are valid, None otherwise."""
-    data = _load()
-    for user in data.values():
-        if user["username"].lower() == username.lower():
-            if check_password_hash(user["password_hash"], password):
-                return user
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, username, password_hash FROM users WHERE username = ? COLLATE NOCASE",
+            (username,),
+        ).fetchone()
+    if row and check_password_hash(row["password_hash"], password):
+        return {"id": row["id"], "username": row["username"]}
     return None
 
 
 def get_user(user_id: str) -> dict | None:
-    return _load().get(user_id)
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, username FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    return {"id": row["id"], "username": row["username"]} if row else None

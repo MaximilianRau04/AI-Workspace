@@ -1,6 +1,6 @@
 # ChatBot
 
-A web-based chatbot powered by Google Gemini (gemini-2.5-flash) with user accounts, persistent chat history, voice in/out, and document RAG.
+A web-based chatbot powered by Google Gemini (gemini-2.5-flash) with user accounts, persistent chat history, voice in/out, document RAG, and syntax highlighting.
 
 ## Requirements
 
@@ -61,6 +61,7 @@ You will be redirected to the login page. Register a new account and you're read
 - **Streaming responses** with typewriter effect
 - **Persistent chat sessions** with sidebar for switching between conversations
 - **Auto-summarization** — old messages are summarized automatically to keep context efficient
+- **Syntax highlighting** — code blocks are highlighted via highlight.js
 - **Voice input** — click the microphone button (Chrome / Edge only)
 - **Voice output** — toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** — upload `.txt`, `.md`, or `.pdf` files via button or drag & drop; the bot retrieves relevant passages automatically
@@ -74,7 +75,8 @@ You will be redirected to the login page. Register a new account and you're read
 ChatBot/
 ├── backend/
 │   ├── app.py              # Flask app: setup & blueprint registration
-│   ├── auth_store.py       # User storage (users.json, password hashing)
+│   ├── auth_store.py       # User storage (SQLite, password hashing)
+│   ├── db.py               # SQLite connection & schema initialization
 │   ├── history.py          # Per-user session persistence & summarization
 │   ├── rag.py              # Document indexing & retrieval
 │   ├── state.py            # Per-user in-memory chat state
@@ -98,9 +100,9 @@ ChatBot/
 │       ├── settings.js     # System prompt modal & token display
 │       ├── sidebar.js      # Session list, logout
 │       └── voice.js        # Microphone & TTS
-├── chats/                  # Per-user chat sessions (not tracked by git)
 ├── docs/                   # Uploaded documents (not tracked by git)
-├── users.json              # User accounts (not tracked by git)
+├── chatbot.db              # SQLite database — users & chats (not tracked by git)
+├── rag_index.json          # Document embeddings (not tracked by git)
 ├── system_prompt.txt       # Editable system prompt
 ├── .env                    # API key & secret key (not tracked by git)
 └── README.md
@@ -108,7 +110,8 @@ ChatBot/
 
 ## Security
 
-- Passwords are hashed with `werkzeug.security` (PBKDF2 + salt) — never stored in plain text.
+- Passwords are hashed with `werkzeug.security` (scrypt + salt) — never stored in plain text.
 - The Flask session is signed with `SECRET_KEY`; use a long random value in production.
 - `GEMINI_API_KEY` and `SECRET_KEY` live in `.env` and are excluded from version control.
+- `chatbot.db` contains user data and chat history — never commit it to version control.
 - If you accidentally expose your Gemini key, regenerate it at [Google AI Studio](https://aistudio.google.com/app/apikey).

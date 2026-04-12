@@ -1,73 +1,97 @@
-import json
-import os
 import uuid
 from datetime import datetime
 
-CHATS_BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "chats")
+import db
 
 MAX_MESSAGES = 20
 KEEP_AFTER_SUMMARY = 10
-
-
-def _chats_dir(user_id: str) -> str:
-    return os.path.join(CHATS_BASE_DIR, user_id)
-
-
-def _session_path(session_id: str, user_id: str) -> str:
-    return os.path.join(_chats_dir(user_id), f"{session_id}.json")
 
 
 def _now_iso() -> str:
     return datetime.utcnow().isoformat()
 
 
+def _load_messages(conn, session_id: str) -> list:
+    rows = conn.execute(
+        "SELECT role, content FROM messages WHERE session_id = ? ORDER BY position",
+        (session_id,),
+    ).fetchall()
+    return [{"role": r["role"], "parts": [r["content"]]} for r in rows]
+
+
+def _row_to_session(row, messages: list) -> dict:
+    return {
+        "id":         row["id"],
+        "user_id":    row["user_id"],
+        "title":      row["title"] or "",
+        "summary":    row["summary"] or "",
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "messages":   messages,
+    }
+
+
+# ---------------------------------------------------------------------------
+
 def list_sessions(user_id: str) -> list:
     """Return all sessions for a user, sorted by updated_at descending."""
-    d = _chats_dir(user_id)
-    os.makedirs(d, exist_ok=True)
-    sessions = []
-    for fname in os.listdir(d):
-        if not fname.endswith(".json"):
-            continue
-        try:
-            with open(os.path.join(d, fname), encoding="utf-8") as f:
-                data = json.load(f)
-            sessions.append({
-                "id": data["id"],
-                "title": data.get("title") or "",
-                "updated_at": data.get("updated_at", ""),
-            })
-        except (json.JSONDecodeError, KeyError):
-            continue
-    sessions.sort(key=lambda s: s["updated_at"], reverse=True)
-    return sessions
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, title, updated_at FROM sessions"
+            " WHERE user_id = ? ORDER BY updated_at DESC",
+            (user_id,),
+        ).fetchall()
+    return [{"id": r["id"], "title": r["title"] or "", "updated_at": r["updated_at"]}
+            for r in rows]
 
 
 def load_session(session_id: str, user_id: str) -> dict | None:
-    path = _session_path(session_id, user_id)
-    if not os.path.exists(path):
-        return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM sessions WHERE id = ? AND user_id = ?",
+            (session_id, user_id),
+        ).fetchone()
+        if not row:
+            return None
+        messages = _load_messages(conn, session_id)
+    return _row_to_session(row, messages)
 
 
 def save_session(session: dict, user_id: str) -> None:
-    d = _chats_dir(user_id)
-    os.makedirs(d, exist_ok=True)
-    session["updated_at"] = _now_iso()
-    with open(_session_path(session["id"], user_id), "w", encoding="utf-8") as f:
-        json.dump(session, f, indent=2, ensure_ascii=False)
+    now = _now_iso()
+    session["updated_at"] = now
+    created_at = session.get("created_at", now)
+
+    with db.get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO sessions (id, user_id, title, summary, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                title      = excluded.title,
+                summary    = excluded.summary,
+                updated_at = excluded.updated_at
+            """,
+            (session["id"], user_id, session.get("title", ""),
+             session.get("summary", ""), created_at, now),
+        )
+        conn.execute("DELETE FROM messages WHERE session_id = ?", (session["id"],))
+        for i, msg in enumerate(session.get("messages", [])):
+            conn.execute(
+                "INSERT INTO messages (session_id, role, content, position)"
+                " VALUES (?, ?, ?, ?)",
+                (session["id"], msg["role"], msg["parts"][0], i),
+            )
 
 
 def create_session(user_id: str) -> dict:
-    d = _chats_dir(user_id)
-    os.makedirs(d, exist_ok=True)
     now = _now_iso()
     session = {
-        "id": str(uuid.uuid4()),
-        "title": "",
-        "messages": [],
-        "summary": "",
+        "id":         str(uuid.uuid4()),
+        "user_id":    user_id,
+        "title":      "",
+        "messages":   [],
+        "summary":    "",
         "created_at": now,
         "updated_at": now,
     }
@@ -76,10 +100,14 @@ def create_session(user_id: str) -> dict:
 
 
 def delete_session(session_id: str, user_id: str) -> None:
-    path = _session_path(session_id, user_id)
-    if os.path.exists(path):
-        os.remove(path)
+    with db.get_conn() as conn:
+        conn.execute(
+            "DELETE FROM sessions WHERE id = ? AND user_id = ?",
+            (session_id, user_id),
+        )
 
+
+# ---------------------------------------------------------------------------
 
 def build_initial_history(messages: list, summary: str) -> list:
     """Build history list for Gemini, prepending summary if present."""
@@ -102,7 +130,7 @@ def needs_summarization(messages: list) -> bool:
 def summarize(messages: list, model) -> tuple[list, str]:
     """Summarize the oldest messages and return (remaining_messages, new_summary)."""
     to_summarize = messages[:-KEEP_AFTER_SUMMARY]
-    keep = messages[-KEEP_AFTER_SUMMARY:]
+    keep         = messages[-KEEP_AFTER_SUMMARY:]
 
     conversation_text = "\n".join(
         f"{m['role'].capitalize()}: {m['parts'][0]}" for m in to_summarize

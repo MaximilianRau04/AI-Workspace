@@ -5,6 +5,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from flask import Flask, redirect, render_template, url_for
 
+import db
 import rag
 from routes import auth, chat, config, docs, sessions, voice
 
@@ -36,6 +37,7 @@ app = Flask(
     static_url_path="",
 )
 app.secret_key = SECRET_KEY
+db.init_db()
 
 # Shared Gemini model (stateless config; per-user chat objects live in state.py)
 genai.configure(api_key=API_KEY)
