@@ -4,3 +4,5 @@ __pycache__/
 docs/
 rag_index.json
 chatbot.db
+chatbot.db-shm
+chatbot.db-wal

@@ -2,6 +2,8 @@
 
 A web-based chatbot powered by Google Gemini (gemini-2.5-flash) with user accounts, persistent chat history, voice in/out, document RAG, and syntax highlighting.
 
+> This is a browser-based app only — there is no CLI interface.
+
 ## Requirements
 
 - Python 3.10+
@@ -43,8 +45,6 @@ Generate a secure `SECRET_KEY`:
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Never commit `.env` — it is already listed in `.gitignore`.
-
 ## Usage
 
 ```bash
@@ -78,7 +78,7 @@ ChatBot/
 │   ├── auth_store.py       # User storage (SQLite, password hashing)
 │   ├── db.py               # SQLite connection & schema initialization
 │   ├── history.py          # Per-user session persistence & summarization
-│   ├── rag.py              # Document indexing & retrieval
+│   ├── rag.py              # Document indexing & retrieval (embeddings)
 │   ├── state.py            # Per-user in-memory chat state
 │   ├── utils.py            # Shared helpers (login_required decorator)
 │   └── routes/

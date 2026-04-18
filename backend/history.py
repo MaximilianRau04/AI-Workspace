@@ -30,9 +30,6 @@ def _row_to_session(row, messages: list) -> dict:
         "messages":   messages,
     }
 
-
-# ---------------------------------------------------------------------------
-
 def list_sessions(user_id: str) -> list:
     """Return all sessions for a user, sorted by updated_at descending."""
     with db.get_conn() as conn:
