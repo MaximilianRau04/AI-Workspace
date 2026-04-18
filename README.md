@@ -2,8 +2,6 @@
 
 A web-based chatbot powered by Google Gemini (gemini-2.5-flash) with user accounts, persistent chat history, voice in/out, document RAG, and syntax highlighting.
 
-> This is a browser-based app only — there is no CLI interface.
-
 ## Requirements
 
 - Python 3.10+
