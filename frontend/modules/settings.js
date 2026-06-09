@@ -20,7 +20,7 @@ export function updateTokenDisplay({ prompt, reply }) {
   tokenArc.setAttribute("stroke", color);
   const fmt = (n) => n >= 1000 ? (n / 1000).toFixed(1) + "k" : n;
   tokenLabel.textContent = `${fmt(prompt)} / 1M`;
-  tokenDisplay.title = `Context: ${prompt.toLocaleString("de-DE")} tokens\nReply: ${reply.toLocaleString("de-DE")} tokens\nLimit: 1,000,000 tokens`;
+  tokenDisplay.title = `Context: ${prompt.toLocaleString("en")} tokens\nReply: ${reply.toLocaleString("en")} tokens\nLimit: 1,000,000 tokens`;
 }
 
 // --- Theme ---

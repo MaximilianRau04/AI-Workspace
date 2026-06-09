@@ -12,8 +12,11 @@
   <!-- Sidebar toggle -->
   <button id="sidebar-toggle" title="Chat history">☰</button>
 
-  <!-- Theme toggle -->
-  <button id="theme-btn" title="Theme wechseln">☀️</button>
+  <!-- Top-right controls -->
+  <div id="top-right-fixed">
+    <button id="header-logout-btn" title="Log out">⏻</button>
+    <button id="theme-btn" title="Toggle theme">☀️</button>
+  </div>
 
   <!-- Sidebar -->
   <aside id="sidebar">
@@ -24,17 +27,39 @@
     <div id="session-list"></div>
     <div id="sidebar-footer">
       <span id="sidebar-username"></span>
-      <button id="logout-btn" title="Log out">⏻</button>
+      <button id="settings-btn" title="Settings">⚙️</button>
     </div>
   </aside>
 
-  <header>
-    <div id="header-left">
-      <span>ChatBot</span>
+  <main id="main-content">
+    <header>
+      <div id="header-left">
+        <span>ChatBot</span>
+      </div>
+      <div id="header-right">
+        <button id="tts-btn" title="Toggle voice output">🔇</button>
+      </div>
+    </header>
+
+    <div id="chat"></div>
+
+    <div id="edit-indicator" hidden>
+      <span>Editing message</span>
+      <button id="edit-cancel" title="Cancel">✕</button>
     </div>
-    <div id="header-right">
+
+    <div id="attachment-bar" hidden>
+      <span id="attachment-name"></span>
+      <button id="attachment-remove">✕</button>
+    </div>
+
+    <div id="input-area">
+      <button id="upload-btn" title="Attach document">📎</button>
+      <input type="file" id="upload-input" accept=".txt,.md,.pdf" hidden />
+      <textarea id="user-input" placeholder="Type a message…" rows="1"></textarea>
+      <button id="mic-btn" title="Voice input">🎤</button>
       <div id="token-display" title="Token usage">
-        <svg id="token-ring" viewBox="0 0 36 36" width="36" height="36">
+        <svg id="token-ring" viewBox="0 0 36 36" width="26" height="26">
           <circle cx="18" cy="18" r="15.9" fill="none" stroke="#2a2a2a" stroke-width="3.5"/>
           <circle id="token-arc" cx="18" cy="18" r="15.9" fill="none"
             stroke="#2f6df5" stroke-width="3.5"
@@ -43,11 +68,10 @@
         </svg>
         <span id="token-label">—</span>
       </div>
-      <button id="tts-btn" title="Toggle voice output">🔇</button>
-      <button id="settings-btn" title="System Prompt">⚙️</button>
-      <button id="header-logout-btn" title="Abmelden">⏻</button>
+      <button id="send-btn">&#9658;</button>
+      <button id="stop-btn" hidden>&#9646;&#9646;</button>
     </div>
-  </header>
+  </main>
 
   <div id="docs-modal" hidden>
     <div id="docs-box">
@@ -73,27 +97,6 @@
 
   <div id="drop-overlay" hidden>
     <span>Drop document here</span>
-  </div>
-
-  <div id="chat"></div>
-
-  <div id="edit-indicator" hidden>
-    <span>edit message</span>
-    <button id="edit-cancel" title="Cancel">✕</button>
-  </div>
-
-  <div id="attachment-bar" hidden>
-    <span id="attachment-name"></span>
-    <button id="attachment-remove">✕</button>
-  </div>
-
-  <div id="input-area">
-    <button id="upload-btn" title="Attach document">📎</button>
-    <input type="file" id="upload-input" accept=".txt,.md,.pdf" hidden />
-    <textarea id="user-input" placeholder="Type a message…" rows="1"></textarea>
-    <button id="mic-btn" title="Voice input">🎤</button>
-    <button id="send-btn">&#9658;</button>
-    <button id="stop-btn" hidden>&#9646;&#9646;</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

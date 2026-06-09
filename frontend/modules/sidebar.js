@@ -2,11 +2,11 @@ import { renderMessages, resetForNewSession } from './chat.js';
 
 const sidebarToggle   = document.getElementById("sidebar-toggle");
 const sidebar         = document.getElementById("sidebar");
+const mainContent     = document.getElementById("main-content");
 const newChatBtn      = document.getElementById("new-chat-btn");
 const sessionList     = document.getElementById("session-list");
 const input           = document.getElementById("user-input");
 const sidebarUsername = document.getElementById("sidebar-username");
-const logoutBtn       = document.getElementById("logout-btn");
 
 let currentSessionId = null;
 
@@ -15,12 +15,14 @@ let currentSessionId = null;
 export function openSidebar() {
   sidebar.classList.add("open");
   sidebarToggle.classList.add("open");
+  mainContent.classList.add("sidebar-open");
   loadSessions();
 }
 
 export function closeSidebar() {
   sidebar.classList.remove("open");
   sidebarToggle.classList.remove("open");
+  mainContent.classList.remove("sidebar-open");
 }
 
 sidebarToggle.addEventListener("click", (e) => {
@@ -36,8 +38,8 @@ function formatDate(isoStr) {
   const diffDays = Math.floor((Date.now() - d) / 86400000);
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7)  return d.toLocaleDateString("de-DE", { weekday: "short" });
-  return d.toLocaleDateString("de-DE", { day: "numeric", month: "short" });
+  if (diffDays < 7)  return d.toLocaleDateString("en", { weekday: "short" });
+  return d.toLocaleDateString("en", { day: "numeric", month: "short" });
 }
 
 async function loadAndRender(sessionId) {
@@ -54,7 +56,7 @@ export function renderSessionList(sessions, activeId) {
   if (!sessions.length) {
     const empty = document.createElement("div");
     empty.className = "session-empty";
-    empty.textContent = "Noch keine Chats";
+    empty.textContent = "No chats yet";
     sessionList.appendChild(empty);
     return;
   }
@@ -132,7 +134,6 @@ async function logout() {
   window.location.href = "/login";
 }
 
-logoutBtn.addEventListener("click", logout);
 document.getElementById("header-logout-btn").addEventListener("click", logout);
 
 // --- Init (page load) ---
