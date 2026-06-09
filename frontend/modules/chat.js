@@ -288,7 +288,10 @@ export async function sendMessage() {
   const botWrap = addBotWrap(pairIdx);
   const bubble  = botWrap.querySelector(".bubble.bot");
   bubble.innerHTML = '<span class="thinking-dots">Thinking<span>.</span><span>.</span><span>.</span></span>';
-  let streamStarted = false;
+  let streamStarted    = false;
+  let thinkingEl       = null;
+  let thinkingBody     = null;
+  let thinkingStart    = 0;
 
   currentPairIndex = pairIdx + 1;
   abortController  = new AbortController();
@@ -341,9 +344,35 @@ export async function sendMessage() {
           eventType = "message";
           continue;
         }
+        if (eventType === "thinking") {
+          if (!thinkingEl) {
+            thinkingStart = Date.now();
+            thinkingEl = document.createElement("details");
+            thinkingEl.className = "thinking-block streaming";
+            thinkingEl.open = true;
+            const summary = document.createElement("summary");
+            summary.className = "thinking-summary";
+            summary.innerHTML = '<span class="thinking-dot"></span><span class="thinking-label">Thinking…</span>';
+            thinkingBody = document.createElement("div");
+            thinkingBody.className = "thinking-body";
+            thinkingEl.appendChild(summary);
+            thinkingEl.appendChild(thinkingBody);
+            botWrap.insertBefore(thinkingEl, bubble);
+          }
+          thinkingBody.textContent += payload;
+          chatEl.scrollTop = chatEl.scrollHeight;
+          eventType = "message";
+          continue;
+        }
 
         eventType = "message";
         if (payload === "[DONE]") {
+          if (thinkingEl) {
+            thinkingEl.classList.remove("streaming");
+            const elapsed = Math.round((Date.now() - thinkingStart) / 1000);
+            const label = thinkingEl.querySelector(".thinking-label");
+            if (label) label.textContent = elapsed > 0 ? `Thought for ${elapsed}s` : "Thought";
+          }
           const plainText = bubble.textContent;
           bubble.dataset.plain = plainText;
           try {
@@ -357,12 +386,18 @@ export async function sendMessage() {
           stopped = true;
           break;
         }
-        for (const char of payload) {
-          if (abortController.signal.aborted) { stopped = true; break; }
-          if (!streamStarted) { bubble.textContent = ""; streamStarted = true; }
-          bubble.textContent += char;
+        if (!streamStarted) { bubble.textContent = ""; streamStarted = true; }
+        const charDelay = parseInt(localStorage.getItem("streamDelay") ?? "8");
+        if (charDelay === 0) {
+          bubble.textContent += payload;
           chatEl.scrollTop = chatEl.scrollHeight;
-          await new Promise(r => setTimeout(r, 8));
+        } else {
+          for (const char of payload) {
+            if (abortController.signal.aborted) { stopped = true; break; }
+            bubble.textContent += char;
+            chatEl.scrollTop = chatEl.scrollHeight;
+            await new Promise(r => setTimeout(r, charDelay));
+          }
         }
       }
     }

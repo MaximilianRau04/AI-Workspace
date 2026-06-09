@@ -6,10 +6,19 @@ const input  = document.getElementById("user-input");
 let ttsEnabled = false;
 let currentAudio = null;
 
+const ttsIconOn  = document.getElementById("tts-icon-on");
+const ttsIconOff = document.getElementById("tts-icon-off");
+
+function _updateTtsIcon() {
+  ttsIconOn.style.display  = ttsEnabled ? "block" : "none";
+  ttsIconOff.style.display = ttsEnabled ? "none"  : "block";
+  ttsBtn.classList.toggle("active", ttsEnabled);
+}
+_updateTtsIcon();
+
 ttsBtn.addEventListener("click", () => {
   ttsEnabled = !ttsEnabled;
-  ttsBtn.textContent = ttsEnabled ? "🔊" : "🔇";
-  ttsBtn.classList.toggle("active", ttsEnabled);
+  _updateTtsIcon();
   if (!ttsEnabled && currentAudio) { currentAudio.pause(); currentAudio = null; }
 });
 

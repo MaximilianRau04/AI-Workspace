@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChatBot</title>
+  <title>AI Workspace</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="assets/style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css">
@@ -14,6 +14,18 @@
 
   <!-- Top-right controls -->
   <div id="top-right-fixed">
+    <button id="tts-btn" title="Toggle voice output">
+      <svg id="tts-icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+      </svg>
+      <svg id="tts-icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" hidden>
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <line x1="23" y1="9" x2="17" y2="15"/>
+        <line x1="17" y1="9" x2="23" y2="15"/>
+      </svg>
+    </button>
     <button id="header-logout-btn" title="Log out">⏻</button>
     <button id="theme-btn" title="Toggle theme">☀️</button>
   </div>
@@ -47,11 +59,19 @@
   <main id="main-content">
     <header>
       <div id="header-left">
-        <span>ChatBot</span>
+        <span>AI Workspace</span>
+        <div id="model-dropdown-wrap">
+          <button id="model-selector-btn" title="Switch model">
+            <span id="model-selector-label">—</span>
+            <svg viewBox="0 0 10 6" width="9" height="9" fill="currentColor"><path d="M0 0l5 6 5-6z"/></svg>
+          </button>
+          <div id="model-dropdown" hidden>
+            <div id="model-dropdown-list"></div>
+            <button id="model-dropdown-manage">Manage in Settings…</button>
+          </div>
+        </div>
       </div>
-      <div id="header-right">
-        <button id="tts-btn" title="Toggle voice output">🔇</button>
-      </div>
+      <div id="header-right"></div>
     </header>
 
     <div id="chat"></div>
@@ -107,6 +127,7 @@
       <div id="settings-tabs">
         <button class="settings-tab active" data-tab="prompt">System Prompt</button>
         <button class="settings-tab" data-tab="model">Model</button>
+        <button class="settings-tab" data-tab="ui">UI</button>
       </div>
 
       <!-- System Prompt tab -->
@@ -142,6 +163,27 @@
             <input id="base-url-input" type="text" placeholder="http://localhost:11434/v1" />
             <button id="detect-ollama-btn" type="button">Detect models</button>
           </div>
+        </div>
+
+        <div class="model-field model-field-row">
+          <label for="reasoning-toggle">
+            Reasoning
+            <span class="field-hint">(extended thinking for claude-3-7-sonnet &amp; gemini-2.5; tag-parsing for deepseek-r1/qwq; chain-of-thought for all others)</span>
+          </label>
+          <input type="checkbox" id="reasoning-toggle" />
+        </div>
+      </div>
+
+      <!-- UI tab -->
+      <div id="settings-tab-ui" class="settings-panel" hidden>
+        <div class="model-field model-field-row">
+          <label for="stream-speed-select">Streaming speed</label>
+          <select id="stream-speed-select">
+            <option value="0">Instant</option>
+            <option value="4">Fast</option>
+            <option value="8">Normal</option>
+            <option value="20">Slow</option>
+          </select>
         </div>
       </div>
 
