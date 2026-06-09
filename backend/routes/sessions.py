@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, session
+from flask import Blueprint, jsonify, request, session
 
 import history
 import state
@@ -40,6 +40,21 @@ def load_session_route(session_id):
         "title":    sess.get("title") or "",
         "messages": sess["messages"],
     })
+
+
+@bp.route("/sessions/<session_id>", methods=["PATCH"])
+@login_required
+def rename_session_route(session_id):
+    user_id = session["user_id"]
+    data    = request.get_json()
+    title   = (data.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "Title required"}), 400
+    history.rename_session(session_id, user_id, title)
+    user_state = state.get_or_init(user_id)
+    if user_state["current_session"]["id"] == session_id:
+        user_state["current_session"]["title"] = title
+    return jsonify({"ok": True})
 
 
 @bp.route("/sessions/<session_id>", methods=["DELETE"])

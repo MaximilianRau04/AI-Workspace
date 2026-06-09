@@ -3,11 +3,10 @@ import { updateTokenDisplay } from './settings.js';
 
 
 const chatEl         = document.getElementById("chat");
+const homeHero       = document.getElementById("home-hero");
 const input          = document.getElementById("user-input");
 const btn            = document.getElementById("send-btn");
 const stopBtn        = document.getElementById("stop-btn");
-const editIndicator  = document.getElementById("edit-indicator");
-const editCancelBtn  = document.getElementById("edit-cancel");
 const attachmentBar  = document.getElementById("attachment-bar");
 const attachmentName = document.getElementById("attachment-name");
 
@@ -18,24 +17,22 @@ export let currentPairIndex = 0;
 let onTitleUpdate = () => {};
 export function setOnTitleUpdate(fn) { onTitleUpdate = fn; }
 
+// Called by sidebar.js when no session exists yet (home mode)
+let onBeforeSend = null;
+export function setOnBeforeSend(fn) { onBeforeSend = fn; }
+
+export function setHomeMode(enabled) {
+  document.body.classList.toggle("home", enabled);
+  homeHero.hidden = !enabled;
+}
+
 // --- Edit state ---
 
 let editingPairIndex = null;
 
-export function startEdit(text, pairIndex) {
-  editingPairIndex = pairIndex;
-  input.value = text;
-  input.style.height = "44px";
-  input.style.height = Math.min(input.scrollHeight, 160) + "px";
-  input.focus();
-  input.classList.add("editing");
-  editIndicator.hidden = false;
-}
-
 export function cancelEditMode() {
   editingPairIndex = null;
   input.classList.remove("editing");
-  editIndicator.hidden = true;
 }
 
 export function resetForNewSession() {
@@ -44,11 +41,68 @@ export function resetForNewSession() {
   cancelEditMode();
 }
 
-editCancelBtn.addEventListener("click", () => {
-  input.value = "";
-  input.style.height = "44px";
-  cancelEditMode();
-});
+// --- Inline edit ---
+
+function startInlineEdit(wrap, text, pairIndex) {
+  const bubble  = wrap.querySelector(".bubble.user");
+  const actions = wrap.querySelector(".msg-actions");
+
+  const ta = document.createElement("textarea");
+  ta.className = "inline-edit-ta";
+  ta.value = text;
+
+  const inlineActions = document.createElement("div");
+  inlineActions.className = "inline-edit-actions";
+
+  const saveBtn   = document.createElement("button");
+  saveBtn.className   = "inline-edit-save";
+  saveBtn.textContent = "Save";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.className   = "inline-edit-cancel";
+  cancelBtn.textContent = "Cancel";
+
+  inlineActions.appendChild(cancelBtn);
+  inlineActions.appendChild(saveBtn);
+
+  saveBtn.addEventListener("click", () => {
+    const newText = ta.value.trim();
+    if (!newText) return;
+    ta.remove();
+    inlineActions.remove();
+    editingPairIndex = pairIndex;
+    input.value = newText;
+    sendMessage();
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    ta.remove();
+    inlineActions.remove();
+    bubble.hidden = false;
+    actions.hidden = false;
+  });
+
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); cancelBtn.click(); }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveBtn.click(); }
+  });
+
+  ta.addEventListener("input", () => {
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + "px";
+  });
+
+  bubble.hidden = true;
+  actions.hidden = true;
+  wrap.insertBefore(ta, actions);
+  wrap.insertBefore(inlineActions, actions);
+
+  requestAnimationFrame(() => {
+    ta.style.height = ta.scrollHeight + "px";
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  });
+}
 
 // --- Utilities ---
 
@@ -105,7 +159,7 @@ export function addUserWrap(text, pairIndex) {
   copyBtn.addEventListener("click", () => flashCopy(copyBtn, () => text));
 
   const editBtn = makeActionBtn("✏", "Edit");
-  editBtn.addEventListener("click", () => startEdit(text, pairIndex));
+  editBtn.addEventListener("click", () => startInlineEdit(wrap, text, pairIndex));
 
   actions.appendChild(retryBtn);
   actions.appendChild(copyBtn);
@@ -161,6 +215,16 @@ export function setStreaming(active) {
   stopBtn.hidden = !active;
 }
 
+export function showLoadingSkeleton() {
+  chatEl.innerHTML = `
+    <div class="chat-skeleton-wrap">
+      <div class="skeleton-row user"><div class="skeleton-line"></div></div>
+      <div class="skeleton-row bot"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+      <div class="skeleton-row user"><div class="skeleton-line short"></div></div>
+      <div class="skeleton-row bot"><div class="skeleton-line"></div><div class="skeleton-line shorter"></div><div class="skeleton-line short"></div></div>
+    </div>`;
+}
+
 // --- Rendering ---
 
 export function renderMessages(messages) {
@@ -192,6 +256,8 @@ export async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
+  if (onBeforeSend) await onBeforeSend();
+
   const isEdit  = editingPairIndex !== null;
   const pairIdx = isEdit ? editingPairIndex : currentPairIndex;
 
@@ -221,6 +287,8 @@ export async function sendMessage() {
 
   const botWrap = addBotWrap(pairIdx);
   const bubble  = botWrap.querySelector(".bubble.bot");
+  bubble.innerHTML = '<span class="thinking-dots">Thinking<span>.</span><span>.</span><span>.</span></span>';
+  let streamStarted = false;
 
   currentPairIndex = pairIdx + 1;
   abortController  = new AbortController();
@@ -291,6 +359,7 @@ export async function sendMessage() {
         }
         for (const char of payload) {
           if (abortController.signal.aborted) { stopped = true; break; }
+          if (!streamStarted) { bubble.textContent = ""; streamStarted = true; }
           bubble.textContent += char;
           chatEl.scrollTop = chatEl.scrollHeight;
           await new Promise(r => setTimeout(r, 8));

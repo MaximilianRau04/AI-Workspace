@@ -103,6 +103,14 @@ def delete_session(session_id: str, user_id: str) -> None:
         )
 
 
+def rename_session(session_id: str, user_id: str, title: str) -> None:
+    with db.get_conn() as conn:
+        conn.execute(
+            "UPDATE sessions SET title = ? WHERE id = ? AND user_id = ?",
+            (title, session_id, user_id),
+        )
+
+
 # ---------------------------------------------------------------------------
 # Message building
 # ---------------------------------------------------------------------------

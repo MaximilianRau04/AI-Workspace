@@ -93,18 +93,19 @@ def chat_endpoint():
             user_state["current_session"]["messages"] = new_msgs
             user_state["current_session"]["summary"]  = new_summary
 
+        history.save_session(user_state["current_session"], user_id)
+        yield 'data: "[DONE]"\n\n'
+
         if is_first and full_reply:
             try:
                 title = _generate_title(user_message, full_reply)
                 user_state["current_session"]["title"] = title
+                history.save_session(user_state["current_session"], user_id)
                 yield (
                     f"event: title\ndata: "
                     f"{json.dumps({'id': user_state['current_session']['id'], 'title': title})}\n\n"
                 )
             except Exception:
                 pass
-
-        history.save_session(user_state["current_session"], user_id)
-        yield 'data: "[DONE]"\n\n'
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream")

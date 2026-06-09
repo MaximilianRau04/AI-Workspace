@@ -1,4 +1,4 @@
-import { renderMessages, resetForNewSession } from './chat.js';
+import { renderMessages, resetForNewSession, setHomeMode, setOnBeforeSend, showLoadingSkeleton } from './chat.js';
 
 const sidebarToggle   = document.getElementById("sidebar-toggle");
 const sidebar         = document.getElementById("sidebar");
@@ -8,6 +8,106 @@ const sessionList     = document.getElementById("session-list");
 const input           = document.getElementById("user-input");
 const sidebarUsername = document.getElementById("sidebar-username");
 
+// --- Session context menu ---
+
+const sessionMenu = document.createElement("div");
+sessionMenu.id = "session-menu";
+sessionMenu.hidden = true;
+document.body.appendChild(sessionMenu);
+
+function closeSessionMenu() {
+  sessionMenu.hidden = true;
+}
+
+function openSessionMenu(sessionId, titleEl, anchorEl) {
+  sessionMenu.innerHTML = "";
+
+  const items = [
+    { icon: "✎",  label: "Rename",  action: () => startRename(sessionId, titleEl) },
+    { icon: "✕",  label: "Delete",  action: () => doDelete(sessionId), cls: "danger" },
+    { icon: "⊟",  label: "Archive", action: null, cls: "muted" },
+    { icon: "⊙",  label: "Pin",     action: null, cls: "muted" },
+  ];
+
+  for (const item of items) {
+    const btn = document.createElement("button");
+    btn.className = "session-menu-item" + (item.cls ? " " + item.cls : "");
+    btn.innerHTML = `<span class="session-menu-icon">${item.icon}</span>${item.label}`;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeSessionMenu();
+      if (item.action) item.action();
+    });
+    sessionMenu.appendChild(btn);
+  }
+
+  sessionMenu.hidden = false;
+
+  const rect = anchorEl.getBoundingClientRect();
+  const menuWidth = 160;
+  let left = rect.right - menuWidth;
+  if (left < 4) left = 4;
+  sessionMenu.style.left = left + "px";
+  sessionMenu.style.top  = (rect.bottom + 4) + "px";
+}
+
+document.addEventListener("click", (e) => {
+  if (!sessionMenu.contains(e.target)) closeSessionMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeSessionMenu();
+});
+sessionList.addEventListener("scroll", closeSessionMenu);
+
+async function doDelete(sessionId) {
+  if (!confirm("Do you want to delete this chat?")) return;
+  await fetch(`/sessions/${sessionId}`, { method: "DELETE" });
+  currentSessionId = null;
+  resetForNewSession();
+  setHomeMode(true);
+  history.pushState(null, "", "/");
+  loadSessions();
+}
+
+function startRename(sessionId, titleEl) {
+  const original = titleEl.textContent;
+  const inp = document.createElement("input");
+  inp.className = "session-rename-input";
+  inp.value = original;
+  titleEl.replaceWith(inp);
+  inp.focus();
+  inp.select();
+
+  let done = false;
+
+  async function save() {
+    if (done) return;
+    done = true;
+    const newTitle = inp.value.trim();
+    if (newTitle && newTitle !== original) {
+      titleEl.textContent = newTitle;
+      await fetch(`/sessions/${sessionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle }),
+      });
+    }
+    inp.replaceWith(titleEl);
+  }
+
+  function cancel() {
+    if (done) return;
+    done = true;
+    inp.replaceWith(titleEl);
+  }
+
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter")  { e.preventDefault(); save(); }
+    if (e.key === "Escape") { e.preventDefault(); cancel(); }
+  });
+  inp.addEventListener("blur", save);
+}
+
 let currentSessionId = null;
 
 // --- Open / close ---
@@ -16,6 +116,7 @@ export function openSidebar() {
   sidebar.classList.add("open");
   sidebarToggle.classList.add("open");
   mainContent.classList.add("sidebar-open");
+  localStorage.setItem("sidebar", "open");
   loadSessions();
 }
 
@@ -23,6 +124,14 @@ export function closeSidebar() {
   sidebar.classList.remove("open");
   sidebarToggle.classList.remove("open");
   mainContent.classList.remove("sidebar-open");
+  localStorage.setItem("sidebar", "closed");
+}
+
+// Eagerly restore sidebar visibility on page load to avoid layout flash
+if (localStorage.getItem("sidebar") === "open") {
+  sidebar.classList.add("open");
+  sidebarToggle.classList.add("open");
+  mainContent.classList.add("sidebar-open");
 }
 
 sidebarToggle.addEventListener("click", (e) => {
@@ -43,10 +152,14 @@ function formatDate(isoStr) {
 }
 
 async function loadAndRender(sessionId) {
+  setHomeMode(false);
+  resetForNewSession();
+  showLoadingSkeleton();
   const res  = await fetch(`/sessions/${sessionId}`);
   const data = await res.json();
   resetForNewSession();
   renderMessages(data.messages);
+  history.pushState(null, '', `/c/${sessionId}`);
 }
 
 // --- Session list ---
@@ -73,23 +186,18 @@ export function renderSessionList(sessions, activeId) {
     dateEl.className = "session-date";
     dateEl.textContent = formatDate(s.updated_at);
 
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "session-delete";
-    deleteBtn.textContent = "🗑";
-    deleteBtn.title = "Delete";
-    deleteBtn.addEventListener("click", async (e) => {
+    const menuBtn = document.createElement("button");
+    menuBtn.className = "session-menu-btn";
+    menuBtn.textContent = "⋮";
+    menuBtn.title = "Options";
+    menuBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (!confirm("Do you want to delete this chat?")) return;
-      const res  = await fetch(`/sessions/${s.id}`, { method: "DELETE" });
-      const data = await res.json();
-      currentSessionId = data.current_id;
-      await loadAndRender(data.current_id);
-      loadSessions();
+      openSessionMenu(s.id, titleEl, menuBtn);
     });
 
     item.appendChild(titleEl);
     item.appendChild(dateEl);
-    item.appendChild(deleteBtn);
+    item.appendChild(menuBtn);
 
     item.addEventListener("click", async () => {
       if (s.id === currentSessionId) return;
@@ -105,8 +213,7 @@ export function renderSessionList(sessions, activeId) {
 export async function loadSessions() {
   const res  = await fetch("/sessions");
   const data = await res.json();
-  currentSessionId = data.current_id;
-  renderSessionList(data.sessions, data.current_id);
+  renderSessionList(data.sessions, currentSessionId);
 }
 
 export function updateSessionTitle(id, title) {
@@ -118,12 +225,11 @@ export function updateSessionTitle(id, title) {
 
 // --- New chat ---
 
-newChatBtn.addEventListener("click", async () => {
-  const res  = await fetch("/sessions/new", { method: "POST" });
-  const data = await res.json();
-  currentSessionId = data.id;
+newChatBtn.addEventListener("click", () => {
+  currentSessionId = null;
   resetForNewSession();
-  loadSessions();
+  setHomeMode(true);
+  history.pushState(null, '', '/');
   input.focus();
 });
 
@@ -136,6 +242,18 @@ async function logout() {
 
 document.getElementById("header-logout-btn").addEventListener("click", logout);
 
+// --- Before-send callback: create session lazily on first message ---
+
+setOnBeforeSend(async () => {
+  if (currentSessionId) return;
+  const res  = await fetch("/sessions/new", { method: "POST" });
+  const data = await res.json();
+  currentSessionId = data.id;
+  setHomeMode(false);
+  history.pushState(null, '', `/c/${data.id}`);
+  loadSessions();
+});
+
 // --- Init (page load) ---
 
 export async function initSidebar() {
@@ -143,12 +261,8 @@ export async function initSidebar() {
   const meData = await meRes.json();
   if (sidebarUsername) sidebarUsername.textContent = meData.username ?? "";
 
-  const res  = await fetch("/sessions");
-  const data = await res.json();
-  currentSessionId = data.current_id;
-  if (currentSessionId) {
-    const sessRes  = await fetch(`/sessions/${currentSessionId}`);
-    const sessData = await sessRes.json();
-    renderMessages(sessData.messages);
-  }
+  setHomeMode(true);
+  history.replaceState(null, '', '/');
+
+  if (localStorage.getItem("sidebar") === "open") openSidebar();
 }
