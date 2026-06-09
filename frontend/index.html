@@ -86,11 +86,51 @@
 
   <div id="settings-modal" hidden>
     <div id="settings-box">
-      <h2>System Prompt</h2>
-      <textarea id="system-prompt-input" placeholder="Describe the bot's behavior, tone, language, restrictions…"></textarea>
+
+      <div id="settings-tabs">
+        <button class="settings-tab active" data-tab="prompt">System Prompt</button>
+        <button class="settings-tab" data-tab="model">Model</button>
+      </div>
+
+      <!-- System Prompt tab -->
+      <div id="settings-tab-prompt" class="settings-panel">
+        <textarea id="system-prompt-input" placeholder="Describe the bot's behavior, tone, language, restrictions…"></textarea>
+      </div>
+
+      <!-- Model tab -->
+      <div id="settings-tab-model" class="settings-panel" hidden>
+        <div class="model-field">
+          <label for="provider-select">Provider</label>
+          <select id="provider-select">
+            <option value="gemini">Google Gemini</option>
+            <option value="openai">OpenAI / Compatible (Ollama, LM Studio…)</option>
+            <option value="anthropic">Anthropic Claude</option>
+          </select>
+        </div>
+
+        <div class="model-field">
+          <label for="model-name-input">Model</label>
+          <input id="model-name-input" type="text" list="model-suggestions" placeholder="e.g. gemini-2.5-flash" autocomplete="off" />
+          <datalist id="model-suggestions"></datalist>
+        </div>
+
+        <div class="model-field">
+          <label for="api-key-input">API Key <span class="field-hint">(leave empty to use environment variable)</span></label>
+          <input id="api-key-input" type="password" placeholder="sk-…" autocomplete="new-password" />
+        </div>
+
+        <div class="model-field" id="base-url-field">
+          <label for="base-url-input">Base URL <span class="field-hint">(for Ollama: http://localhost:11434/v1)</span></label>
+          <div id="base-url-row">
+            <input id="base-url-input" type="text" placeholder="http://localhost:11434/v1" />
+            <button id="detect-ollama-btn" type="button">Detect models</button>
+          </div>
+        </div>
+      </div>
+
       <div id="settings-actions">
         <button id="settings-cancel">Cancel</button>
-        <button id="settings-save">Save & Reload</button>
+        <button id="settings-save">Save</button>
       </div>
     </div>
   </div>

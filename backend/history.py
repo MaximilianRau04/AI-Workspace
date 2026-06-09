@@ -3,7 +3,7 @@ from datetime import datetime
 
 import db
 
-MAX_MESSAGES = 20
+MAX_MESSAGES    = 20
 KEEP_AFTER_SUMMARY = 10
 
 
@@ -30,8 +30,8 @@ def _row_to_session(row, messages: list) -> dict:
         "messages":   messages,
     }
 
+
 def list_sessions(user_id: str) -> list:
-    """Return all sessions for a user, sorted by updated_at descending."""
     with db.get_conn() as conn:
         rows = conn.execute(
             "SELECT id, title, updated_at FROM sessions"
@@ -75,8 +75,7 @@ def save_session(session: dict, user_id: str) -> None:
         conn.execute("DELETE FROM messages WHERE session_id = ?", (session["id"],))
         for i, msg in enumerate(session.get("messages", [])):
             conn.execute(
-                "INSERT INTO messages (session_id, role, content, position)"
-                " VALUES (?, ?, ?, ?)",
+                "INSERT INTO messages (session_id, role, content, position) VALUES (?, ?, ?, ?)",
                 (session["id"], msg["role"], msg["parts"][0], i),
             )
 
@@ -105,37 +104,47 @@ def delete_session(session_id: str, user_id: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Message building
+# ---------------------------------------------------------------------------
 
-def build_initial_history(messages: list, summary: str) -> list:
-    """Build history list for Gemini, prepending summary if present."""
-    hist = []
+def build_chat_messages(messages: list, summary: str, user_message: str) -> list:
+    """
+    Build the full message list to send to the LLM for one turn.
+    Prepends a summary context pair when a summary exists, then appends
+    the new user message at the end.
+    Format: [{"role": "user"/"model", "parts": ["..."]}]
+    """
+    hist: list = []
     if summary:
-        hist.append({"role": "user", "parts": [
-            f"Here is a summary of our previous conversation:\n{summary}"
-        ]})
-        hist.append({"role": "model", "parts": [
-            "Understood. I'll keep that context in mind."
-        ]})
+        hist.append({"role": "user",  "parts": [f"Summary of our previous conversation:\n{summary}"]})
+        hist.append({"role": "model", "parts": ["Understood. I'll keep that context in mind."]})
     hist.extend(messages)
+    hist.append({"role": "user", "parts": [user_message]})
     return hist
 
+
+# ---------------------------------------------------------------------------
+# Summarization
+# ---------------------------------------------------------------------------
 
 def needs_summarization(messages: list) -> bool:
     return len(messages) > MAX_MESSAGES
 
 
-def summarize(messages: list, model) -> tuple[list, str]:
-    """Summarize the oldest messages and return (remaining_messages, new_summary)."""
+def summarize_messages(messages: list) -> tuple[list, str]:
+    """Summarize the oldest messages; return (remaining_messages, new_summary)."""
+    import llm  # imported here to avoid circular imports at module load
     to_summarize = messages[:-KEEP_AFTER_SUMMARY]
     keep         = messages[-KEEP_AFTER_SUMMARY:]
 
     conversation_text = "\n".join(
-        f"{m['role'].capitalize()}: {m['parts'][0]}" for m in to_summarize
+        f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['parts'][0]}"
+        for m in to_summarize
     )
     prompt = (
         "Summarize the following conversation concisely in 3-5 sentences. "
         "Focus on key topics, decisions, and context that would be useful to remember.\n\n"
         f"{conversation_text}"
     )
-    response = model.generate_content(prompt)
-    return keep, response.text
+    summary = llm.generate_text(prompt)
+    return keep, summary

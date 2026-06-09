@@ -1,13 +1,13 @@
 # ChatBot
 
-A web-based chatbot powered by Google Gemini (gemini-2.5-flash) with user accounts, persistent chat history, voice in/out, document RAG, and syntax highlighting.
+A web-based chatbot with user accounts, persistent chat history, voice in/out, document RAG, and syntax highlighting. Supports multiple LLM providers — Google Gemini, OpenAI-compatible APIs (including local models via Ollama), and Anthropic Claude.
 
 > This is a browser-based app only — there is no CLI interface.
 
 ## Requirements
 
 - Python 3.10+
-- A [Google Gemini API key](https://aistudio.google.com/app/apikey)
+- At least one LLM provider (see below)
 
 ## Setup
 
@@ -29,14 +29,18 @@ venv\Scripts\activate      # Windows
 **3. Install dependencies**
 
 ```bash
-pip install google-generativeai google-genai python-dotenv flask pypdf edge-tts SpeechRecognition pydub
+pip install google-generativeai google-genai python-dotenv flask pypdf edge-tts SpeechRecognition pydub openai anthropic
 ```
 
 **4. Create a `.env` file**
 
 ```
-GEMINI_API_KEY=your_gemini_api_key_here
 SECRET_KEY=your_random_secret_key_here
+
+# Add the key for whichever provider(s) you want to use:
+GEMINI_API_KEY=your_gemini_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
 Generate a secure `SECRET_KEY`:
@@ -45,28 +49,48 @@ Generate a secure `SECRET_KEY`:
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
+API keys can also be entered directly in the in-app settings instead of the `.env` file.
+
 ## Usage
 
 ```bash
 python backend/app.py
 ```
 
-Open `http://localhost:5000` in your browser.
+Open `http://localhost:5000` in your browser. Register an account and start chatting.
 
-You will be redirected to the login page. Register a new account and you're ready to chat.
+## Supported Providers
+
+The active provider and model are configured via the ⚙️ Settings button → **Model** tab. The configuration is saved in `model_config.json` (not tracked by git).
+
+| Provider | Example models | Notes |
+|---|---|---|
+| **Google Gemini** | `gemini-2.5-flash`, `gemini-2.5-pro` | Default. API key from [Google AI Studio](https://aistudio.google.com/app/apikey). Also used for document RAG embeddings. |
+| **OpenAI** | `gpt-4o`, `gpt-4o-mini` | Requires `OPENAI_API_KEY`. |
+| **Ollama (local)** | `qwen3:8b`, `llama3.2:3b`, `mistral:7b` | No API key needed. Set provider to *OpenAI / Compatible* and base URL to `http://localhost:11434/v1`. Use "Detect models" to list installed models. |
+| **LM Studio / other** | any OpenAI-compatible model | Same as Ollama — set the base URL to the local server's `/v1` endpoint. |
+| **Anthropic Claude** | `claude-opus-4-8`, `claude-sonnet-4-6` | Requires `ANTHROPIC_API_KEY`. |
+
+### Using Ollama
+
+1. [Install Ollama](https://ollama.com) and pull a model, e.g. `ollama pull qwen3:8b`
+2. In the app: Settings → Model → Provider: *OpenAI / Compatible*
+3. Click **Detect models** to auto-fill available models
+4. Save — no API key or restart required
 
 ## Features
 
-- **User accounts** — register & login with username / password; each user has their own isolated chat history
+- **Multi-provider LLM** — switch between Gemini, OpenAI, Anthropic, or any local model via Ollama/LM Studio without restarting
+- **User accounts** — register & login; each user has their own isolated chat history
 - **Streaming responses** with typewriter effect
 - **Persistent chat sessions** with sidebar for switching between conversations
 - **Auto-summarization** — old messages are summarized automatically to keep context efficient
-- **Syntax highlighting** — code blocks are highlighted via highlight.js
-- **Voice input** — click the microphone button (Chrome / Edge only)
+- **Syntax highlighting** — code blocks highlighted via highlight.js
+- **Voice input** — microphone button (Chrome / Edge only)
 - **Voice output** — toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
-- **Document RAG** — upload `.txt`, `.md`, or `.pdf` files via button or drag & drop; the bot retrieves relevant passages automatically
+- **Document RAG** — upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
 - **Configurable system prompt** — via the ⚙️ settings button
-- **Token usage indicator** — ring graph in the header
+- **Token usage indicator** — ring graph next to the input bar (Gemini only)
 - **Light / dark theme** toggle
 
 ## Project Structure
@@ -78,13 +102,14 @@ ChatBot/
 │   ├── auth_store.py       # User storage (SQLite, password hashing)
 │   ├── db.py               # SQLite connection & schema initialization
 │   ├── history.py          # Per-user session persistence & summarization
-│   ├── rag.py              # Document indexing & retrieval (embeddings)
+│   ├── llm.py              # Provider abstraction (Gemini / OpenAI / Anthropic)
+│   ├── rag.py              # Document indexing & retrieval (Gemini embeddings)
 │   ├── state.py            # Per-user in-memory chat state
 │   ├── utils.py            # Shared helpers (login_required decorator)
 │   └── routes/
 │       ├── auth.py         # /login  /register  /logout  /me
 │       ├── chat.py         # /chat (streaming)
-│       ├── config.py       # /config
+│       ├── config.py       # /config  /config/model  /config/ollama-models
 │       ├── docs.py         # /docs  /docs/upload  /docs/delete
 │       ├── sessions.py     # /sessions  /sessions/new  /sessions/<id>
 │       └── voice.py        # /tts  /stt
@@ -96,15 +121,16 @@ ChatBot/
 │   └── modules/
 │       ├── main.js         # JS entry point
 │       ├── chat.js         # Streaming & message rendering
-│       ├── docs.js         # Document modal
-│       ├── settings.js     # System prompt modal & token display
-│       ├── sidebar.js      # Session list, logout
+│       ├── docs.js         # Document upload & attachment
+│       ├── settings.js     # Settings modal, theme, token display
+│       ├── sidebar.js      # Session list & sidebar push
 │       └── voice.js        # Microphone & TTS
 ├── docs/                   # Uploaded documents (not tracked by git)
 ├── chatbot.db              # SQLite database — users & chats (not tracked by git)
+├── model_config.json       # Active model/provider config (not tracked by git)
 ├── rag_index.json          # Document embeddings (not tracked by git)
 ├── system_prompt.txt       # Editable system prompt
-├── .env                    # API key & secret key (not tracked by git)
+├── .env                    # API keys & secret key (not tracked by git)
 └── README.md
 ```
 
@@ -112,6 +138,6 @@ ChatBot/
 
 - Passwords are hashed with `werkzeug.security` (scrypt + salt) — never stored in plain text.
 - The Flask session is signed with `SECRET_KEY`; use a long random value in production.
-- `GEMINI_API_KEY` and `SECRET_KEY` live in `.env` and are excluded from version control.
+- API keys and `SECRET_KEY` live in `.env` and are excluded from version control.
+- Model config (including any API key entered via the UI) is stored in `model_config.json`, which is also excluded from version control.
 - `chatbot.db` contains user data and chat history — never commit it to version control.
-- If you accidentally expose your Gemini key, regenerate it at [Google AI Studio](https://aistudio.google.com/app/apikey).

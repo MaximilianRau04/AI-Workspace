@@ -1,4 +1,5 @@
 .env
+model_config.json
 venv/
 __pycache__/
 docs/
