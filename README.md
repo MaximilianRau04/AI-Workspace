@@ -1,12 +1,11 @@
 # ChatBot
 
-A web-based chatbot with user accounts, persistent chat history, voice in/out, document RAG, and syntax highlighting. Supports multiple LLM providers — Google Gemini, OpenAI-compatible APIs (including local models via Ollama), and Anthropic Claude.
-
-> This is a browser-based app only — there is no CLI interface.
+A web-based chatbot with user accounts, persistent chat history, voice in/out, document RAG, and syntax highlighting. Supports multiple LLM providers - Google Gemini, OpenAI-compatible APIs (including local models via Ollama), and Anthropic Claude.
 
 ## Requirements
 
 - Python 3.10+
+- Node.js 18+
 - At least one LLM provider (see below)
 
 ## Setup
@@ -26,13 +25,19 @@ source venv/bin/activate   # Linux / macOS
 venv\Scripts\activate      # Windows
 ```
 
-**3. Install dependencies**
+**3. Install Python dependencies**
 
 ```bash
 pip install google-generativeai google-genai python-dotenv flask pypdf edge-tts SpeechRecognition pydub openai anthropic
 ```
 
-**4. Create a `.env` file**
+**4. Install frontend dependencies**
+
+```bash
+cd frontend && npm install
+```
+
+**5. Create a `.env` file** (in the project root)
 
 ```
 SECRET_KEY=your_random_secret_key_here
@@ -53,11 +58,28 @@ API keys can also be entered directly in the in-app settings instead of the `.en
 
 ## Usage
 
+### Development (recommended)
+
+Run Flask and the Vite dev server in two separate terminals:
+
 ```bash
+# Terminal 1 – API server
+python backend/app.py
+
+# Terminal 2 – Frontend with HMR
+cd frontend && npm run dev
+```
+
+Open `http://localhost:5173`. The Vite dev server proxies all API calls to Flask on port 5000 and provides hot module replacement — CSS and JS changes apply instantly without a page reload.
+
+### Production
+
+```bash
+cd frontend && npm run build
 python backend/app.py
 ```
 
-Open `http://localhost:5000` in your browser. Register an account and start chatting.
+`npm run build` bundles everything into `dist/`. Flask automatically detects the `dist/` folder and serves the optimised files instead of the raw `frontend/` sources. Open `http://localhost:5000`.
 
 ## Supported Providers
 
@@ -68,7 +90,7 @@ The active provider and model are configured via the ⚙️ Settings button → 
 | **Google Gemini** | `gemini-2.5-flash`, `gemini-2.5-pro` | Default. API key from [Google AI Studio](https://aistudio.google.com/app/apikey). Also used for document RAG embeddings. |
 | **OpenAI** | `gpt-4o`, `gpt-4o-mini` | Requires `OPENAI_API_KEY`. |
 | **Ollama (local)** | `qwen3:8b`, `llama3.2:3b`, `mistral:7b` | No API key needed. Set provider to *OpenAI / Compatible* and base URL to `http://localhost:11434/v1`. Use "Detect models" to list installed models. |
-| **LM Studio / other** | any OpenAI-compatible model | Same as Ollama — set the base URL to the local server's `/v1` endpoint. |
+| **LM Studio / other** | any OpenAI-compatible model | Same as Ollama - set the base URL to the local server's `/v1` endpoint. |
 | **Anthropic Claude** | `claude-opus-4-8`, `claude-sonnet-4-6` | Requires `ANTHROPIC_API_KEY`. |
 
 ### Using Ollama
@@ -76,21 +98,21 @@ The active provider and model are configured via the ⚙️ Settings button → 
 1. [Install Ollama](https://ollama.com) and pull a model, e.g. `ollama pull qwen3:8b`
 2. In the app: Settings → Model → Provider: *OpenAI / Compatible*
 3. Click **Detect models** to auto-fill available models
-4. Save — no API key or restart required
+4. Save - no API key or restart required
 
 ## Features
 
-- **Multi-provider LLM** — switch between Gemini, OpenAI, Anthropic, or any local model via Ollama/LM Studio without restarting
-- **User accounts** — register & login; each user has their own isolated chat history
+- **Multi-provider LLM** - switch between Gemini, OpenAI, Anthropic, or any local model via Ollama/LM Studio without restarting
+- **User accounts** - register & login; each user has their own isolated chat history
 - **Streaming responses** with typewriter effect
 - **Persistent chat sessions** with sidebar for switching between conversations
-- **Auto-summarization** — old messages are summarized automatically to keep context efficient
-- **Syntax highlighting** — code blocks highlighted via highlight.js
-- **Voice input** — microphone button (Chrome / Edge only)
-- **Voice output** — toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
-- **Document RAG** — upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
-- **Configurable system prompt** — via the ⚙️ settings button
-- **Token usage indicator** — ring graph next to the input bar (Gemini only)
+- **Auto-summarization** - old messages are summarized automatically to keep context efficient
+- **Syntax highlighting** - code blocks highlighted via highlight.js
+- **Voice input** - microphone button (Chrome / Edge only)
+- **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
+- **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
+- **Configurable system prompt** - via the ⚙️ settings button
+- **Token usage indicator** - ring graph next to the input bar (Gemini only)
 - **Light / dark theme** toggle
 
 ## Project Structure
@@ -116,6 +138,8 @@ ChatBot/
 ├── frontend/
 │   ├── index.html          # Main chat UI
 │   ├── login.html          # Login / register page
+│   ├── vite.config.js      # Vite config (dev proxy, build output)
+│   ├── package.json
 │   ├── assets/
 │   │   └── style.css       # Styles (dark + light theme)
 │   └── modules/
@@ -125,8 +149,9 @@ ChatBot/
 │       ├── settings.js     # Settings modal, theme, token display
 │       ├── sidebar.js      # Session list & sidebar push
 │       └── voice.js        # Microphone & TTS
+├── dist/                   # Production build output (not tracked by git)
 ├── docs/                   # Uploaded documents (not tracked by git)
-├── chatbot.db              # SQLite database — users & chats (not tracked by git)
+├── chatbot.db              # SQLite database - users & chats (not tracked by git)
 ├── model_config.json       # Active model/provider config (not tracked by git)
 ├── rag_index.json          # Document embeddings (not tracked by git)
 ├── system_prompt.txt       # Editable system prompt
@@ -136,8 +161,8 @@ ChatBot/
 
 ## Security
 
-- Passwords are hashed with `werkzeug.security` (scrypt + salt) — never stored in plain text.
+- Passwords are hashed with `werkzeug.security` (scrypt + salt) - never stored in plain text.
 - The Flask session is signed with `SECRET_KEY`; use a long random value in production.
 - API keys and `SECRET_KEY` live in `.env` and are excluded from version control.
 - Model config (including any API key entered via the UI) is stored in `model_config.json`, which is also excluded from version control.
-- `chatbot.db` contains user data and chat history — never commit it to version control.
+- `chatbot.db` contains user data and chat history - never commit it to version control.

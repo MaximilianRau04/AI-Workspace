@@ -7,3 +7,5 @@ rag_index.json
 chatbot.db
 chatbot.db-shm
 chatbot.db-wal
+frontend/node_modules/
+dist/

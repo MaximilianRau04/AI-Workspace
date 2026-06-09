@@ -11,10 +11,15 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 
+_base     = os.path.dirname(os.path.abspath(__file__))
+_dist     = os.path.join(_base, "..", "dist")
+_frontend = os.path.join(_base, "..", "frontend")
+_serve    = _dist if os.path.isdir(_dist) else _frontend
+
 app = Flask(
     __name__,
-    template_folder="../frontend",
-    static_folder="../frontend",
+    template_folder=_serve,
+    static_folder=_serve,
     static_url_path="",
 )
 app.secret_key = SECRET_KEY
@@ -38,7 +43,8 @@ app.register_blueprint(voice.bp)
 # --- Main routes ---
 
 @app.route("/")
-def index():
+@app.route("/c/<session_id>")
+def index(session_id=None):
     from flask import session
     if "user_id" not in session:
         return redirect(url_for("auth.login_page"))
