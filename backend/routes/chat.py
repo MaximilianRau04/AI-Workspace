@@ -71,6 +71,8 @@ def chat_endpoint():
             for item in llm.stream_chat(messages, system_prompt):
                 if isinstance(item, dict) and "usage" in item:
                     yield f"event: usage\ndata: {json.dumps(item['usage'])}\n\n"
+                elif isinstance(item, dict) and "thinking" in item:
+                    yield f"event: thinking\ndata: {json.dumps(item['thinking'])}\n\n"
                 else:
                     full_reply += item
                     yield f"data: {json.dumps(item)}\n\n"

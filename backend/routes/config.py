@@ -29,10 +29,12 @@ def get_config():
     return jsonify({
         "system_prompt": load_system_prompt(),
         "model": {
-            "provider": model_cfg["provider"],
-            "model":    model_cfg["model"],
-            "api_key":  model_cfg.get("api_key", ""),
-            "base_url": model_cfg.get("base_url", ""),
+            "provider":  model_cfg["provider"],
+            "model":     model_cfg["model"],
+            "api_key":   model_cfg.get("api_key", ""),
+            "base_url":  model_cfg.get("base_url", ""),
+            "reasoning": model_cfg.get("reasoning", False),
+            "presets":   model_cfg.get("presets", []),
         },
     })
 
@@ -62,13 +64,28 @@ def set_model_config():
     data = request.get_json()
     cfg  = llm.load_config()
     cfg.update({
-        "provider": data.get("provider", cfg["provider"]),
-        "model":    data.get("model",    cfg["model"]),
-        "api_key":  data.get("api_key",  cfg.get("api_key", "")),
-        "base_url": data.get("base_url", cfg.get("base_url", "")),
+        "provider":  data.get("provider",  cfg["provider"]),
+        "model":     data.get("model",     cfg["model"]),
+        "api_key":   data.get("api_key",   cfg.get("api_key", "")),
+        "base_url":  data.get("base_url",  cfg.get("base_url", "")),
+        "reasoning": data.get("reasoning", cfg.get("reasoning", False)),
     })
     llm.save_config(cfg)
     state.invalidate_all()
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Presets
+# ---------------------------------------------------------------------------
+
+@bp.route("/config/presets", methods=["POST"])
+@login_required
+def set_presets():
+    data = request.get_json()
+    cfg  = llm.load_config()
+    cfg["presets"] = data.get("presets", [])
+    llm.save_config(cfg)
     return jsonify({"ok": True})
 
 
