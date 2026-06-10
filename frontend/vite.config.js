@@ -1,16 +1,11 @@
-import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
+  plugins: [react()],
   build: {
     outDir: '../dist',
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main:  fileURLToPath(new URL('index.html',  import.meta.url)),
-        login: fileURLToPath(new URL('login.html', import.meta.url)),
-      },
-    },
   },
   server: {
     port: 5173,
@@ -27,7 +22,7 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
         bypass(req) {
-          if (req.method === 'GET') return '/login.html'
+          if (req.method === 'GET') return '/index.html'
         },
       },
     },

@@ -71,6 +71,12 @@ cd frontend && npm run dev
 
 Open `http://localhost:5173`. The Vite dev server proxies all API calls to the backend on port 5000 and provides hot module replacement — CSS and JS changes apply instantly without a page reload.
 
+To format the frontend source files:
+
+```bash
+cd frontend && npm run format
+```
+
 ### Production
 
 ```bash
@@ -95,9 +101,15 @@ The active provider and model are configured via the ⚙️ Settings button → 
 ### Using Ollama
 
 1. [Install Ollama](https://ollama.com) and pull a model, e.g. `ollama pull qwen3:8b`
-2. In the app: Settings → Model → Provider: *OpenAI / Compatible*
-3. Click **Detect models** to auto-fill available models
-4. Save - no API key or restart required
+2. Make sure the Ollama service is running before starting a chat:
+   ```bash
+   ollama serve
+   ```
+3. In the app: Settings → Model → Provider: *OpenAI / Compatible*
+4. Set the base URL to `http://localhost:11434/v1` and click **Detect models** to auto-fill available models
+5. Save - no API key or restart required
+
+> **Note:** Every time you start the app with Ollama as the provider, `ollama serve` must be running in the background, otherwise you will get a *Connection error* when sending messages.
 
 ## Features
 
@@ -137,19 +149,29 @@ ChatBot/
 │       ├── sessions.py     # /sessions  /sessions/new  /sessions/<id>
 │       └── voice.py        # /tts  /stt
 ├── frontend/
-│   ├── index.html          # Main chat UI
-│   ├── login.html          # Login / register page
-│   ├── vite.config.js      # Vite config (dev proxy, build output)
+│   ├── index.html          # HTML entry point (React root)
+│   ├── vite.config.js      # Vite config (React plugin, dev proxy, build output)
+│   ├── tailwind.config.js  # Tailwind theme tokens (colors, dark mode)
+│   ├── tsconfig.json       # TypeScript config
+│   ├── postcss.config.js
 │   ├── package.json
-│   ├── assets/
-│   │   └── style.css       # Styles (dark + light theme)
-│   └── modules/
-│       ├── main.js         # JS entry point
-│       ├── chat.js         # Streaming & message rendering
-│       ├── docs.js         # Document upload & attachment
-│       ├── settings.js     # Settings modal, theme, token display
-│       ├── sidebar.js      # Session list & sidebar push
-│       └── voice.js        # Microphone & TTS
+│   └── src/
+│       ├── main.tsx        # React entry point
+│       ├── App.tsx         # Router setup
+│       ├── index.css       # Global styles & Tailwind directives
+│       ├── types.ts        # Shared TypeScript interfaces
+│       ├── globals.d.ts    # Type declarations for CDN globals (marked, hljs)
+│       ├── api/            # Typed fetch wrappers (auth, chats, config, docs, voice)
+│       ├── context/        # AppContext — auth, sessions, config, theme
+│       ├── hooks/          # useStream (SSE), useVoice (mic + TTS)
+│       ├── pages/          # ChatPage, LoginPage
+│       ├── components/
+│       │   ├── chat/       # ChatArea, MessagePair, InputArea, HomeHero
+│       │   ├── layout/     # Header (model switcher), Sidebar
+│       │   ├── settings/   # SettingsModal
+│       │   └── documents/  # DocsModal
+│       └── utils/
+│           └── markdown.ts # marked + highlight.js rendering helpers
 ├── dist/                   # Production build output (not tracked by git)
 ├── docs/                   # Uploaded documents (not tracked by git)
 ├── chatbot.db              # SQLite database - users & chats (not tracked by git)

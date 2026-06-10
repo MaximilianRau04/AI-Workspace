@@ -1,0 +1,356 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  height: 100dvh;
+  @apply bg-bg-base text-txt-primary;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Thinking dots animation ── */
+.thinking-dots {
+  color: #888;
+  font-style: italic;
+  animation: thinking-pulse 2s ease-in-out infinite;
+}
+.thinking-dots > span {
+  opacity: 0;
+  animation: thinking-blink 1.4s ease-in-out infinite;
+}
+.thinking-dots > span:nth-child(1) {
+  animation-delay: 0s;
+}
+.thinking-dots > span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.thinking-dots > span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes thinking-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes thinking-blink {
+  0%,
+  60%,
+  100% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+/* ── Thinking dot pulse ── */
+@keyframes thinking-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* ── Skeleton shimmer ── */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.skeleton-line {
+  height: 0.82rem;
+  border-radius: 1rem;
+  background: linear-gradient(90deg, #1c1c1c 25%, #2a2a2a 50%, #1c1c1c 75%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.dark .skeleton-line {
+  background: linear-gradient(90deg, #1c1c1c 25%, #2a2a2a 50%, #1c1c1c 75%);
+  background-size: 400% 100%;
+}
+
+html:not(.dark) .skeleton-line {
+  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+  background-size: 400% 100%;
+}
+
+/* ── Mic recording pulse ── */
+@keyframes mic-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #e74c3c);
+  }
+  50% {
+    transform: scale(1.25);
+    filter: drop-shadow(0 0 10px #e74c3c);
+  }
+}
+
+.mic-recording {
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+
+/* ── Theme spin ── */
+@keyframes theme-spin {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.35) rotate(200deg);
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+  }
+}
+
+.theme-spinning {
+  animation: theme-spin 0.45s ease;
+}
+
+/* ── Token arc transition ── */
+.token-arc {
+  transition: stroke-dasharray 0.5s ease;
+}
+
+/* ── Sidebar transition ── */
+.sidebar-transition {
+  transition:
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.28s ease;
+}
+
+.main-transition {
+  transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Sidebar toggle open rotation ── */
+.sidebar-toggle-open {
+  transform: translateX(280px) rotate(90deg);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-toggle-closed {
+  transform: translateX(0) rotate(0deg);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Bot bubble markdown ── */
+.bot-bubble p {
+  margin: 0.3rem 0;
+}
+.bot-bubble p:first-child {
+  margin-top: 0;
+}
+.bot-bubble p:last-child {
+  margin-bottom: 0;
+}
+.bot-bubble ul,
+.bot-bubble ol {
+  padding-left: 1.2rem;
+  margin: 0.3rem 0;
+}
+.bot-bubble li {
+  margin: 0.15rem 0;
+}
+.bot-bubble strong {
+  color: #fff;
+}
+.dark .bot-bubble strong {
+  color: #fff;
+}
+html:not(.dark) .bot-bubble strong {
+  color: #000;
+}
+.bot-bubble code {
+  background: #2a2a2a;
+  padding: 0.1em 0.35em;
+  border-radius: 0.3rem;
+  font-size: 0.875em;
+}
+html:not(.dark) .bot-bubble code {
+  background: #d4d4d4;
+}
+
+.bot-bubble pre {
+  padding: 0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  margin: 0;
+}
+.bot-bubble pre code {
+  display: block;
+  padding: 0.75rem !important;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background: #0d1117 !important;
+}
+
+/* ── Code block wrap ── */
+.code-block-wrap {
+  position: relative;
+  margin: 0.5rem 0;
+}
+.code-block-wrap:hover .code-copy-btn {
+  opacity: 1;
+}
+.code-copy-btn {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  opacity: 0;
+  background: #3a3a3a;
+  border: none;
+  border-radius: 0.3rem;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.45rem;
+  transition:
+    opacity 0.15s,
+    color 0.15s,
+    background 0.15s;
+  line-height: 1.4;
+}
+.code-copy-btn:hover {
+  color: #fff;
+  background: #555;
+}
+html:not(.dark) .code-copy-btn {
+  background: #ddd;
+  color: #666;
+}
+html:not(.dark) .code-copy-btn:hover {
+  background: #bbb;
+  color: #111;
+}
+
+/* ── Thinking block ── */
+.thinking-block {
+  margin-bottom: 0.6rem;
+  border-left: 2px solid #252525;
+  padding-left: 0.75rem;
+}
+html:not(.dark) .thinking-block {
+  border-left-color: #e0e0e0;
+}
+
+.thinking-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: #555;
+  padding: 0.15rem 0;
+  user-select: none;
+}
+html:not(.dark) .thinking-summary {
+  color: #aaa;
+}
+.thinking-summary::-webkit-details-marker {
+  display: none;
+}
+.thinking-summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: #444;
+  transition: transform 0.15s;
+}
+html:not(.dark) .thinking-summary::after {
+  color: #bbb;
+}
+.thinking-block:not([open]) .thinking-summary::after {
+  transform: rotate(-90deg);
+}
+
+.thinking-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #444;
+  flex-shrink: 0;
+}
+html:not(.dark) .thinking-dot {
+  background: #bbb;
+}
+
+.thinking-streaming .thinking-dot {
+  animation: thinking-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.thinking-body {
+  font-size: 0.8rem;
+  color: #505050;
+  line-height: 1.55;
+  padding: 0.35rem 0 0.25rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 260px;
+  overflow-y: auto;
+}
+html:not(.dark) .thinking-body {
+  color: #aaa;
+}
+
+/* ── Smooth theme transitions ── */
+body,
+aside,
+header {
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
