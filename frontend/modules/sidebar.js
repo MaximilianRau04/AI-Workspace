@@ -61,7 +61,7 @@ sessionList.addEventListener("scroll", closeSessionMenu);
 
 async function doDelete(sessionId) {
   if (!confirm("Do you want to delete this chat?")) return;
-  await fetch(`/sessions/${sessionId}`, { method: "DELETE" });
+  await fetch(`/chats/${sessionId}`, { method: "DELETE" });
   currentSessionId = null;
   resetForNewSession();
   setHomeMode(true);
@@ -86,7 +86,7 @@ function startRename(sessionId, titleEl) {
     const newTitle = inp.value.trim();
     if (newTitle && newTitle !== original) {
       titleEl.textContent = newTitle;
-      await fetch(`/sessions/${sessionId}`, {
+      await fetch(`/chats/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newTitle }),
@@ -155,7 +155,7 @@ async function loadAndRender(sessionId) {
   setHomeMode(false);
   resetForNewSession();
   showLoadingSkeleton();
-  const res  = await fetch(`/sessions/${sessionId}`);
+  const res  = await fetch(`/chats/${sessionId}`);
   const data = await res.json();
   resetForNewSession();
   renderMessages(data.messages);
@@ -211,9 +211,9 @@ export function renderSessionList(sessions, activeId) {
 }
 
 export async function loadSessions() {
-  const res  = await fetch("/sessions");
+  const res  = await fetch("/chats");
   const data = await res.json();
-  renderSessionList(data.sessions, currentSessionId);
+  renderSessionList(data.chats, currentSessionId);
 }
 
 export function updateSessionTitle(id, title) {
@@ -245,13 +245,15 @@ document.getElementById("header-logout-btn").addEventListener("click", logout);
 // --- Before-send callback: create session lazily on first message ---
 
 setOnBeforeSend(async () => {
-  if (currentSessionId) return;
-  const res  = await fetch("/sessions/new", { method: "POST" });
-  const data = await res.json();
-  currentSessionId = data.id;
-  setHomeMode(false);
-  history.pushState(null, '', `/c/${data.id}`);
-  loadSessions();
+  if (!currentSessionId) {
+    const res  = await fetch("/chats", { method: "POST" });
+    const data = await res.json();
+    currentSessionId = data.id;
+    setHomeMode(false);
+    history.pushState(null, '', `/c/${data.id}`);
+    loadSessions();
+  }
+  return currentSessionId;
 });
 
 // --- Init (page load) ---

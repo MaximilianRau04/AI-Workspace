@@ -7,6 +7,7 @@ const uploadInput     = document.getElementById("upload-input");
 const uploadStatus    = document.getElementById("upload-status");
 const attachmentBar   = document.getElementById("attachment-bar");
 const attachmentName  = document.getElementById("attachment-name");
+const attachmentExt   = document.getElementById("attachment-ext");
 const attachmentRemove = document.getElementById("attachment-remove");
 
 const ALLOWED = [".txt", ".md", ".pdf"];
@@ -46,6 +47,7 @@ async function uploadFile(file) {
     return false;
   }
   attachmentName.textContent = file.name;
+  attachmentExt.textContent = file.name.split('.').pop().toUpperCase();
   attachmentBar.hidden = false;
   uploadStatus.textContent = "Indexing…";
   const form = new FormData();

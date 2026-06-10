@@ -136,10 +136,20 @@ async function flashCopy(b, getText) {
 
 // --- Bubble creation ---
 
-export function addUserWrap(text, pairIndex) {
+export function addUserWrap(text, pairIndex, attachedFile = null) {
   const wrap = document.createElement("div");
   wrap.className = "user-wrap";
   wrap.dataset.pairIndex = pairIndex;
+
+  if (attachedFile) {
+    const ext = attachedFile.includes('.') ? attachedFile.split('.').pop().toUpperCase() : 'FILE';
+    const chip = document.createElement("div");
+    chip.className = "msg-attachment";
+    chip.innerHTML =
+      `<div class="msg-attachment-icon"><svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/></svg></div>` +
+      `<div class="msg-attachment-meta"><span class="msg-attachment-filename">${attachedFile}</span><span class="msg-attachment-type">${ext}</span></div>`;
+    wrap.appendChild(chip);
+  }
 
   const bubble = document.createElement("div");
   bubble.className = "bubble user";
@@ -256,7 +266,7 @@ export async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  if (onBeforeSend) await onBeforeSend();
+  const chatId = onBeforeSend ? await onBeforeSend() : null;
 
   const isEdit  = editingPairIndex !== null;
   const pairIdx = isEdit ? editingPairIndex : currentPairIndex;
@@ -271,17 +281,9 @@ export async function sendMessage() {
   }
 
   const pendingFile = attachmentBar.hidden ? null : attachmentName.textContent;
-  if (pendingFile) {
-    const chip = document.createElement("div");
-    chip.className = "msg-attachment";
-    chip.dataset.pairIndex = pairIdx;
-    chip.textContent = pendingFile;
-    chatEl.appendChild(chip);
-    chatEl.scrollTop = chatEl.scrollHeight;
-    attachmentBar.hidden = true;
-  }
+  if (pendingFile) attachmentBar.hidden = true;
 
-  addUserWrap(text, pairIdx);
+  addUserWrap(text, pairIdx, pendingFile);
   input.value = "";
   input.style.height = "44px";
 
@@ -301,7 +303,7 @@ export async function sendMessage() {
     const body = { message: text, attached_file: pendingFile };
     if (isEdit) body.pair_index = pairIdx;
 
-    const res = await fetch("/chat", {
+    const res = await fetch(`/chats/${chatId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

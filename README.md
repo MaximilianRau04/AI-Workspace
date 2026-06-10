@@ -63,7 +63,7 @@ Run the backend and the Vite dev server in two separate terminals:
 
 ```bash
 # Terminal 1 – API server
-cd backend && venv/bin/uvicorn app:app --host 0.0.0.0 --port 5000 --reload
+venv/bin/uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 
 # Terminal 2 – Frontend with HMR
 cd frontend && npm run dev
