@@ -106,11 +106,19 @@ async def delete_chat(chat_id: str, current_user: dict = Depends(login_required)
 # ---------------------------------------------------------------------------
 
 def _parse_error(e: Exception) -> dict:
+    import re
     msg = str(e)
     if "429" in msg or "quota" in msg.lower() or "rate" in msg.lower():
-        return {"type": "rate_limit", "title": "Rate limit reached", "detail": msg}
+        m = re.search(r'retry[^\d]*(\d+)', msg, re.IGNORECASE)
+        retry_after = int(m.group(1)) if m else None
+        err: dict = {"type": "rate_limit", "title": "Rate limit reached",
+                     "detail": "You've hit the provider's rate limit."}
+        if retry_after:
+            err["retry_after"] = retry_after
+        return err
     if "401" in msg or "403" in msg or "api key" in msg.lower() or "API key" in msg:
-        return {"type": "auth", "title": "Invalid API key", "detail": msg}
+        return {"type": "auth", "title": "Invalid API key",
+                "detail": "Check your API key in Settings."}
     return {"type": "generic", "title": "Something went wrong", "detail": msg}
 
 
@@ -180,17 +188,16 @@ async def send_message(
         if chat_service.needs_summarization(sess.messages):
             sess.messages, sess.summary = chat_service.summarize_messages(sess.messages)
 
-        chat_service.save_session(sess, user_id)
-        yield 'data: "[DONE]"\n\n'
-
         if is_first and full_reply:
             try:
                 title = _generate_title(user_message, full_reply)
                 sess.title = title
-                chat_service.save_session(sess, user_id)
                 yield f"event: title\ndata: {json.dumps({'id': sess.id, 'title': title})}\n\n"
             except Exception:
                 pass
+
+        chat_service.save_session(sess, user_id)
+        yield 'data: "[DONE]"\n\n'
 
     return StreamingResponse(
         iterate_in_threadpool(sync_generate()),

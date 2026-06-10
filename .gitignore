@@ -2,7 +2,7 @@
 model_config.json
 venv/
 __pycache__/
-docs/
+/docs/
 rag_index.json
 chatbot.db
 chatbot.db-shm

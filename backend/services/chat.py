@@ -64,7 +64,7 @@ def create_session(user_id: str) -> ChatSessionSchema:
         created_at=now,
         updated_at=now,
     )
-    save_session(sess, user_id)
+    # Not saved to DB here — save_session() is called on first message send
     return sess
 
 
