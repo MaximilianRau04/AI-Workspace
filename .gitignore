@@ -1,4 +1,5 @@
 .env
+.claude/
 model_config.json
 venv/
 __pycache__/
