@@ -1,0 +1,25 @@
+# Database
+sqlalchemy
+
+# Web framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Auth & utilities
+python-dotenv
+werkzeug
+
+# LLM providers
+google-generativeai
+google-genai
+openai
+anthropic
+
+# RAG
+pypdf
+
+# Voice
+edge-tts
+SpeechRecognition
+pydub

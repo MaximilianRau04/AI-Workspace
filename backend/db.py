@@ -1,46 +1,39 @@
 import os
-import sqlite3
+from contextlib import contextmanager
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "chatbot.db")
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import Session, sessionmaker
 
+from models.base import Base
 
-def get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+_db_path = os.path.join(os.path.dirname(__file__), "..", "chatbot.db")
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{_db_path}")
+
+_connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=_connect_args)
+
+if DATABASE_URL.startswith("sqlite"):
+    @event.listens_for(engine, "connect")
+    def _set_pragmas(conn, _):
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
 def init_db() -> None:
-    with get_conn() as conn:
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS users (
-                id           TEXT PRIMARY KEY,
-                username     TEXT NOT NULL,
-                password_hash TEXT NOT NULL
-            );
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
-                ON users(username COLLATE NOCASE);
+    import models  # noqa: F401 — ensures all models are registered before create_all
+    Base.metadata.create_all(engine)
 
-            CREATE TABLE IF NOT EXISTS sessions (
-                id         TEXT PRIMARY KEY,
-                user_id    TEXT NOT NULL REFERENCES users(id),
-                title      TEXT NOT NULL DEFAULT '',
-                summary    TEXT NOT NULL DEFAULT '',
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_sessions_user
-                ON sessions(user_id, updated_at DESC);
 
-            CREATE TABLE IF NOT EXISTS messages (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-                role       TEXT NOT NULL,
-                content    TEXT NOT NULL,
-                position   INTEGER NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_messages_session
-                ON messages(session_id, position);
-        """)
+@contextmanager
+def get_session() -> Session:
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()

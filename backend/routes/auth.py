@@ -1,70 +1,64 @@
-from flask import (
-    Blueprint,
-    jsonify,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for,
-)
+import os
 
-import auth_store
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse
+from pydantic import BaseModel
 
-bp = Blueprint("auth", __name__)
+from services import auth as auth_service
 
+router = APIRouter(tags=["auth"])
 
-@bp.route("/login")
-def login_page():
-    if "user_id" in session:
-        return redirect(url_for("main.index"))
-    return render_template("login.html")
+_base = os.path.dirname(os.path.abspath(__file__))
+_dist = os.path.join(_base, "..", "..", "dist")
+_frontend = os.path.join(_base, "..", "..", "frontend")
+_serve = _dist if os.path.isdir(_dist) else _frontend
 
 
-@bp.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
+class AuthBody(BaseModel):
+    username: str = ""
+    password: str = ""
 
-    user = auth_store.authenticate(username, password)
+
+@router.get("/login")
+async def login_page(request: Request):
+    if "user_id" in request.session:
+        return RedirectResponse(url="/")
+    return FileResponse(os.path.join(_serve, "login.html"))
+
+
+@router.post("/login")
+async def login(request: Request, body: AuthBody):
+    user = auth_service.authenticate(body.username.strip(), body.password)
     if not user:
-        return jsonify({"error": "Falscher Benutzername oder Passwort"}), 401
-
-    session.permanent = True
-    session["user_id"] = user["id"]
-    session["username"] = user["username"]
-    return jsonify({"ok": True})
+        raise HTTPException(status_code=401, detail="Falscher Benutzername oder Passwort")
+    request.session["user_id"] = user.id
+    request.session["username"] = user.username
+    return {"ok": True}
 
 
-@bp.route("/register", methods=["POST"])
-def register():
-    data = request.get_json()
-    username = (data.get("username") or "").strip()
-    password = data.get("password") or ""
-
+@router.post("/register")
+async def register(request: Request, body: AuthBody):
+    username = body.username.strip()
     if len(username) < 3:
-        return jsonify({"error": "Benutzername muss mindestens 3 Zeichen haben"}), 400
-    if len(password) < 6:
-        return jsonify({"error": "Passwort muss mindestens 6 Zeichen haben"}), 400
-
-    user = auth_store.register(username, password)
+        raise HTTPException(status_code=400, detail="Benutzername muss mindestens 3 Zeichen haben")
+    if len(body.password) < 6:
+        raise HTTPException(status_code=400, detail="Passwort muss mindestens 6 Zeichen haben")
+    user = auth_service.register(username, body.password)
     if not user:
-        return jsonify({"error": "Benutzername bereits vergeben"}), 409
-
-    session.permanent = True
-    session["user_id"] = user["id"]
-    session["username"] = user["username"]
-    return jsonify({"ok": True})
+        raise HTTPException(status_code=409, detail="Benutzername bereits vergeben")
+    request.session["user_id"] = user.id
+    request.session["username"] = user.username
+    return {"ok": True}
 
 
-@bp.route("/logout", methods=["POST"])
-def logout():
-    session.clear()
-    return jsonify({"ok": True})
+@router.post("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return {"ok": True}
 
 
-@bp.route("/me")
-def me():
-    if "user_id" not in session:
-        return jsonify({"error": "Not authenticated"}), 401
-    return jsonify({"username": session["username"], "user_id": session["user_id"]})
+@router.get("/me")
+async def me(request: Request):
+    if "user_id" not in request.session:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {"username": request.session["username"], "user_id": request.session["user_id"]}

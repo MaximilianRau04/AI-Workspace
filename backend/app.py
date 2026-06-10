@@ -1,11 +1,15 @@
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from flask import Flask, redirect, render_template, url_for
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 import db
 import rag
-from routes import auth, chat, config, docs, sessions, voice
+from routes import auth, chat, config, docs, voice
 
 load_dotenv()
 
@@ -16,40 +20,43 @@ _dist     = os.path.join(_base, "..", "dist")
 _frontend = os.path.join(_base, "..", "frontend")
 _serve    = _dist if os.path.isdir(_dist) else _frontend
 
-app = Flask(
-    __name__,
-    template_folder=_serve,
-    static_folder=_serve,
-    static_url_path="",
-)
-app.secret_key = SECRET_KEY
-db.init_db()
 
-# RAG uses Gemini embeddings – initialise only when a key is available.
-_gemini_key = os.getenv("GEMINI_API_KEY")
-if _gemini_key:
-    rag.init(_gemini_key)
-
-# --- Blueprints ---
-
-app.register_blueprint(auth.bp)
-app.register_blueprint(config.bp)
-app.register_blueprint(sessions.bp)
-app.register_blueprint(chat.bp)
-app.register_blueprint(docs.bp)
-app.register_blueprint(voice.bp)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db.init_db()
+    _gemini_key = os.getenv("GEMINI_API_KEY")
+    if _gemini_key:
+        rag.init(_gemini_key)
+    yield
 
 
-# --- Main routes ---
+app = FastAPI(lifespan=lifespan)
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
 
-@app.route("/")
-@app.route("/c/<session_id>")
-def index(session_id=None):
-    from flask import session
-    if "user_id" not in session:
-        return redirect(url_for("auth.login_page"))
-    return render_template("index.html")
+# --- Routers ---
+
+app.include_router(auth.router)
+app.include_router(chat.router)
+app.include_router(config.router)
+app.include_router(docs.router)
+app.include_router(voice.router)
+
+
+# --- SPA routes (must be before StaticFiles mount) ---
+
+@app.get("/")
+@app.get("/c/{session_id}")
+async def index(request: Request, session_id: str = None):
+    if "user_id" not in request.session:
+        return RedirectResponse(url="/login")
+    return FileResponse(os.path.join(_serve, "index.html"))
+
+
+# --- Static files (catch-all, must be last) ---
+
+app.mount("/", StaticFiles(directory=_serve, html=True), name="static")
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)

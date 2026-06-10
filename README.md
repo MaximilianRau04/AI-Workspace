@@ -1,6 +1,4 @@
-# ChatBot
-
-A web-based chatbot with user accounts, persistent chat history, voice in/out, document RAG, and syntax highlighting. Supports multiple LLM providers - Google Gemini, OpenAI-compatible APIs (including local models via Ollama), and Anthropic Claude.
+A self-hosted chat interface supporting multiple LLM providers (Gemini, OpenAI, Anthropic, Ollama) with streaming responses, reasoning/thinking blocks, voice input & output, document upload, and per-user chat history.
 
 ## Requirements
 
@@ -20,7 +18,8 @@ cd ChatBot
 **2. Create a virtual environment**
 
 ```bash
-python -m venv venv
+cd backend
+python3 -m venv venv
 source venv/bin/activate   # Linux / macOS
 venv\Scripts\activate      # Windows
 ```
@@ -28,13 +27,13 @@ venv\Scripts\activate      # Windows
 **3. Install Python dependencies**
 
 ```bash
-pip install google-generativeai google-genai python-dotenv flask pypdf edge-tts SpeechRecognition pydub openai anthropic
+pip install -r requirements.txt
 ```
 
 **4. Install frontend dependencies**
 
 ```bash
-cd frontend && npm install
+cd ../frontend && npm install
 ```
 
 **5. Create a `.env` file** (in the project root)
@@ -51,7 +50,7 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 Generate a secure `SECRET_KEY`:
 
 ```bash
-python -c "import secrets; print(secrets.token_hex(32))"
+python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
 API keys can also be entered directly in the in-app settings instead of the `.env` file.
@@ -60,26 +59,26 @@ API keys can also be entered directly in the in-app settings instead of the `.en
 
 ### Development (recommended)
 
-Run Flask and the Vite dev server in two separate terminals:
+Run the backend and the Vite dev server in two separate terminals:
 
 ```bash
 # Terminal 1 – API server
-python backend/app.py
+cd backend && venv/bin/uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 
 # Terminal 2 – Frontend with HMR
 cd frontend && npm run dev
 ```
 
-Open `http://localhost:5173`. The Vite dev server proxies all API calls to Flask on port 5000 and provides hot module replacement — CSS and JS changes apply instantly without a page reload.
+Open `http://localhost:5173`. The Vite dev server proxies all API calls to the backend on port 5000 and provides hot module replacement — CSS and JS changes apply instantly without a page reload.
 
 ### Production
 
 ```bash
 cd frontend && npm run build
-python backend/app.py
+cd ../backend && venv/bin/uvicorn app:app --host 0.0.0.0 --port 5000
 ```
 
-`npm run build` bundles everything into `dist/`. Flask automatically detects the `dist/` folder and serves the optimised files instead of the raw `frontend/` sources. Open `http://localhost:5000`.
+`npm run build` bundles everything into `dist/`. The backend automatically detects the `dist/` folder and serves the optimised files instead of the raw `frontend/` sources. Open `http://localhost:5000`.
 
 ## Supported Providers
 
@@ -120,17 +119,19 @@ The active provider and model are configured via the ⚙️ Settings button → 
 ```
 ChatBot/
 ├── backend/
-│   ├── app.py              # Flask app: setup & blueprint registration
+│   ├── app.py              # FastAPI app: setup & router registration
 │   ├── auth_store.py       # User storage (SQLite, password hashing)
 │   ├── db.py               # SQLite connection & schema initialization
 │   ├── history.py          # Per-user session persistence & summarization
 │   ├── llm.py              # Provider abstraction (Gemini / OpenAI / Anthropic)
 │   ├── rag.py              # Document indexing & retrieval (Gemini embeddings)
 │   ├── state.py            # Per-user in-memory chat state
-│   ├── utils.py            # Shared helpers (login_required decorator)
+│   ├── utils.py            # Shared helpers (login_required dependency)
+│   ├── requirements.txt    # Python dependencies
+│   ├── venv/               # Virtual environment (not tracked by git)
 │   └── routes/
 │       ├── auth.py         # /login  /register  /logout  /me
-│       ├── chat.py         # /chat (streaming)
+│       ├── chat.py         # /chat (streaming SSE)
 │       ├── config.py       # /config  /config/model  /config/ollama-models
 │       ├── docs.py         # /docs  /docs/upload  /docs/delete
 │       ├── sessions.py     # /sessions  /sessions/new  /sessions/<id>
@@ -162,7 +163,7 @@ ChatBot/
 ## Security
 
 - Passwords are hashed with `werkzeug.security` (scrypt + salt) - never stored in plain text.
-- The Flask session is signed with `SECRET_KEY`; use a long random value in production.
+- The session cookie is signed with `SECRET_KEY` via Starlette's `SessionMiddleware`; use a long random value in production.
 - API keys and `SECRET_KEY` live in `.env` and are excluded from version control.
 - Model config (including any API key entered via the UI) is stored in `model_config.json`, which is also excluded from version control.
 - `chatbot.db` contains user data and chat history - never commit it to version control.

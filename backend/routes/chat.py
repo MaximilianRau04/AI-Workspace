@@ -1,15 +1,109 @@
 import json
+from typing import Optional
 
-from flask import Blueprint, Response, jsonify, request, session, stream_with_context
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from starlette.concurrency import iterate_in_threadpool
 
-import history
 import llm
 import rag
 import state
+from schemas.chat import MessageSchema
+from services import chat as chat_service
 from utils import login_required
 
-bp = Blueprint("chat", __name__)
+router = APIRouter(tags=["chats"])
 
+
+# ---------------------------------------------------------------------------
+# Request bodies
+# ---------------------------------------------------------------------------
+
+class ChatBody(BaseModel):
+    message: str = ""
+    attached_file: Optional[str] = None
+    pair_index: Optional[int] = None
+
+
+class RenameBody(BaseModel):
+    title: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Session management
+# ---------------------------------------------------------------------------
+
+@router.get("/chats")
+async def list_chats(current_user: dict = Depends(login_required)):
+    user_id = current_user["user_id"]
+    user_state = state.get_or_init(user_id)
+    return {
+        "chats": chat_service.list_sessions(user_id),
+        "current_id": user_state["current_session"].id,
+    }
+
+
+@router.post("/chats")
+async def create_chat(current_user: dict = Depends(login_required)):
+    user_id = current_user["user_id"]
+    new_sess = chat_service.create_session(user_id)
+    state.set_state(user_id, {"current_session": new_sess})
+    return {"id": new_sess.id}
+
+
+@router.get("/chats/{chat_id}")
+async def get_chat(chat_id: str, current_user: dict = Depends(login_required)):
+    user_id = current_user["user_id"]
+    sess = chat_service.get_session_by_id(chat_id, user_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    state.set_state(user_id, {"current_session": sess})
+    return {
+        "id": sess.id,
+        "title": sess.title or "",
+        "messages": [m.model_dump() for m in sess.messages],
+    }
+
+
+@router.patch("/chats/{chat_id}")
+async def rename_chat(
+    chat_id: str,
+    body: RenameBody,
+    current_user: dict = Depends(login_required),
+):
+    user_id = current_user["user_id"]
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Title required")
+    chat_service.rename_session(chat_id, user_id, title)
+    user_state = state.get_or_init(user_id)
+    if user_state["current_session"].id == chat_id:
+        user_state["current_session"].title = title
+    return {"ok": True}
+
+
+@router.delete("/chats/{chat_id}")
+async def delete_chat(chat_id: str, current_user: dict = Depends(login_required)):
+    user_id = current_user["user_id"]
+    user_state = state.get_or_init(user_id)
+    chat_service.delete_session(chat_id, user_id)
+
+    if user_state["current_session"].id == chat_id:
+        remaining = chat_service.list_sessions(user_id)
+        new_sess = (
+            chat_service.get_session_by_id(remaining[0].id, user_id)
+            if remaining
+            else chat_service.create_session(user_id)
+        )
+        state.set_state(user_id, {"current_session": new_sess})
+
+    return {"ok": True, "current_id": state.get_or_init(user_id)["current_session"].id}
+
+
+# ---------------------------------------------------------------------------
+# Messaging
+# ---------------------------------------------------------------------------
 
 def _parse_error(e: Exception) -> dict:
     msg = str(e)
@@ -31,38 +125,37 @@ def _generate_title(user_msg: str, bot_msg: str) -> str:
     return llm.generate_text(prompt).strip().strip('"\'').strip()[:60]
 
 
-@bp.route("/chat", methods=["POST"])
-@login_required
-def chat_endpoint():
-    user_id    = session["user_id"]
+@router.post("/chats/{chat_id}/messages")
+async def send_message(
+    chat_id: str,
+    body: ChatBody,
+    current_user: dict = Depends(login_required),
+):
+    user_id = current_user["user_id"]
     user_state = state.get_or_init(user_id)
 
-    data         = request.get_json()
-    user_message = data.get("message", "").strip()
+    if user_state["current_session"].id != chat_id:
+        sess = chat_service.get_session_by_id(chat_id, user_id)
+        if not sess:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        state.set_state(user_id, {"current_session": sess})
+        user_state = state.get_or_init(user_id)
+
+    sess = user_state["current_session"]
+    user_message = body.message.strip()
     if not user_message:
-        return jsonify({"error": "Empty message"}), 400
+        raise HTTPException(status_code=400, detail="Empty message")
 
-    attached_file = data.get("attached_file")
-    pair_index    = data.get("pair_index")
+    if body.pair_index is not None:
+        sess.messages = sess.messages[: body.pair_index * 2]
 
-    if pair_index is not None:
-        # Editing: discard messages after the edited pair
-        user_state["current_session"]["messages"] = (
-            user_state["current_session"]["messages"][: pair_index * 2]
-        )
-
-    def generate():
-        is_first = len(user_state["current_session"]["messages"]) == 0
+    def sync_generate():
+        is_first = len(sess.messages) == 0
         full_reply = ""
 
-        context   = rag.retrieve(user_message, filename=attached_file)
+        context = rag.retrieve(user_message, filename=body.attached_file)
         augmented = f"{context}\n\nUser: {user_message}" if context else user_message
-
-        messages = history.build_chat_messages(
-            user_state["current_session"]["messages"],
-            user_state["current_session"].get("summary", ""),
-            augmented,
-        )
+        messages = chat_service.build_chat_messages(sess.messages, sess.summary, augmented)
 
         from routes.config import load_system_prompt
         system_prompt = load_system_prompt()
@@ -81,33 +174,25 @@ def chat_endpoint():
             yield 'data: "[DONE]"\n\n'
             return
 
-        user_state["current_session"]["messages"].append(
-            {"role": "user",  "parts": [user_message]}
-        )
-        user_state["current_session"]["messages"].append(
-            {"role": "model", "parts": [full_reply]}
-        )
+        sess.messages.append(MessageSchema(role="user",  parts=[user_message]))
+        sess.messages.append(MessageSchema(role="model", parts=[full_reply]))
 
-        if history.needs_summarization(user_state["current_session"]["messages"]):
-            new_msgs, new_summary = history.summarize_messages(
-                user_state["current_session"]["messages"]
-            )
-            user_state["current_session"]["messages"] = new_msgs
-            user_state["current_session"]["summary"]  = new_summary
+        if chat_service.needs_summarization(sess.messages):
+            sess.messages, sess.summary = chat_service.summarize_messages(sess.messages)
 
-        history.save_session(user_state["current_session"], user_id)
+        chat_service.save_session(sess, user_id)
         yield 'data: "[DONE]"\n\n'
 
         if is_first and full_reply:
             try:
                 title = _generate_title(user_message, full_reply)
-                user_state["current_session"]["title"] = title
-                history.save_session(user_state["current_session"], user_id)
-                yield (
-                    f"event: title\ndata: "
-                    f"{json.dumps({'id': user_state['current_session']['id'], 'title': title})}\n\n"
-                )
+                sess.title = title
+                chat_service.save_session(sess, user_id)
+                yield f"event: title\ndata: {json.dumps({'id': sess.id, 'title': title})}\n\n"
             except Exception:
                 pass
 
-    return Response(stream_with_context(generate()), mimetype="text/event-stream")
+    return StreamingResponse(
+        iterate_in_threadpool(sync_generate()),
+        media_type="text/event-stream",
+    )

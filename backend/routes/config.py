@@ -1,6 +1,8 @@
 import os
+from typing import List, Optional
 
-from flask import Blueprint, jsonify, request, session
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 import llm
 import state
@@ -8,7 +10,7 @@ from utils import login_required
 
 SYSTEM_PROMPT_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "system_prompt.txt")
 
-bp = Blueprint("config", __name__)
+router = APIRouter(tags=["config"])
 
 
 def load_system_prompt() -> str:
@@ -18,15 +20,26 @@ def load_system_prompt() -> str:
         return f.read().strip()
 
 
-# ---------------------------------------------------------------------------
-# System prompt
-# ---------------------------------------------------------------------------
+class ConfigBody(BaseModel):
+    system_prompt: str = ""
 
-@bp.route("/config", methods=["GET"])
-@login_required
-def get_config():
+
+class ModelConfigBody(BaseModel):
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    reasoning: Optional[bool] = None
+
+
+class PresetsBody(BaseModel):
+    presets: List = []
+
+
+@router.get("/config")
+async def get_config(current_user: dict = Depends(login_required)):
     model_cfg = llm.load_config()
-    return jsonify({
+    return {
         "system_prompt": load_system_prompt(),
         "model": {
             "provider":  model_cfg["provider"],
@@ -36,69 +49,47 @@ def get_config():
             "reasoning": model_cfg.get("reasoning", False),
             "presets":   model_cfg.get("presets", []),
         },
-    })
+    }
 
 
-@bp.route("/config", methods=["POST"])
-@login_required
-def set_config():
-    data       = request.get_json()
-    new_prompt = data.get("system_prompt", "").strip()
-
+@router.post("/config")
+async def set_config(body: ConfigBody, current_user: dict = Depends(login_required)):
     with open(SYSTEM_PROMPT_FILE, "w", encoding="utf-8") as f:
-        f.write(new_prompt)
-
-    # Invalidate all in-memory state so next request uses new prompt
+        f.write(body.system_prompt.strip())
     state.invalidate_all()
+    return {"ok": True}
 
-    return jsonify({"ok": True})
 
-
-# ---------------------------------------------------------------------------
-# Model config
-# ---------------------------------------------------------------------------
-
-@bp.route("/config/model", methods=["POST"])
-@login_required
-def set_model_config():
-    data = request.get_json()
-    cfg  = llm.load_config()
+@router.post("/config/model")
+async def set_model_config(body: ModelConfigBody, current_user: dict = Depends(login_required)):
+    cfg = llm.load_config()
     cfg.update({
-        "provider":  data.get("provider",  cfg["provider"]),
-        "model":     data.get("model",     cfg["model"]),
-        "api_key":   data.get("api_key",   cfg.get("api_key", "")),
-        "base_url":  data.get("base_url",  cfg.get("base_url", "")),
-        "reasoning": data.get("reasoning", cfg.get("reasoning", False)),
+        "provider":  body.provider  if body.provider  is not None else cfg["provider"],
+        "model":     body.model     if body.model     is not None else cfg["model"],
+        "api_key":   body.api_key   if body.api_key   is not None else cfg.get("api_key", ""),
+        "base_url":  body.base_url  if body.base_url  is not None else cfg.get("base_url", ""),
+        "reasoning": body.reasoning if body.reasoning is not None else cfg.get("reasoning", False),
     })
     llm.save_config(cfg)
     state.invalidate_all()
-    return jsonify({"ok": True})
+    return {"ok": True}
 
 
-# ---------------------------------------------------------------------------
-# Presets
-# ---------------------------------------------------------------------------
-
-@bp.route("/config/presets", methods=["POST"])
-@login_required
-def set_presets():
-    data = request.get_json()
-    cfg  = llm.load_config()
-    cfg["presets"] = data.get("presets", [])
+@router.post("/config/presets")
+async def set_presets(body: PresetsBody, current_user: dict = Depends(login_required)):
+    cfg = llm.load_config()
+    cfg["presets"] = body.presets
     llm.save_config(cfg)
-    return jsonify({"ok": True})
+    return {"ok": True}
 
 
-# ---------------------------------------------------------------------------
-# Ollama model discovery
-# ---------------------------------------------------------------------------
-
-@bp.route("/config/ollama-models", methods=["GET"])
-@login_required
-def ollama_models():
-    base_url = request.args.get("base_url", "http://localhost:11434/v1")
+@router.get("/config/ollama-models")
+async def ollama_models(
+    base_url: str = "http://localhost:11434/v1",
+    current_user: dict = Depends(login_required),
+):
     try:
         models = llm.list_ollama_models(base_url)
-        return jsonify({"models": models})
+        return {"models": models}
     except Exception as e:
-        return jsonify({"error": str(e)}), 502
+        raise HTTPException(status_code=502, detail=str(e))

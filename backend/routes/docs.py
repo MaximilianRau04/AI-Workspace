@@ -1,46 +1,54 @@
 import os
 
-from flask import Blueprint, jsonify, request
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel
 from werkzeug.utils import secure_filename
 
 import rag
 from utils import login_required
 
-bp = Blueprint("docs", __name__)
+router = APIRouter(tags=["docs"])
 
 ALLOWED_EXTENSIONS = {".txt", ".md", ".pdf"}
 
 
-@bp.route("/docs", methods=["GET"])
-@login_required
-def list_docs():
-    return jsonify({"files": rag.list_indexed()})
+class DeleteBody(BaseModel):
+    file: str = ""
 
 
-@bp.route("/docs/upload", methods=["POST"])
-@login_required
-def upload_doc():
-    file = request.files.get("file")
-    if not file:
-        return jsonify({"error": "No file"}), 400
+@router.get("/docs")
+async def list_docs(current_user: dict = Depends(login_required)):
+    return {"files": rag.list_indexed()}
+
+
+@router.post("/docs/upload")
+async def upload_doc(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(login_required),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file")
     filename = secure_filename(file.filename)
     ext = os.path.splitext(filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
-        return jsonify({"error": f"Unsupported type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"}), 400
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
+        )
     os.makedirs(rag.DOCS_DIR, exist_ok=True)
-    file.save(os.path.join(rag.DOCS_DIR, filename))
+    content = await file.read()
+    with open(os.path.join(rag.DOCS_DIR, filename), "wb") as f:
+        f.write(content)
     chunks = rag.index_file(filename)
-    return jsonify({"file": filename, "chunks": chunks})
+    return {"file": filename, "chunks": chunks}
 
 
-@bp.route("/docs/delete", methods=["POST"])
-@login_required
-def delete_doc():
-    filename = request.get_json().get("file")
-    if not filename:
-        return jsonify({"error": "No filename"}), 400
-    rag.delete_file(filename)
-    path = os.path.join(rag.DOCS_DIR, filename)
+@router.post("/docs/delete")
+async def delete_doc(body: DeleteBody, current_user: dict = Depends(login_required)):
+    if not body.file:
+        raise HTTPException(status_code=400, detail="No filename")
+    rag.delete_file(body.file)
+    path = os.path.join(rag.DOCS_DIR, body.file)
     if os.path.exists(path):
         os.remove(path)
-    return jsonify({"ok": True})
+    return {"ok": True}
