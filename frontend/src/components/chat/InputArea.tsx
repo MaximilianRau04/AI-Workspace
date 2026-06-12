@@ -11,6 +11,8 @@ interface InputAreaProps {
   isRecording: boolean;
   onToggleRecording: (fill?: (text: string) => void) => void;
   tokenUsage: TokenUsage | null;
+  webSearch: boolean;
+  onToggleWebSearch: () => void;
 }
 
 export default function InputArea({
@@ -23,6 +25,8 @@ export default function InputArea({
   isRecording,
   onToggleRecording,
   tokenUsage,
+  webSearch,
+  onToggleWebSearch,
 }: InputAreaProps) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -80,7 +84,7 @@ export default function InputArea({
       {/* Attachment bar */}
       {pendingFile && (
         <div className="flex items-center gap-2 py-[0.4rem]">
-          <div className="flex items-center gap-[0.55rem] bg-[#1e2023] border border-[#2e3035] rounded-[0.75rem] px-[0.7rem] py-[0.5rem] max-w-[280px] overflow-hidden">
+          <div className="flex items-center gap-[0.55rem] bg-bg-muted border border-border rounded-[0.75rem] px-[0.7rem] py-[0.5rem] max-w-[280px] overflow-hidden">
             <div className="w-9 h-9 bg-accent rounded-[0.45rem] flex items-center justify-center flex-shrink-0 text-white">
               <svg
                 viewBox="0 0 24 24"
@@ -141,6 +145,27 @@ export default function InputArea({
           style={{ height: "44px", maxHeight: "160px" }}
         />
 
+        {/* Web search toggle */}
+        <button
+          onClick={onToggleWebSearch}
+          title={webSearch ? "Web search on" : "Web search off"}
+          className={`bg-transparent border-none cursor-pointer flex-shrink-0 px-[0.2rem] flex items-center transition-colors ${webSearch ? "text-accent hover:text-accent-hover" : "text-[#999] hover:text-txt-primary"}`}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            width="18"
+            height="18"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+        </button>
+
         {/* Mic button */}
         <button
           onClick={() => onToggleRecording()}
@@ -200,7 +225,7 @@ export default function InputArea({
         {isStreaming ? (
           <button
             onClick={onStop}
-            className="bg-[#3a3a3a] hover:bg-[#c0392b] border-none rounded-lg text-txt-primary px-[0.85rem] min-h-[34px] text-[0.95rem] cursor-pointer transition-colors flex-shrink-0"
+            className="bg-bg-muted dark:bg-[#3a3a3a] hover:bg-[#c0392b] hover:text-white border-none rounded-lg text-txt-primary px-[0.85rem] min-h-[34px] text-[0.95rem] cursor-pointer transition-colors flex-shrink-0"
           >
             &#9646;&#9646;
           </button>

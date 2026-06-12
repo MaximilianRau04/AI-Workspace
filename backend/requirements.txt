@@ -19,6 +19,9 @@ anthropic
 # RAG
 pypdf
 
+# Web search
+duckduckgo-search
+
 # Voice
 edge-tts
 SpeechRecognition

@@ -42,6 +42,9 @@ export default function ChatPage() {
   const [docsOpen, setDocsOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [themeSpinning, setThemeSpinning] = useState(false);
+  const [webSearch, setWebSearch] = useState<boolean>(
+    () => localStorage.getItem("webSearch") === "true",
+  );
 
   const pairCounterRef = useRef<number>(0);
   const streamingPairRef = useRef<number | null>(null);
@@ -88,9 +91,11 @@ export default function ChatPage() {
           attachedFile: null,
           botText: botMsg?.parts?.[0] || "",
           isStreaming: false,
+          interrupted: false,
           thinkingText: "",
           thinkingStreaming: false,
           thinkingElapsed: 0,
+          searchQuery: null,
         });
       }
       setPairs(newPairs);
@@ -135,9 +140,11 @@ export default function ChatPage() {
         attachedFile: fileForSend,
         botText: "",
         isStreaming: true,
+        interrupted: false,
         thinkingText: "",
         thinkingStreaming: false,
         thinkingElapsed: 0,
+        searchQuery: null,
       };
       setPairs((prev) => [
         ...prev.filter((p) => p.pairIndex < newPairIdx),
@@ -171,6 +178,13 @@ export default function ChatPage() {
             }),
           );
         },
+        onSearching: (query) => {
+          setPairs((prev) =>
+            prev.map((p) =>
+              p.pairIndex === newPairIdx ? { ...p, searchQuery: query } : p,
+            ),
+          );
+        },
         onDone: (fullText) => {
           const elapsed = Math.round(
             (Date.now() - (thinkingStartRef.current || Date.now())) / 1000,
@@ -201,7 +215,7 @@ export default function ChatPage() {
           setPairs((prev) => prev.filter((p) => p.pairIndex !== newPairIdx));
           setErrorMessages((prev) => [...prev, payload]);
         },
-      });
+      }, webSearch);
 
       setIsStreaming(false);
       streamingPairRef.current = null;
@@ -241,7 +255,7 @@ export default function ChatPage() {
       setPairs((prev) =>
         prev.map((p) =>
           p.pairIndex === idx
-            ? { ...p, isStreaming: false, thinkingStreaming: false }
+            ? { ...p, isStreaming: false, thinkingStreaming: false, interrupted: true }
             : p,
         ),
       );
@@ -432,6 +446,14 @@ export default function ChatPage() {
               )
             }
             tokenUsage={tokenUsage}
+            webSearch={webSearch}
+            onToggleWebSearch={() => {
+              setWebSearch((prev) => {
+                const next = !prev;
+                localStorage.setItem("webSearch", String(next));
+                return next;
+              });
+            }}
           />
         </div>
       </div>

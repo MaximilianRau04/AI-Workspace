@@ -24,6 +24,7 @@ class ChatBody(BaseModel):
     message: str = ""
     attached_file: Optional[str] = None
     pair_index: Optional[int] = None
+    web_search: bool = False
 
 
 class RenameBody(BaseModel):
@@ -169,11 +170,13 @@ async def send_message(
         system_prompt = load_system_prompt()
 
         try:
-            for item in llm.stream_chat(messages, system_prompt):
+            for item in llm.stream_chat(messages, system_prompt, web_search=body.web_search):
                 if isinstance(item, dict) and "usage" in item:
                     yield f"event: usage\ndata: {json.dumps(item['usage'])}\n\n"
                 elif isinstance(item, dict) and "thinking" in item:
                     yield f"event: thinking\ndata: {json.dumps(item['thinking'])}\n\n"
+                elif isinstance(item, dict) and "searching" in item:
+                    yield f"event: searching\ndata: {json.dumps(item['searching'])}\n\n"
                 else:
                     full_reply += item
                     yield f"data: {json.dumps(item)}\n\n"

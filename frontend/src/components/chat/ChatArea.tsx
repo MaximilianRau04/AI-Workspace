@@ -65,9 +65,11 @@ export default function ChatArea({
               attachedFile={pair.attachedFile}
               botText={pair.botText}
               isStreaming={pair.isStreaming}
+              interrupted={pair.interrupted}
               thinkingText={pair.thinkingText}
               thinkingStreaming={pair.thinkingStreaming}
               thinkingElapsed={pair.thinkingElapsed}
+              searchQuery={pair.searchQuery}
               onRetry={onRetry}
               onEdit={onEdit}
             />

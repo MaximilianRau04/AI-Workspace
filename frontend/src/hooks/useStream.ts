@@ -5,6 +5,7 @@ import type { TokenUsage, StreamError, TitleEvent } from "../types";
 interface StreamCallbacks {
   onChunk?: (char: string, fullText: string) => void;
   onThinking?: (chunk: string) => void;
+  onSearching?: (query: string) => void;
   onDone?: (fullText: string) => void;
   onTitle?: (id: string, title: string) => void;
   onUsage?: (payload: TokenUsage) => void;
@@ -34,6 +35,7 @@ export function useStream(): {
     attachedFile: string | null,
     pairIndex: number | null,
     callbacks: StreamCallbacks,
+    webSearch?: boolean,
   ) => Promise<void>;
   abort: () => void;
 } {
@@ -53,10 +55,12 @@ export function useStream(): {
       attachedFile: string | null,
       pairIndex: number | null,
       callbacks: StreamCallbacks,
+      webSearch: boolean = false,
     ): Promise<void> => {
       const {
         onChunk,
         onThinking,
+        onSearching,
         onDone,
         onTitle,
         onUsage,
@@ -82,6 +86,7 @@ export function useStream(): {
           attachedFile,
           pairIndex,
           controller.signal,
+          webSearch,
         );
 
         const reader = res.body!.getReader();
@@ -137,6 +142,11 @@ export function useStream(): {
             if (eventType === "thinking") {
               thinkRef.current += payload as string;
               onThinking?.(payload as string);
+              eventType = "message";
+              continue;
+            }
+            if (eventType === "searching") {
+              onSearching?.(payload as string);
               eventType = "message";
               continue;
             }

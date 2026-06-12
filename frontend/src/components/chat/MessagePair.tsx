@@ -11,7 +11,7 @@ function AttachmentChip({ filename }: AttachmentChipProps) {
     ? filename.split(".").pop()!.toUpperCase()
     : "FILE";
   return (
-    <div className="self-end flex items-center gap-[0.55rem] bg-[#1e2023] border border-[#2e3035] rounded-[0.75rem] px-[0.7rem] py-[0.5rem] max-w-[280px] overflow-hidden">
+    <div className="self-end flex items-center gap-[0.55rem] bg-bg-muted border border-border rounded-[0.75rem] px-[0.7rem] py-[0.5rem] max-w-[280px] overflow-hidden">
       <div className="w-9 h-9 bg-accent rounded-[0.45rem] flex items-center justify-center flex-shrink-0 text-white">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z" />
@@ -138,12 +138,12 @@ function InlineEdit({ initialText, onSave, onCancel }: InlineEditProps) {
         onChange={(e) => setValue(e.target.value)}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
-        className="w-full bg-[#1e1e1e] border border-[#3a3a3a] focus:border-accent rounded-[0.75rem] text-txt-primary font-[inherit] text-[0.95rem] leading-[1.55] min-h-[44px] outline-none px-[0.85rem] py-[0.6rem] resize-none word-break-break-word"
+        className="w-full bg-bg-muted border border-border focus:border-accent rounded-[0.75rem] text-txt-primary font-[inherit] text-[0.95rem] leading-[1.55] min-h-[44px] outline-none px-[0.85rem] py-[0.6rem] resize-none word-break-break-word"
       />
       <div className="flex gap-[0.4rem] justify-end mt-[0.3rem]">
         <button
           onClick={onCancel}
-          className="bg-[#2a2a2a] border-none rounded-lg text-[#aaa] cursor-pointer text-[0.8rem] px-3 py-[0.3rem] transition-all hover:bg-[#3a3a3a] hover:text-txt-primary"
+          className="bg-bg-muted border-none rounded-lg text-txt-muted cursor-pointer text-[0.8rem] px-3 py-[0.3rem] transition-all hover:bg-bg-hover hover:text-txt-primary"
         >
           Cancel
         </button>
@@ -177,17 +177,32 @@ function BotBubble({
   const containerRef = useRef<HTMLDivElement>(null);
   const prevTextRef = useRef<string>("");
 
+  const renderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!containerRef.current || !text) return;
     if (text === prevTextRef.current) return;
     prevTextRef.current = text;
 
-    if (isStreaming) {
-      containerRef.current.textContent = text;
-    } else {
-      const html = renderMarkdown(text);
-      containerRef.current.innerHTML = html;
+    if (!isStreaming) {
+      if (renderTimerRef.current) clearTimeout(renderTimerRef.current);
+      containerRef.current.innerHTML = renderMarkdown(text);
       decorateCodeBlocks(containerRef.current);
+      return;
+    }
+
+    // During streaming: render immediately on block boundaries, debounce otherwise
+    const endsBlock = text.endsWith("\n\n") || /```\s*$/.test(text);
+    if (endsBlock) {
+      if (renderTimerRef.current) clearTimeout(renderTimerRef.current);
+      containerRef.current.innerHTML = renderMarkdown(text);
+    } else {
+      if (renderTimerRef.current) clearTimeout(renderTimerRef.current);
+      renderTimerRef.current = setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.innerHTML = renderMarkdown(prevTextRef.current);
+        }
+      }, 80);
     }
   }, [text, isStreaming]);
 
@@ -215,9 +230,11 @@ interface MessagePairProps {
   attachedFile: string | null;
   botText: string;
   isStreaming: boolean;
+  interrupted: boolean;
   thinkingText: string;
   thinkingStreaming: boolean;
   thinkingElapsed: number;
+  searchQuery: string | null;
   onRetry: (pairIndex: number, text: string) => void;
   onEdit: (pairIndex: number, newText: string) => void;
 }
@@ -228,9 +245,11 @@ export default function MessagePair({
   attachedFile,
   botText,
   isStreaming,
+  interrupted,
   thinkingText,
   thinkingStreaming,
   thinkingElapsed,
+  searchQuery,
   onRetry,
   onEdit,
 }: MessagePairProps) {
@@ -284,7 +303,13 @@ export default function MessagePair({
       {/* Bot message */}
       {(botText !== undefined || isStreaming) && (
         <div className="group w-full max-w-[760px]">
-          {isStreaming && !botText ? (
+          {isStreaming && searchQuery && !botText ? (
+            <span className="thinking-dots text-[#888] text-[0.88rem]">
+              Searching for &ldquo;{searchQuery}&rdquo;<span>.</span>
+              <span>.</span>
+              <span>.</span>
+            </span>
+          ) : isStreaming && !botText ? (
             <span className="thinking-dots">
               Thinking<span>.</span>
               <span>.</span>
@@ -298,6 +323,13 @@ export default function MessagePair({
               thinkingStreaming={thinkingStreaming}
               thinkingElapsed={thinkingElapsed}
             />
+          )}
+          {!isStreaming && interrupted && (
+            <div className="mt-2 mb-1">
+              <span className="inline-flex items-center gap-1 text-[0.72rem] text-[#888] bg-[#1e1e1e] border border-[#2e2e2e] rounded-full px-[0.55rem] py-[0.2rem]">
+                <span>⏸</span> Interrupted
+              </span>
+            </div>
           )}
           {!isStreaming && botText && (
             <div className="flex flex-row gap-[0.15rem] opacity-0 group-hover:opacity-100 transition-opacity mt-[0.25rem]">

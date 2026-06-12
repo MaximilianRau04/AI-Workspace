@@ -38,10 +38,12 @@ export function streamMessage(
   attachedFile: string | null,
   pairIndex: number | null | undefined,
   signal: AbortSignal,
+  webSearch: boolean = false,
 ): Promise<Response> {
   const body: Record<string, unknown> = {
     message,
     attached_file: attachedFile ?? null,
+    web_search: webSearch,
   };
   if (pairIndex !== null && pairIndex !== undefined)
     body.pair_index = pairIndex;

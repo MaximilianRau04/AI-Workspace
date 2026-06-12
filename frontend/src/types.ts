@@ -66,7 +66,9 @@ export interface ChatPair {
   attachedFile: string | null;
   botText: string;
   isStreaming: boolean;
+  interrupted: boolean;
   thinkingText: string;
   thinkingStreaming: boolean;
   thinkingElapsed: number;
+  searchQuery: string | null;
 }
