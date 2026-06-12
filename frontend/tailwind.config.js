@@ -6,25 +6,25 @@ export default {
     extend: {
       colors: {
         bg: {
-          base:    '#0f0f0f',
-          surface: '#1a1a1a',
-          muted:   '#1e1e1e',
-          hover:   '#242424',
+          base:    'var(--bg-base)',
+          surface: 'var(--bg-surface)',
+          muted:   'var(--bg-muted)',
+          hover:   'var(--bg-hover)',
         },
         border: {
-          DEFAULT: '#2e2e2e',
-          subtle:  '#232323',
+          DEFAULT: 'var(--border)',
+          subtle:  'var(--border-subtle)',
         },
         accent: {
           DEFAULT: '#2f6df5',
           hover:   '#1a5de0',
-          dim:     '#1e2a40',
+          dim:     'var(--accent-dim)',
         },
         txt: {
-          primary: '#e5e5e5',
-          muted:   '#aaa',
-          dim:     '#666',
-          heading: '#ffffff',
+          primary: 'var(--txt-primary)',
+          muted:   'var(--txt-muted)',
+          dim:     'var(--txt-dim)',
+          heading: 'var(--txt-heading)',
         },
       },
     },

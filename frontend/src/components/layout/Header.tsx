@@ -59,7 +59,7 @@ export default function Header({ onOpenSettings }: HeaderProps) {
               e.stopPropagation();
               setDropdownOpen((o) => !o);
             }}
-            className={`flex items-center gap-[0.3rem] bg-bg-surface border border-[#2a2a2a] rounded-lg text-txt-dim cursor-pointer text-[0.78rem] font-[inherit] px-[0.55rem] py-[0.25rem] transition-all max-w-[180px] hover:text-txt-muted hover:border-[#3a3a3a] ${dropdownOpen ? "text-txt-primary border-[#3d3d3d] bg-[#222]" : ""}`}
+            className={`flex items-center gap-[0.3rem] bg-bg-surface border border-border rounded-lg text-txt-dim cursor-pointer text-[0.78rem] font-[inherit] px-[0.55rem] py-[0.25rem] transition-all max-w-[180px] hover:text-txt-muted ${dropdownOpen ? "text-txt-primary bg-bg-muted dark:bg-[#222]" : ""}`}
           >
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">
               {modelId || "—"}
@@ -76,7 +76,7 @@ export default function Header({ onOpenSettings }: HeaderProps) {
           </button>
 
           {dropdownOpen && (
-            <div className="absolute top-[calc(100%+6px)] left-0 z-[120] bg-bg-surface border border-[#2d2d2d] rounded-[0.65rem] shadow-[0_8px_28px_rgba(0,0,0,0.55)] min-w-[220px] max-w-[300px] overflow-hidden">
+            <div className="absolute top-[calc(100%+6px)] left-0 z-[120] bg-bg-surface border border-border rounded-[0.65rem] shadow-[0_8px_28px_rgba(0,0,0,0.25)] min-w-[220px] max-w-[300px] overflow-hidden">
               <div className="p-[0.3rem] flex flex-col gap-[0.1rem] max-h-[260px] overflow-y-auto">
                 {!presets.length ? (
                   <p className="text-[0.8rem] text-txt-dim px-[0.7rem] py-[0.6rem] text-center">
@@ -96,7 +96,7 @@ export default function Header({ onOpenSettings }: HeaderProps) {
                           onClick={() => {
                             void activatePreset(p);
                           }}
-                          className={`flex flex-col items-start bg-transparent border-none rounded-none text-[#ccc] cursor-pointer font-[inherit] px-[0.7rem] py-[0.45rem] text-left transition-all flex-1 min-w-0 hover:bg-[#252525] hover:text-white ${p.id === activeId ? "text-txt-primary" : ""}`}
+                          className={`flex flex-col items-start bg-transparent border-none rounded-none text-txt-muted cursor-pointer font-[inherit] px-[0.7rem] py-[0.45rem] text-left transition-all flex-1 min-w-0 hover:bg-bg-hover hover:text-txt-heading ${p.id === activeId ? "text-txt-primary" : ""}`}
                         >
                           <span className="text-[0.875rem] font-medium">
                             {p.model}
@@ -125,7 +125,7 @@ export default function Header({ onOpenSettings }: HeaderProps) {
                   setDropdownOpen(false);
                   onOpenSettings("model");
                 }}
-                className="block w-full bg-transparent border-none border-t border-[#252525] text-txt-dim cursor-pointer font-[inherit] text-[0.78rem] px-[0.7rem] py-[0.5rem] text-left transition-all hover:text-txt-muted hover:bg-[#1f1f1f]"
+                className="block w-full bg-transparent border-none border-t border-border text-txt-dim cursor-pointer font-[inherit] text-[0.78rem] px-[0.7rem] py-[0.5rem] text-left transition-all hover:text-txt-muted hover:bg-bg-hover"
               >
                 Manage in Settings…
               </button>

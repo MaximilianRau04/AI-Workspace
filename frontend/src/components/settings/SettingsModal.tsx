@@ -194,15 +194,15 @@ export default function SettingsModal({
     >
       <div className="bg-bg-surface border border-border rounded-[1rem] p-6 w-[90%] max-w-[560px] flex flex-col gap-4">
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-[#2a2a2a] pb-3">
+        <div className="flex gap-1 border-b border-border pb-3">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`bg-transparent border rounded-lg text-[0.85rem] font-medium px-[0.85rem] py-[0.35rem] cursor-pointer transition-all ${
                 tab === t.id
-                  ? "bg-[#2a2a2a] border-[#3a3a3a] text-txt-primary"
-                  : "border-transparent text-txt-dim hover:text-[#ccc]"
+                  ? "bg-bg-muted border-border text-txt-primary"
+                  : "border-transparent text-txt-dim hover:text-txt-muted"
               }`}
             >
               {t.label}
@@ -296,7 +296,7 @@ export default function SettingsModal({
                     onClick={() => {
                       void detectOllama();
                     }}
-                    className="bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg text-[#ccc] cursor-pointer text-[0.8rem] px-3 whitespace-nowrap hover:bg-[#333] hover:text-white transition-all"
+                    className="bg-bg-muted border border-border rounded-lg text-txt-muted cursor-pointer text-[0.8rem] px-3 whitespace-nowrap hover:bg-bg-hover hover:text-txt-heading transition-all"
                   >
                     {ollamaStatus || "Detect models"}
                   </button>
@@ -346,7 +346,7 @@ export default function SettingsModal({
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="bg-[#2a2a2a] hover:bg-[#333] border-none rounded-lg text-txt-primary px-4 py-2 cursor-pointer text-[0.9rem] transition-colors"
+            className="bg-bg-muted hover:bg-bg-hover border-none rounded-lg text-txt-primary px-4 py-2 cursor-pointer text-[0.9rem] transition-colors"
           >
             Cancel
           </button>

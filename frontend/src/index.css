@@ -2,6 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme tokens ── */
+:root {
+  --bg-base:      #f5f5f5;
+  --bg-surface:   #ffffff;
+  --bg-muted:     #f0f0f0;
+  --bg-hover:     #e8e8e8;
+  --border:       #e0e0e0;
+  --border-subtle:#ebebeb;
+  --txt-primary:  #1a1a1a;
+  --txt-muted:    #555555;
+  --txt-dim:      #888888;
+  --txt-heading:  #000000;
+  --accent-dim:   #dce8ff;
+}
+
+.dark {
+  --bg-base:      #0f0f0f;
+  --bg-surface:   #1a1a1a;
+  --bg-muted:     #1e1e1e;
+  --bg-hover:     #242424;
+  --border:       #2e2e2e;
+  --border-subtle:#232323;
+  --txt-primary:  #e5e5e5;
+  --txt-muted:    #aaaaaa;
+  --txt-dim:      #666666;
+  --txt-heading:  #ffffff;
+  --accent-dim:   #1e2a40;
+}
+
 /* ── Base ── */
 *,
 *::before,
@@ -351,6 +380,35 @@ header {
   background: #2a2a2a;
   border-radius: 3px;
 }
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #ccc;
+}
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a3a;
+}
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
+
+/* ── Light mode overrides ── */
+
+/* Sidebar panel */
+html:not(.dark) aside {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border) !important;
+}
+html:not(.dark) aside .rounded-full {
+  background-color: var(--bg-muted) !important;
+  border-color: var(--border) !important;
+}
+html:not(.dark) aside input {
+  background-color: var(--bg-muted) !important;
+}
+html:not(.dark) aside button:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+/* Bot bubble text */
+html:not(.dark) .bot-bubble {
+  color: var(--txt-primary);
 }

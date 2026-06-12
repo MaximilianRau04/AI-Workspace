@@ -90,7 +90,7 @@ function SessionContextMenu({
       <div
         ref={menuRef}
         style={{ position: "fixed", left: pos.left, top: pos.top, zIndex: 200 }}
-        className="bg-bg-surface border border-[#2d2d2d] rounded-[0.55rem] p-1 shadow-[0_6px_24px_rgba(0,0,0,0.55)] min-w-[160px]"
+        className="bg-bg-surface border border-border rounded-[0.55rem] p-1 shadow-[0_6px_24px_rgba(0,0,0,0.25)] min-w-[160px]"
         onClick={(e) => e.stopPropagation()}
       >
         <input
@@ -110,7 +110,7 @@ function SessionContextMenu({
           onBlur={() => {
             void saveRename();
           }}
-          className="w-full bg-[#111] border border-accent rounded-[0.3rem] text-txt-primary text-[0.875rem] px-[0.35rem] py-[0.1rem] outline-none font-[inherit]"
+          className="w-full bg-bg-muted dark:bg-[#111] border border-accent rounded-[0.3rem] text-txt-primary text-[0.875rem] px-[0.35rem] py-[0.1rem] outline-none font-[inherit]"
         />
       </div>
     );
@@ -137,7 +137,7 @@ function SessionContextMenu({
     <div
       ref={menuRef}
       style={{ position: "fixed", left: pos.left, top: pos.top, zIndex: 200 }}
-      className="bg-bg-surface border border-[#2d2d2d] rounded-[0.55rem] p-1 shadow-[0_6px_24px_rgba(0,0,0,0.55)] min-w-[148px]"
+      className="bg-bg-surface border border-border rounded-[0.55rem] p-1 shadow-[0_6px_24px_rgba(0,0,0,0.25)] min-w-[148px]"
       onClick={(e) => e.stopPropagation()}
     >
       {menuItems.map((item) => (
@@ -149,8 +149,8 @@ function SessionContextMenu({
           }}
           className={`block w-full bg-transparent border-none px-3 py-2 text-left text-[0.85rem] rounded-[0.35rem] cursor-pointer transition-all ${
             item.danger
-              ? "text-[#e05252] hover:bg-[#2d1515] hover:text-[#ff6b6b]"
-              : "text-[#ccc] hover:bg-[#252525] hover:text-white"
+              ? "text-[#e05252] hover:bg-[#2d1515] dark:hover:bg-[#2d1515] hover:bg-red-50 hover:text-[#e05252]"
+              : "text-txt-muted dark:text-[#ccc] hover:bg-bg-hover hover:text-txt-heading"
           }`}
         >
           <span className="inline-block w-[1.3rem] text-[0.85rem] opacity-85">
@@ -207,17 +207,17 @@ function SessionItem({
         }`}
       >
         <span
-          className={`text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? "text-txt-primary" : "text-[#bbb]"}`}
+          className={`text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? "text-txt-primary" : "text-txt-muted dark:text-[#bbb]"}`}
         >
           {title}
         </span>
-        <span className="text-[0.7rem] text-[#444] whitespace-nowrap flex-shrink-0">
+        <span className="text-[0.7rem] text-txt-dim whitespace-nowrap flex-shrink-0">
           {formatDate(session.updated_at)}
         </span>
         <button
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => openMenu(e, e.currentTarget)}
-          className="bg-transparent border-none text-[#555] cursor-pointer text-[1.1rem] leading-none px-[0.25rem] py-[0.15rem] opacity-0 group-hover:opacity-100 transition-opacity rounded-[0.3rem] hover:text-[#ddd] hover:bg-[#2a2a2a] flex-shrink-0"
+          className="bg-transparent border-none text-txt-dim cursor-pointer text-[1.1rem] leading-none px-[0.25rem] py-[0.15rem] opacity-0 group-hover:opacity-100 transition-opacity rounded-[0.3rem] hover:text-txt-primary hover:bg-bg-hover flex-shrink-0"
           title="Options"
         >
           ⋮
@@ -297,9 +297,9 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
 
       {/* Sidebar panel */}
       <aside
-        className={`fixed top-0 left-0 w-[280px] h-full bg-[#111] border-r border-bg-muted z-50 flex flex-col sidebar-transition ${
+        className={`fixed top-0 left-0 w-[280px] h-full bg-bg-surface dark:bg-[#111] border-r border-border z-50 flex flex-col sidebar-transition ${
           sidebarOpen
-            ? "translate-x-0 shadow-[4px_0_24px_rgba(0,0,0,0.55)]"
+            ? "translate-x-0 shadow-[4px_0_24px_rgba(0,0,0,0.25)]"
             : "-translate-x-full shadow-none"
         }`}
       >
@@ -341,7 +341,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
 
         <div className="flex items-center justify-between px-4 py-3 border-t border-bg-muted gap-2">
           <div className="flex items-center gap-[0.55rem] min-w-0">
-            <div className="w-7 h-7 rounded-full bg-[#222] border border-[#333] flex items-center justify-center flex-shrink-0 text-txt-dim">
+            <div className="w-7 h-7 rounded-full bg-bg-muted dark:bg-[#222] border border-border flex items-center justify-center flex-shrink-0 text-txt-dim">
               <svg
                 viewBox="0 0 24 24"
                 fill="currentColor"
@@ -352,7 +352,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
                 <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
               </svg>
             </div>
-            <span className="text-[0.8rem] text-[#888] whitespace-nowrap overflow-hidden text-ellipsis">
+            <span className="text-[0.8rem] text-txt-dim whitespace-nowrap overflow-hidden text-ellipsis">
               {user?.username || ""}
             </span>
           </div>
