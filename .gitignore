@@ -3,10 +3,9 @@
 model_config.json
 venv/
 __pycache__/
-/docs/
-rag_index.json
 chatbot.db
 chatbot.db-shm
 chatbot.db-wal
+chroma_db/
 frontend/node_modules/
 dist/

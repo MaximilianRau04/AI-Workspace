@@ -1,24 +1,36 @@
+import io
 import os
-import json
-import math
+import chromadb
 from google import genai
 from google.genai import types
 
-DOCS_DIR   = os.path.join(os.path.dirname(__file__), "..", "docs")
-INDEX_FILE = os.path.join(os.path.dirname(__file__), "..", "rag_index.json")
-CHUNK_WORDS  = 400
-OVERLAP      = 40
-TOP_K        = 3
-EMBED_MODEL  = "gemini-embedding-001"
+CHROMA_DIR  = os.path.join(os.path.dirname(__file__), "..", "chroma_db")
+CHUNK_WORDS = 400
+OVERLAP     = 40
+TOP_K       = 3
+EMBED_MODEL = "gemini-embedding-001"
+COLLECTION  = "documents"
 
 _client: genai.Client | None = None
+_chroma: chromadb.Collection | None = None
 
 
 def init(api_key: str) -> None:
-    global _client
+    global _client, _chroma
     _client = genai.Client(api_key=api_key)
+    db = chromadb.PersistentClient(path=CHROMA_DIR)
+    _chroma = db.get_or_create_collection(COLLECTION)
 
-# helpers 
+
+def extract_text(content: bytes, filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    if ext == ".pdf":
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        return "\n".join(p.extract_text() or "" for p in reader.pages)
+    return content.decode("utf-8", errors="ignore")
+
+
 def _chunk(text: str) -> list[str]:
     words = text.split()
     chunks, i = [], 0
@@ -37,77 +49,73 @@ def _embed(texts: list[str], task: str = "RETRIEVAL_DOCUMENT") -> list[list[floa
     return [e.values for e in r.embeddings]
 
 
-def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    na  = math.sqrt(sum(x * x for x in a))
-    nb  = math.sqrt(sum(x * x for x in b))
-    return dot / (na * nb) if na and nb else 0.0
+def _where_user(user_id: str) -> dict:
+    return {"user_id": user_id}
 
 
-def _read_file(path: str) -> str:
-    ext = os.path.splitext(path)[1].lower()
-    if ext == ".pdf":
-        import pypdf
-        reader = pypdf.PdfReader(path)
-        return "\n".join(p.extract_text() or "" for p in reader.pages)
-    with open(path, encoding="utf-8", errors="ignore") as f:
-        return f.read()
+def _where_user_file(user_id: str, filename: str) -> dict:
+    return {"$and": [{"user_id": user_id}, {"source": filename}]}
 
 
-# index
-def _load_index() -> dict:
-    if os.path.exists(INDEX_FILE):
-        with open(INDEX_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+def _delete_chunks(user_id: str, filename: str) -> None:
+    existing = _chroma.get(where=_where_user_file(user_id, filename), include=[])
+    if existing["ids"]:
+        _chroma.delete(where=_where_user_file(user_id, filename))
 
 
-def _save_index(index: dict) -> None:
-    with open(INDEX_FILE, "w", encoding="utf-8") as f:
-        json.dump(index, f, ensure_ascii=False)
-
-
-def index_file(filename: str) -> int:
-    path   = os.path.join(DOCS_DIR, filename)
-    text   = _read_file(path)
-    chunks = _chunk(text)
+def index_file(filename: str, user_id: str, content: str) -> int:
+    chunks = _chunk(content)
     if not chunks:
         return 0
+
+    _delete_chunks(user_id, filename)
+
     embeddings = _embed(chunks)
-    index = _load_index()
-    index[filename] = [{"text": c, "embedding": e} for c, e in zip(chunks, embeddings)]
-    _save_index(index)
+    ids        = [f"{user_id}::{filename}::{i}" for i in range(len(chunks))]
+    metadatas  = [{"source": filename, "user_id": user_id} for _ in chunks]
+
+    _chroma.add(ids=ids, embeddings=embeddings, documents=chunks, metadatas=metadatas)
     return len(chunks)
 
 
-def delete_file(filename: str) -> None:
-    index = _load_index()
-    index.pop(filename, None)
-    _save_index(index)
+def delete_file(filename: str, user_id: str) -> None:
+    _delete_chunks(user_id, filename)
 
 
-def list_indexed() -> list[str]:
-    return list(_load_index().keys())
+def list_indexed(user_id: str) -> list[str]:
+    result = _chroma.get(where=_where_user(user_id), include=["metadatas"])
+    seen: set[str] = set()
+    files: list[str] = []
+    for meta in result["metadatas"]:
+        src = meta.get("source", "")
+        if src and src not in seen:
+            seen.add(src)
+            files.append(src)
+    return files
 
 
-# retrieval 
-def retrieve(query: str, k: int = TOP_K, filename: str | None = None) -> str:
-    index = _load_index()
-    if not index:
+def retrieve(query: str, user_id: str, k: int = TOP_K, filename: str | None = None) -> str:
+    if _chroma is None or _chroma.count() == 0:
         return ""
 
-    all_chunks = [
-        (entry["text"], entry["embedding"], fname)
-        for fname, entries in index.items()
-        for entry in entries
-        if filename is None or fname == filename
-    ]
-    if not all_chunks:
+    where = _where_user_file(user_id, filename) if filename else _where_user(user_id)
+    matching = _chroma.get(where=where, include=[])
+    n = min(k, len(matching["ids"]))
+    if n == 0:
         return ""
 
-    q_emb  = _embed([query], task="RETRIEVAL_QUERY")[0]
-    scored = sorted(all_chunks, key=lambda x: _cosine(q_emb, x[1]), reverse=True)
-    top    = scored[:k]
+    q_emb   = _embed([query], task="RETRIEVAL_QUERY")[0]
+    results = _chroma.query(
+        query_embeddings=[q_emb],
+        n_results=n,
+        where=where,
+        include=["documents", "metadatas"],
+    )
 
-    parts = [f"[{fname}]\n{text}" for text, _, fname in top]
+    docs  = results["documents"][0]
+    metas = results["metadatas"][0]
+    if not docs:
+        return ""
+
+    parts = [f"[{m['source']}]\n{d}" for d, m in zip(docs, metas)]
     return "Relevant context from documents:\n\n" + "\n\n---\n\n".join(parts)

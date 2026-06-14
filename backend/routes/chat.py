@@ -162,7 +162,7 @@ async def send_message(
         is_first = len(sess.messages) == 0
         full_reply = ""
 
-        context = rag.retrieve(user_message, filename=body.attached_file)
+        context = rag.retrieve(user_message, user_id, filename=body.attached_file)
         augmented = f"{context}\n\nUser: {user_message}" if context else user_message
         messages = chat_service.build_chat_messages(sess.messages, sess.summary, augmented)
 

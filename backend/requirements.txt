@@ -18,6 +18,7 @@ anthropic
 
 # RAG
 pypdf
+chromadb
 
 # Web search
 duckduckgo-search
