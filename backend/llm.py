@@ -12,6 +12,7 @@ from __future__ import annotations
 import itertools
 import json
 import os
+import re
 from typing import Iterator
 
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "..", "model_config.json")
@@ -24,6 +25,32 @@ DEFAULTS: dict = {
     "reasoning": False,
     "presets":   [],
 }
+
+
+# ---------------------------------------------------------------------------
+# Prompt-based tool dispatch (fallback for models without native tool calling)
+# ---------------------------------------------------------------------------
+
+_TOOL_SYSTEM_ADDENDUM = """
+
+You have access to the following tools. When you need to use one, respond with ONLY this JSON block and nothing else before or after it:
+<tool_call>{"name": "<tool_name>", "args": {<args_json>}}</tool_call>
+
+Available tools:
+- web_search: Search the web for current information. Args: {"query": "your search query"}
+- fetch_url: Fetch and read the content of a URL. Args: {"url": "https://example.com"}
+
+Only use a tool when the question requires real-time or external information. Otherwise answer normally."""
+
+
+def _parse_prompt_tool_call(text: str) -> dict | None:
+    m = re.search(r"<tool_call>(.*?)</tool_call>", text, re.DOTALL)
+    if not m:
+        return None
+    try:
+        return json.loads(m.group(1).strip())
+    except Exception:
+        return None
 
 
 def load_config() -> dict:
@@ -350,6 +377,45 @@ def _generate_gemini(prompt, cfg):
 
 
 # ---------------------------------------------------------------------------
+# Prompt-based tool executor (used by Ollama / providers without native tools)
+# ---------------------------------------------------------------------------
+
+def _prompt_execute_tool(client, model: str, oai_messages: list[dict], tool_call: dict,
+                          reasoning: bool, is_think_tag: bool):
+    from tools import web_search, format_results, fetch_url
+
+    name = tool_call.get("name", "")
+    args = tool_call.get("args", {})
+
+    if name == "web_search":
+        query = args.get("query", "")
+        yield {"searching": query}
+        result_text = format_results(web_search(query))
+    elif name == "fetch_url":
+        url = args.get("url", "")
+        yield {"searching": url}
+        result_text = fetch_url(url)
+    else:
+        return
+
+    follow_up = oai_messages + [
+        {"role": "assistant", "content": f'<tool_call>{json.dumps({"name": name, "args": args})}</tool_call>'},
+        {"role": "user",      "content": f"Tool '{name}' returned:\n{result_text}\n\nNow provide your final answer."},
+    ]
+    stream2 = client.chat.completions.create(model=model, messages=follow_up, stream=True)
+
+    def _gen():
+        for chunk in stream2:
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+
+    if is_think_tag or reasoning:
+        yield from _parse_think_tags(_gen())
+    else:
+        yield from _gen()
+
+
+# ---------------------------------------------------------------------------
 # OpenAI-compatible  (OpenAI, Ollama, LM Studio, …)
 # ---------------------------------------------------------------------------
 
@@ -382,6 +448,9 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
         model.lower().split(":")[0].startswith(p) for p in _OLLAMA_THINK_TAG_MODELS
     )
 
+    # Ollama/LM Studio: inject tools into the system prompt — most local models lack native tool support
+    use_prompt_tools = is_ollama and web_search_enabled
+
     oai_messages: list[dict] = []
     if system_prompt:
         role = "developer" if is_native_reasoning else "system"
@@ -394,10 +463,31 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
         else:
             oai_messages.append({"role": "system", "content": cot.strip()})
 
+    if use_prompt_tools:
+        if oai_messages:
+            oai_messages[0]["content"] += _TOOL_SYSTEM_ADDENDUM
+        else:
+            oai_messages.append({"role": "system", "content": _TOOL_SYSTEM_ADDENDUM.strip()})
+
     oai_messages.extend(_to_openai_messages(messages))
 
+    # Prompt-based path for Ollama
+    if use_prompt_tools:
+        completion = client.chat.completions.create(model=model, messages=oai_messages, stream=False)
+        first_text = completion.choices[0].message.content or ""
+        tool_call  = _parse_prompt_tool_call(first_text)
+        if tool_call:
+            yield from _prompt_execute_tool(client, model, oai_messages, tool_call, reasoning, is_think_tag_model)
+        else:
+            if is_think_tag_model or (reasoning and not is_native_reasoning):
+                yield from _parse_think_tags(iter([first_text]))
+            else:
+                yield first_text
+        return
+
+    # Native tool-calling path (OpenAI cloud + reasoning models)
     tools_param: list[dict] | None = None
-    if web_search_enabled and not is_native_reasoning:
+    if web_search_enabled:
         tools_param = [
             {
                 "type": "function",
