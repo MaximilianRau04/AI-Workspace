@@ -4,6 +4,7 @@ import {
   saveSystemPrompt,
   saveModel,
   savePresets,
+  saveVoiceConfig,
   getOllamaModels,
 } from "../../api/config";
 import { useApp } from "../../context/AppContext";
@@ -77,6 +78,7 @@ export default function SettingsModal({
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [reasoning, setReasoning] = useState(false);
+  const [sttBackend, setSttBackend] = useState("google");
   const [streamDelay, setStreamDelay] = useState<string>(
     () => localStorage.getItem("streamDelay") ?? "8",
   );
@@ -98,6 +100,7 @@ export default function SettingsModal({
       setBaseUrl(m.base_url || "");
       setReasoning(m.reasoning || false);
       setSuggestions(MODEL_LISTS[m.provider || "gemini"] || []);
+      setSttBackend(data.stt_backend || "google");
     });
     setStreamDelay(localStorage.getItem("streamDelay") ?? "8");
   }, []);
@@ -132,6 +135,7 @@ export default function SettingsModal({
     setSaving(true);
 
     await saveSystemPrompt(systemPrompt);
+    await saveVoiceConfig(sttBackend);
 
     const entry: Preset = {
       id: `${provider}::${modelName.trim()}`,
@@ -164,6 +168,7 @@ export default function SettingsModal({
             ...c,
             system_prompt: systemPrompt,
             model: { ...c.model, ...entry, presets: newPresets },
+            stt_backend: sttBackend,
           }
         : c,
     );
@@ -182,6 +187,7 @@ export default function SettingsModal({
   const tabs: { id: string; label: string }[] = [
     { id: "prompt", label: "System Prompt" },
     { id: "model", label: "Model" },
+    { id: "voice", label: "Voice" },
     { id: "ui", label: "UI" },
   ];
 
@@ -319,6 +325,28 @@ export default function SettingsModal({
                 onChange={(e) => setReasoning(e.target.checked)}
                 className="w-4 h-4 flex-shrink-0 accent-accent cursor-pointer"
               />
+            </div>
+          </div>
+        )}
+
+        {/* Voice tab */}
+        {tab === "voice" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-[0.35rem]">
+              <label className={labelCls}>Speech-to-Text backend</label>
+              <select
+                value={sttBackend}
+                onChange={(e) => setSttBackend(e.target.value)}
+                className={inputCls}
+              >
+                <option value="google">Google (online, no install required)</option>
+                <option value="whisper">Whisper (local, privacy-friendly)</option>
+              </select>
+              {sttBackend === "whisper" && (
+                <p className="text-[0.75rem] text-[#888] mt-1">
+                  Requires <code>openai-whisper</code> and <code>ffmpeg</code> installed on the server.
+                </p>
+              )}
             </div>
           </div>
         )}

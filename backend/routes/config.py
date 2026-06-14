@@ -36,6 +36,10 @@ class PresetsBody(BaseModel):
     presets: List = []
 
 
+class VoiceConfigBody(BaseModel):
+    stt_backend: Optional[str] = None
+
+
 @router.get("/config")
 async def get_config(current_user: dict = Depends(login_required)):
     model_cfg = llm.load_config()
@@ -49,6 +53,7 @@ async def get_config(current_user: dict = Depends(login_required)):
             "reasoning": model_cfg.get("reasoning", False),
             "presets":   model_cfg.get("presets", []),
         },
+        "stt_backend": model_cfg.get("stt_backend", "google"),
     }
 
 
@@ -79,6 +84,15 @@ async def set_model_config(body: ModelConfigBody, current_user: dict = Depends(l
 async def set_presets(body: PresetsBody, current_user: dict = Depends(login_required)):
     cfg = llm.load_config()
     cfg["presets"] = body.presets
+    llm.save_config(cfg)
+    return {"ok": True}
+
+
+@router.post("/config/voice")
+async def set_voice_config(body: VoiceConfigBody, current_user: dict = Depends(login_required)):
+    cfg = llm.load_config()
+    if body.stt_backend is not None:
+        cfg["stt_backend"] = body.stt_backend
     llm.save_config(cfg)
     return {"ok": True}
 

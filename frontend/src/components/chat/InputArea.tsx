@@ -168,7 +168,7 @@ export default function InputArea({
 
         {/* Mic button */}
         <button
-          onClick={() => onToggleRecording()}
+          onClick={() => onToggleRecording((t) => setText((prev) => prev ? prev + " " + t : t))}
           title="Voice input"
           className={`bg-transparent border-none text-[#999] cursor-pointer flex-shrink-0 px-[0.2rem] flex items-center hover:text-txt-primary transition-colors ${isRecording ? "mic-recording text-[#e74c3c] hover:text-[#e74c3c]" : ""}`}
         >

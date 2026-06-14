@@ -42,6 +42,17 @@ export async function savePresets(
   return res.json() as Promise<Record<string, unknown>>;
 }
 
+export async function saveVoiceConfig(
+  sttBackend: string,
+): Promise<Record<string, unknown>> {
+  const res = await fetch("/config/voice", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ stt_backend: sttBackend }),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
 export async function getOllamaModels(
   baseUrl: string,
 ): Promise<{ models: string[]; error?: string }> {

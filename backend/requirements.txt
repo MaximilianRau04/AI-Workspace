@@ -9,6 +9,7 @@ python-multipart
 # Auth & utilities
 python-dotenv
 werkzeug
+itsdangerous
 
 # LLM providers
 google-generativeai

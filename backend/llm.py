@@ -18,12 +18,13 @@ from typing import Iterator
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "..", "model_config.json")
 
 DEFAULTS: dict = {
-    "provider":  "gemini",
-    "model":     "gemini-2.5-flash",
-    "api_key":   "",
-    "base_url":  "",
-    "reasoning": False,
-    "presets":   [],
+    "provider":    "gemini",
+    "model":       "gemini-2.5-flash",
+    "api_key":     "",
+    "base_url":    "",
+    "reasoning":   False,
+    "presets":     [],
+    "stt_backend": "google",
 }
 
 

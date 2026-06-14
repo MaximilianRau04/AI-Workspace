@@ -1,16 +1,43 @@
 import io
+import os
 import re
+import tempfile
 
 import edge_tts
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
+import llm
 from utils import login_required
 
 router = APIRouter(tags=["voice"])
 
 TTS_VOICE = "de-DE-ConradNeural"
+
+_whisper_model = None
+
+
+def _get_whisper_model():
+    global _whisper_model
+    if _whisper_model is None:
+        try:
+            import whisper
+            _whisper_model = whisper.load_model("base")
+        except ImportError:
+            raise RuntimeError(
+                "Whisper is not installed. Run: pip install openai-whisper"
+            )
+    return _whisper_model
+
+
+def _webm_to_wav(content: bytes) -> bytes:
+    from pydub import AudioSegment
+    webm = AudioSegment.from_file(io.BytesIO(content), format="webm")
+    wav_io = io.BytesIO()
+    webm.export(wav_io, format="wav")
+    wav_io.seek(0)
+    return wav_io.read()
 
 
 class TTSBody(BaseModel):
@@ -39,17 +66,30 @@ async def stt(
     audio: UploadFile = File(...),
     current_user: dict = Depends(login_required),
 ):
-    import speech_recognition as sr_lib
-    from pydub import AudioSegment
-
     content = await audio.read()
-    webm = AudioSegment.from_file(io.BytesIO(content), format="webm")
-    wav_io = io.BytesIO()
-    webm.export(wav_io, format="wav")
-    wav_io.seek(0)
+    wav_bytes = _webm_to_wav(content)
 
+    backend = llm.load_config().get("stt_backend", "google")
+
+    if backend == "whisper":
+        try:
+            model = _get_whisper_model()
+        except RuntimeError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            f.write(wav_bytes)
+            tmp_path = f.name
+        try:
+            result = model.transcribe(tmp_path, language="de")
+            return {"text": result["text"].strip()}
+        finally:
+            os.remove(tmp_path)
+
+    # Google STT (default)
+    import speech_recognition as sr_lib
     recognizer = sr_lib.Recognizer()
-    with sr_lib.AudioFile(wav_io) as source:
+    with sr_lib.AudioFile(io.BytesIO(wav_bytes)) as source:
         audio_data = recognizer.record(source)
     try:
         text = recognizer.recognize_google(audio_data, language="de-DE")
