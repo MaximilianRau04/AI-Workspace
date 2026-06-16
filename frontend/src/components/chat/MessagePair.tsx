@@ -29,20 +29,43 @@ function AttachmentChip({ filename }: AttachmentChipProps) {
 
 // ── Action button ─────────────────────────────────────────────────────────────
 interface ActionBtnProps {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
+  active?: boolean;
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-function ActionBtn({ icon, title, onClick }: ActionBtnProps) {
+function ActionBtn({ icon, title, active, onClick }: ActionBtnProps) {
   return (
     <button
       onClick={onClick}
       title={title}
-      className="bg-transparent border-none text-[#555] cursor-pointer text-[1.5rem] px-[0.55rem] py-[0.45rem] rounded-[0.4rem] leading-none transition-all hover:text-[#ccc] hover:bg-[#2a2a2a]"
+      className={`bg-transparent border-none cursor-pointer text-[1.5rem] px-[0.55rem] py-[0.45rem] rounded-[0.4rem] leading-none transition-all flex items-center hover:bg-[#2a2a2a] ${
+        active ? "text-accent hover:text-accent" : "text-[#555] hover:text-[#ccc]"
+      }`}
     >
       {icon}
     </button>
+  );
+}
+
+// ── Speaker icon (matches the icon previously used for the global TTS toggle) ─
+function SpeakerIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width="16"
+      height="16"
+    >
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+    </svg>
   );
 }
 
@@ -237,6 +260,8 @@ interface MessagePairProps {
   searchQuery: string | null;
   onRetry: (pairIndex: number, text: string) => void;
   onEdit: (pairIndex: number, newText: string) => void;
+  onSpeak: (id: number, text: string) => void;
+  speaking: boolean;
 }
 
 export default function MessagePair({
@@ -252,6 +277,8 @@ export default function MessagePair({
   searchQuery,
   onRetry,
   onEdit,
+  onSpeak,
+  speaking,
 }: MessagePairProps) {
   const [editing, setEditing] = useState(false);
 
@@ -332,13 +359,21 @@ export default function MessagePair({
             </div>
           )}
           {!isStreaming && botText && (
-            <div className="flex flex-row gap-[0.15rem] opacity-0 group-hover:opacity-100 transition-opacity mt-[0.25rem]">
+            <div
+              className={`flex flex-row gap-[0.15rem] transition-opacity mt-[0.25rem] ${speaking ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            >
               <ActionBtn
                 icon="⧉"
                 title="Copy"
                 onClick={(e) => {
                   void copyToClipboard(() => botText, e.currentTarget);
                 }}
+              />
+              <ActionBtn
+                icon={<SpeakerIcon />}
+                title={speaking ? "Stop" : "Play"}
+                active={speaking}
+                onClick={() => onSpeak(pairIndex, botText)}
               />
             </div>
           )}

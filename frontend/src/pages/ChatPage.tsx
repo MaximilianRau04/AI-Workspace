@@ -52,8 +52,7 @@ export default function ChatPage() {
   const loadedSessionRef = useRef<string | null>(null);
 
   const { stream, abort } = useStream();
-  const { ttsEnabled, toggleTts, speak, isRecording, toggleRecording } =
-    useVoice();
+  const { speakingId, speak, isRecording, toggleRecording } = useVoice();
 
   const homeMode = !sessionId; // URL param is immediately available, avoids race with context state
 
@@ -202,7 +201,6 @@ export default function ChatPage() {
                 : p,
             ),
           );
-          void speak(fullText);
           void refreshSessions();
         },
         onTitle: () => {
@@ -226,7 +224,6 @@ export default function ChatPage() {
       stream,
       navigate,
       refreshSessions,
-      speak,
       setCurrentSessionId,
     ],
   );
@@ -347,48 +344,11 @@ export default function ChatPage() {
       {/* Top-right fixed controls */}
       <div className="fixed right-0 top-[0.7rem] z-[51] flex items-stretch">
         <button
-          onClick={toggleTts}
-          title="Toggle voice output"
-          className={`bg-bg-surface border border-[#2a2a2a] border-r-0 rounded-l-[0.45rem] text-[#888] cursor-pointer flex items-center justify-center px-[0.6rem] py-[0.45rem] transition-all hover:text-[#ccc] hover:bg-[#222] ${ttsEnabled ? "text-txt-primary" : ""}`}
-        >
-          {ttsEnabled ? (
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              width="16"
-              height="16"
-            >
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-            </svg>
-          ) : (
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              width="16"
-              height="16"
-            >
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <line x1="23" y1="9" x2="17" y2="15" />
-              <line x1="17" y1="9" x2="23" y2="15" />
-            </svg>
-          )}
-        </button>
-        <button
           onClick={() => {
             void handleLogout();
           }}
           title="Log out"
-          className="bg-bg-surface border border-[#2a2a2a] border-r-0 text-[#888] text-[1.05rem] leading-none px-[0.6rem] py-[0.45rem] cursor-pointer transition-all hover:text-[#e74c3c] hover:bg-[#2a1010]"
+          className="bg-bg-surface border border-[#2a2a2a] border-r-0 rounded-l-[0.45rem] text-[#888] text-[1.05rem] leading-none px-[0.6rem] py-[0.45rem] cursor-pointer transition-all hover:text-[#e74c3c] hover:bg-[#2a1010]"
         >
           ⏻
         </button>
@@ -420,6 +380,8 @@ export default function ChatPage() {
               onRetry={handleRetry}
               onEdit={handleEdit}
               errorMessages={errorMessages}
+              onSpeak={speak}
+              speakingId={speakingId}
             />
           )}
 

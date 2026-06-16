@@ -30,6 +30,8 @@ interface ChatAreaProps {
   onRetry: (pairIndex: number, text: string) => void;
   onEdit: (pairIndex: number, newText: string) => void;
   errorMessages: StreamError[];
+  onSpeak: (id: number, text: string) => void;
+  speakingId: number | null;
 }
 
 export default function ChatArea({
@@ -38,6 +40,8 @@ export default function ChatArea({
   onRetry,
   onEdit,
   errorMessages,
+  onSpeak,
+  speakingId,
 }: ChatAreaProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -72,6 +76,8 @@ export default function ChatArea({
               searchQuery={pair.searchQuery}
               onRetry={onRetry}
               onEdit={onEdit}
+              onSpeak={onSpeak}
+              speaking={speakingId === pair.pairIndex}
             />
           ))}
           {errorMessages?.map((err, i) => (

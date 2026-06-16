@@ -166,6 +166,9 @@ function SessionContextMenu({
 interface SessionItemProps {
   session: Session;
   isActive: boolean;
+  isMenuOpen: boolean;
+  onOpenMenu: () => void;
+  onCloseMenu: () => void;
   onSelect: (id: string) => void;
   onDeleted: (id: string) => void;
   onRenamed: (id: string, newTitle: string) => void;
@@ -174,11 +177,13 @@ interface SessionItemProps {
 function SessionItem({
   session,
   isActive,
+  isMenuOpen,
+  onOpenMenu,
+  onCloseMenu,
   onSelect,
   onDeleted,
   onRenamed,
 }: SessionItemProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const titleRef = useRef<string>(session.title || "New Chat");
   const [title, setTitle] = useState<string>(session.title || "New Chat");
@@ -189,7 +194,7 @@ function SessionItem({
   ): void {
     e.stopPropagation();
     setMenuAnchor(btn);
-    setMenuOpen(true);
+    onOpenMenu();
   }
 
   function handleRenamed(newTitle: string): void {
@@ -224,21 +229,21 @@ function SessionItem({
         </button>
       </div>
 
-      {menuOpen && (
+      {isMenuOpen && (
         <SessionContextMenu
           sessionId={session.id}
           titleRef={titleRef}
           anchorEl={menuAnchor}
           onClose={() => {
-            setMenuOpen(false);
+            onCloseMenu();
             setMenuAnchor(null);
           }}
           onDeleted={() => {
-            setMenuOpen(false);
+            onCloseMenu();
             onDeleted(session.id);
           }}
           onRenamed={(newTitle) => {
-            setMenuOpen(false);
+            onCloseMenu();
             handleRenamed(newTitle);
           }}
         />
@@ -263,6 +268,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
     toggleSidebar,
   } = useApp();
   const navigate = useNavigate();
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   async function handleSelect(id: string): Promise<void> {
     if (id === currentSessionId) return;
@@ -325,6 +331,9 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
                 key={s.id}
                 session={s}
                 isActive={s.id === currentSessionId}
+                isMenuOpen={openMenuId === s.id}
+                onOpenMenu={() => setOpenMenuId(s.id)}
+                onCloseMenu={() => setOpenMenuId(null)}
                 onSelect={(id) => {
                   void handleSelect(id);
                 }}

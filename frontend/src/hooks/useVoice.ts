@@ -2,15 +2,14 @@ import { useState, useRef, useCallback } from "react";
 import { tts, stt } from "../api/voice";
 
 interface UseVoiceReturn {
-  ttsEnabled: boolean;
-  toggleTts: () => void;
-  speak: (text: string) => Promise<void>;
+  speakingId: number | null;
+  speak: (id: number, text: string) => Promise<void>;
   isRecording: boolean;
   toggleRecording: (onResult: (text: string) => void) => void;
 }
 
 export function useVoice(): UseVoiceReturn {
-  const [ttsEnabled, setTtsEnabled] = useState(false);
+  const [speakingId, setSpeakingId] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -61,38 +60,33 @@ export function useVoice(): UseVoiceReturn {
     setTimeout(() => beep(440, 0.12), 80);
   }
 
-  const toggleTts = useCallback(() => {
-    setTtsEnabled((prev) => {
-      if (prev && currentAudioRef.current) {
-        currentAudioRef.current.pause();
-        currentAudioRef.current = null;
-      }
-      return !prev;
-    });
-  }, []);
-
   const speak = useCallback(
-    async (text: string): Promise<void> => {
-      if (!ttsEnabled) return;
+    async (id: number, text: string): Promise<void> => {
+      const wasPlayingSameId = speakingId === id;
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
         currentAudioRef.current = null;
       }
+      setSpeakingId(null);
+      if (wasPlayingSameId) return;
+
       try {
         const blob = await tts(text);
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
         currentAudioRef.current = audio;
+        setSpeakingId(id);
         void audio.play();
         audio.onended = () => {
           URL.revokeObjectURL(url);
           currentAudioRef.current = null;
+          setSpeakingId(null);
         };
       } catch {
-        /* silent */
+        setSpeakingId(null);
       }
     },
-    [ttsEnabled],
+    [speakingId],
   );
 
   const startRecording = useCallback(
@@ -149,5 +143,5 @@ export function useVoice(): UseVoiceReturn {
     [isRecording, startRecording, stopRecording],
   );
 
-  return { ttsEnabled, toggleTts, speak, isRecording, toggleRecording };
+  return { speakingId, speak, isRecording, toggleRecording };
 }
