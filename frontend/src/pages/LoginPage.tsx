@@ -68,29 +68,57 @@ export default function LoginPage() {
   }
 
   const inputCls =
-    "w-full bg-bg-base border border-border rounded-[0.6rem] text-txt-primary text-[0.95rem] px-[0.85rem] py-[0.65rem] outline-none focus:border-accent transition-colors";
-  const labelCls = "text-[0.8rem] text-[#888] mb-[0.2rem] block";
+    "w-full bg-bg-muted border border-border rounded-[0.65rem] text-txt-primary text-[0.95rem] px-[0.85rem] py-[0.65rem] outline-none focus:border-accent/60 focus:ring-2 focus:ring-accent/10 transition-all";
+  const labelCls = "text-[0.78rem] font-medium text-txt-dim mb-[0.25rem] block";
   const { text: pwText, cls: pwCls } = pwHint();
   const { text: pw2Text, cls: pw2Cls } = pw2Hint();
 
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-bg-base">
-      <div className="bg-bg-surface border border-border rounded-[1.2rem] p-8 w-full max-w-[380px] flex flex-col gap-[1.4rem]">
-        <div className="text-[1.3rem] font-bold text-center text-white">
+    <div className="min-h-dvh flex items-center justify-center relative overflow-hidden bg-bg-base">
+      {/* Background glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(47,109,245,0.09) 0%, transparent 65%)",
+        }}
+      />
+
+      <div className="relative bg-bg-surface border border-border rounded-[1.5rem] p-8 w-full max-w-[380px] flex flex-col gap-[1.4rem] shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+        {/* Top gradient accent line */}
+        <div
+          className="absolute top-0 left-[20%] right-[20%] h-[1px] rounded-full"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(47,109,245,0.5), rgba(91,74,248,0.5), transparent)",
+          }}
+        />
+
+        {/* Brand */}
+        <div
+          className="text-[1.35rem] font-bold text-center tracking-[-0.02em]"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--txt-heading) 20%, var(--txt-muted) 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
           AI Workspace
         </div>
 
         {/* Tabs */}
-        <div className="flex border border-border rounded-[0.6rem] overflow-hidden">
+        <div className="flex border border-border rounded-[0.75rem] overflow-hidden p-[3px] bg-bg-muted gap-[3px]">
           <button
             onClick={() => {
               setTab("login");
               setError("");
             }}
-            className={`flex-1 py-[0.55rem] text-[0.9rem] font-medium text-center cursor-pointer border-none transition-all ${
+            className={`flex-1 py-[0.5rem] text-[0.875rem] font-medium text-center cursor-pointer border-none transition-all rounded-[0.55rem] ${
               tab === "login"
-                ? "bg-accent text-white"
-                : "bg-transparent text-txt-dim"
+                ? "bg-bg-surface text-txt-primary shadow-sm"
+                : "bg-transparent text-txt-dim hover:text-txt-muted"
             }`}
           >
             Login
@@ -100,10 +128,10 @@ export default function LoginPage() {
               setTab("register");
               setError("");
             }}
-            className={`flex-1 py-[0.55rem] text-[0.9rem] font-medium text-center cursor-pointer border-none transition-all ${
+            className={`flex-1 py-[0.5rem] text-[0.875rem] font-medium text-center cursor-pointer border-none transition-all rounded-[0.55rem] ${
               tab === "register"
-                ? "bg-accent text-white"
-                : "bg-transparent text-txt-dim"
+                ? "bg-bg-surface text-txt-primary shadow-sm"
+                : "bg-transparent text-txt-dim hover:text-txt-muted"
             }`}
           >
             Register
@@ -112,7 +140,7 @@ export default function LoginPage() {
 
         {/* Error */}
         {error && (
-          <div className="text-[0.85rem] text-[#e88] bg-[#2a1010] border border-[#5a1f1f] rounded-lg px-3 py-[0.55rem]">
+          <div className="text-[0.85rem] text-[#e88] bg-[#2a1010] border border-[#5a1f1f] rounded-[0.65rem] px-3 py-[0.55rem]">
             {error}
           </div>
         )}
@@ -126,24 +154,24 @@ export default function LoginPage() {
             className="flex flex-col gap-[0.9rem]"
           >
             <div>
-              <label className={labelCls}>username</label>
+              <label className={labelCls}>Username</label>
               <input
                 type="text"
                 value={loginUser}
                 onChange={(e) => setLoginUser(e.target.value)}
-                placeholder="username"
+                placeholder="your username"
                 autoComplete="username"
                 required
                 className={inputCls}
               />
             </div>
             <div>
-              <label className={labelCls}>password</label>
+              <label className={labelCls}>Password</label>
               <input
                 type="password"
                 value={loginPass}
                 onChange={(e) => setLoginPass(e.target.value)}
-                placeholder="password"
+                placeholder="••••••••"
                 autoComplete="current-password"
                 required
                 className={inputCls}
@@ -152,7 +180,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="bg-accent hover:bg-accent-hover disabled:bg-accent-dim disabled:cursor-not-allowed border-none rounded-[0.7rem] text-white text-[0.95rem] font-semibold py-[0.7rem] cursor-pointer transition-colors mt-1"
+              className="bg-gradient-to-br from-accent to-[#5b4af8] hover:from-[#1a5de0] hover:to-[#4a3ae0] disabled:opacity-50 disabled:cursor-not-allowed border-none rounded-[0.8rem] text-white text-[0.95rem] font-semibold py-[0.75rem] cursor-pointer transition-all mt-1 shadow-[0_4px_16px_rgba(47,109,245,0.25)]"
             >
               {loading ? "Logging in…" : "Login"}
             </button>
@@ -168,7 +196,7 @@ export default function LoginPage() {
             className="flex flex-col gap-[0.9rem]"
           >
             <div>
-              <label className={labelCls}>username</label>
+              <label className={labelCls}>Username</label>
               <input
                 type="text"
                 value={regUser}
@@ -180,7 +208,7 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className={labelCls}>password</label>
+              <label className={labelCls}>Password</label>
               <input
                 type="password"
                 value={regPass}
@@ -202,7 +230,7 @@ export default function LoginPage() {
                 type="password"
                 value={regPass2}
                 onChange={(e) => setRegPass2(e.target.value)}
-                placeholder="Confirm password"
+                placeholder="••••••••"
                 autoComplete="new-password"
                 required
                 className={inputCls}
@@ -216,7 +244,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="bg-accent hover:bg-accent-hover disabled:bg-accent-dim disabled:cursor-not-allowed border-none rounded-[0.7rem] text-white text-[0.95rem] font-semibold py-[0.7rem] cursor-pointer transition-colors mt-1"
+              className="bg-gradient-to-br from-accent to-[#5b4af8] hover:from-[#1a5de0] hover:to-[#4a3ae0] disabled:opacity-50 disabled:cursor-not-allowed border-none rounded-[0.8rem] text-white text-[0.95rem] font-semibold py-[0.75rem] cursor-pointer transition-all mt-1 shadow-[0_4px_16px_rgba(47,109,245,0.25)]"
             >
               {loading ? "Registering…" : "Register"}
             </button>

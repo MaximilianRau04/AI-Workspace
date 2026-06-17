@@ -9,7 +9,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onOpenSettings }: HeaderProps) {
-  const { config, setConfig } = useApp();
+  const { config, setConfig, sidebarOpen, toggleSidebar } = useApp();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -47,10 +47,35 @@ export default function Header({ onOpenSettings }: HeaderProps) {
   const modelId = config?.model?.model;
 
   return (
-    <header className="w-full px-6 py-[1.2rem] text-[1.1rem] font-semibold tracking-[0.02em] border-b border-border flex items-center justify-between flex-shrink-0 bg-bg-base">
+    <header className="w-full px-6 py-[1.1rem] text-[1.1rem] font-semibold border-b border-border flex items-center justify-between flex-shrink-0 bg-bg-base/80 backdrop-blur-sm">
       {/* Left: sidebar toggle + title + model dropdown */}
-      <div className="flex items-center gap-[0.6rem] pl-8">
-        <span className="text-txt-primary">AI Workspace</span>
+      <div className="flex items-center gap-[0.5rem]">
+        <button
+          onClick={toggleSidebar}
+          title="Toggle sidebar"
+          className={`w-[32px] h-[32px] rounded-[0.5rem] flex items-center justify-center border-none cursor-pointer transition-all flex-shrink-0 ${
+            sidebarOpen
+              ? "bg-bg-muted text-txt-primary"
+              : "bg-transparent text-txt-dim hover:bg-bg-muted hover:text-txt-primary"
+          }`}
+        >
+          <svg viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="1.5" y="1.5" width="15" height="15" rx="2.5" />
+            <path d="M6.5 1.5v15" />
+          </svg>
+        </button>
+
+        <span
+          className="tracking-[-0.01em]"
+          style={{
+            background: "linear-gradient(135deg, var(--txt-heading) 20%, var(--txt-muted) 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
+          AI Workspace
+        </span>
 
         {/* Model dropdown */}
         <div className="relative" ref={dropdownRef}>

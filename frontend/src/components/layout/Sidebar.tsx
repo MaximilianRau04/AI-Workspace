@@ -207,8 +207,10 @@ function SessionItem({
     <>
       <div
         onClick={() => onSelect(session.id)}
-        className={`grid grid-cols-[1fr_auto_auto] items-center gap-[0.4rem] px-[0.65rem] py-[0.55rem] rounded-[0.55rem] cursor-pointer transition-colors group ${
-          isActive ? "bg-accent-dim" : "hover:bg-bg-surface"
+        className={`grid grid-cols-[1fr_auto_auto] items-center gap-[0.4rem] px-[0.65rem] py-[0.55rem] rounded-[0.65rem] cursor-pointer transition-all group ${
+          isActive
+            ? "bg-accent-dim shadow-[inset_0_0_0_1px_rgba(47,109,245,0.18)]"
+            : "hover:bg-bg-hover"
         }`}
       >
         <span
@@ -269,6 +271,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
   } = useApp();
   const navigate = useNavigate();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   async function handleSelect(id: string): Promise<void> {
     if (id === currentSessionId) return;
@@ -290,43 +293,84 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
 
   return (
     <>
-      {/* Sidebar toggle button */}
-      <button
-        onClick={toggleSidebar}
-        title="Chat history"
-        className={`fixed left-0 top-[0.7rem] z-[51] bg-bg-surface border border-[#2a2a2a] border-l-0 rounded-r-[0.45rem] text-txt-muted text-[1.05rem] leading-none px-[0.6rem] py-[0.45rem] cursor-pointer hover:text-txt-primary ${
-          sidebarOpen ? "sidebar-toggle-open" : "sidebar-toggle-closed"
-        }`}
-      >
-        ☰
-      </button>
-
       {/* Sidebar panel */}
       <aside
-        className={`fixed top-0 left-0 w-[280px] h-full bg-bg-surface dark:bg-[#111] border-r border-border z-50 flex flex-col sidebar-transition ${
+        className={`fixed top-0 left-0 w-[280px] h-full bg-bg-surface dark:bg-[#0e0e14] border-r border-border z-50 flex flex-col sidebar-transition ${
           sidebarOpen
-            ? "translate-x-0 shadow-[4px_0_24px_rgba(0,0,0,0.25)]"
+            ? "translate-x-0 shadow-[4px_0_32px_rgba(0,0,0,0.3)]"
             : "-translate-x-full shadow-none"
         }`}
       >
-        <div className="flex items-center justify-between px-4 py-[0.85rem] border-b border-bg-muted text-[0.75rem] font-semibold tracking-[0.06em] uppercase text-txt-dim">
+        {/* Sidebar header */}
+        <div className="flex items-center px-4 py-[0.85rem] border-b border-border text-[0.72rem] font-semibold tracking-[0.07em] uppercase text-txt-dim">
           <span>Chats</span>
+        </div>
+
+        {/* New chat button */}
+        <div className="px-[0.4rem] py-[0.4rem] border-b border-border">
           <button
             onClick={onNewChat}
-            className="bg-accent hover:bg-accent-hover border-none rounded-lg text-white text-[1rem] font-bold leading-none px-[0.65rem] py-[0.3rem] cursor-pointer transition-colors"
-            title="New Chat"
+            className="w-full flex items-center gap-[0.55rem] px-[0.65rem] py-[0.55rem] bg-transparent hover:bg-bg-hover rounded-[0.65rem] text-txt-dim hover:text-txt-primary text-[0.875rem] font-medium cursor-pointer transition-all group border-none"
           >
-            +
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="flex-shrink-0"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            New chat
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-[0.4rem] py-[0.4rem] flex flex-col gap-[0.15rem]">
+        {/* Search */}
+        <div className="px-[0.5rem] pt-[0.4rem] pb-[0.25rem]">
+          <div className="flex items-center gap-[0.45rem] bg-bg-muted rounded-[0.6rem] px-[0.6rem] py-[0.45rem]">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-txt-dim flex-shrink-0">
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search chats…"
+              className="flex-1 bg-transparent border-none outline-none text-[0.8rem] text-txt-primary placeholder:text-txt-dim font-[inherit] min-w-0"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="text-txt-dim hover:text-txt-muted border-none bg-transparent cursor-pointer leading-none flex-shrink-0 p-0"
+              >
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Chat list */}
+        <div className="flex-1 overflow-y-auto px-[0.4rem] py-[0.25rem] flex flex-col gap-[0.15rem]">
           {!sessions.length ? (
             <div className="text-txt-dim text-[0.85rem] text-center py-8">
               No chats yet
             </div>
-          ) : (
-            sessions.map((s) => (
+          ) : (() => {
+            const filtered = sessions.filter((s) =>
+              (s.title || "New Chat").toLowerCase().includes(search.toLowerCase())
+            );
+            return filtered.length === 0 ? (
+              <div className="text-txt-dim text-[0.82rem] text-center py-6">
+                No results
+              </div>
+            ) : filtered.map((s) => (
               <SessionItem
                 key={s.id}
                 session={s}
@@ -344,11 +388,12 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
                   void handleRenamed(id, newTitle);
                 }}
               />
-            ))
-          )}
+            ));
+          })()}
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3 border-t border-bg-muted gap-2">
+        {/* Footer */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border gap-2">
           <div className="flex items-center gap-[0.55rem] min-w-0">
             <div className="w-7 h-7 rounded-full bg-bg-muted dark:bg-[#222] border border-border flex items-center justify-center flex-shrink-0 text-txt-dim">
               <svg

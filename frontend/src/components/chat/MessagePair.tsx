@@ -40,8 +40,8 @@ function ActionBtn({ icon, title, active, onClick }: ActionBtnProps) {
     <button
       onClick={onClick}
       title={title}
-      className={`bg-transparent border-none cursor-pointer text-[1.5rem] px-[0.55rem] py-[0.45rem] rounded-[0.4rem] leading-none transition-all flex items-center hover:bg-[#2a2a2a] ${
-        active ? "text-accent hover:text-accent" : "text-[#555] hover:text-[#ccc]"
+      className={`bg-transparent border-none cursor-pointer text-[1.5rem] px-[0.55rem] py-[0.45rem] rounded-[0.4rem] leading-none transition-all flex items-center hover:bg-bg-hover ${
+        active ? "text-accent hover:text-accent" : "text-txt-dim hover:text-txt-muted"
       }`}
     >
       {icon}
@@ -309,7 +309,7 @@ export default function MessagePair({
           </div>
         ) : (
           <>
-            <div className="bg-accent text-white px-4 py-[0.65rem] rounded-[1.2rem] rounded-br-[0.3rem] text-[0.95rem] leading-[1.55] break-words whitespace-pre-wrap">
+            <div className="bg-gradient-to-br from-accent to-[#5b4af8] text-white px-4 py-[0.65rem] rounded-[1.2rem] rounded-br-[0.3rem] text-[0.95rem] leading-[1.55] break-words whitespace-pre-wrap shadow-[0_4px_16px_rgba(47,109,245,0.2)]">
               {userText}
             </div>
             <div className="flex flex-row gap-[0.15rem] opacity-0 group-hover:opacity-100 transition-opacity">

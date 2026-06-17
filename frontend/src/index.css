@@ -1,34 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ── Theme tokens ── */
 :root {
-  --bg-base:      #f5f5f5;
+  --bg-base:      #f3f3f8;
   --bg-surface:   #ffffff;
-  --bg-muted:     #f0f0f0;
-  --bg-hover:     #e8e8e8;
-  --border:       #e0e0e0;
-  --border-subtle:#ebebeb;
-  --txt-primary:  #1a1a1a;
-  --txt-muted:    #555555;
-  --txt-dim:      #888888;
-  --txt-heading:  #000000;
-  --accent-dim:   #dce8ff;
+  --bg-muted:     #eaeaef;
+  --bg-hover:     #e2e2eb;
+  --border:       #d6d6e4;
+  --border-subtle:#e8e8f0;
+  --txt-primary:  #16161d;
+  --txt-muted:    #52526a;
+  --txt-dim:      #8585a0;
+  --txt-heading:  #08080f;
+  --accent-dim:   #dde3ff;
 }
 
 .dark {
-  --bg-base:      #0f0f0f;
-  --bg-surface:   #1a1a1a;
-  --bg-muted:     #1e1e1e;
-  --bg-hover:     #242424;
-  --border:       #2e2e2e;
-  --border-subtle:#232323;
-  --txt-primary:  #e5e5e5;
-  --txt-muted:    #aaaaaa;
-  --txt-dim:      #666666;
-  --txt-heading:  #ffffff;
-  --accent-dim:   #1e2a40;
+  --bg-base:      #0b0b0e;
+  --bg-surface:   #111117;
+  --bg-muted:     #17171f;
+  --bg-hover:     #1e1e28;
+  --border:       #24242e;
+  --border-subtle:#1c1c24;
+  --txt-primary:  #e0e0ea;
+  --txt-muted:    #9090a4;
+  --txt-dim:      #525265;
+  --txt-heading:  #f0f0fa;
+  --accent-dim:   #171f3a;
 }
 
 /* ── Base ── */
@@ -45,7 +47,7 @@ html {
 }
 
 body {
-  font-family: system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   height: 100dvh;
   @apply bg-bg-base text-txt-primary;
 }
@@ -54,6 +56,12 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* ── Input glow on focus ── */
+.input-glow:focus-within {
+  border-color: rgba(47, 109, 245, 0.4) !important;
+  box-shadow: 0 0 0 3px rgba(47, 109, 245, 0.08);
 }
 
 /* ── Thinking dots animation ── */
@@ -122,18 +130,18 @@ body {
 .skeleton-line {
   height: 0.82rem;
   border-radius: 1rem;
-  background: linear-gradient(90deg, #1c1c1c 25%, #2a2a2a 50%, #1c1c1c 75%);
+  background: linear-gradient(90deg, #1c1c28 25%, #252535 50%, #1c1c28 75%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }
 
 .dark .skeleton-line {
-  background: linear-gradient(90deg, #1c1c1c 25%, #2a2a2a 50%, #1c1c1c 75%);
+  background: linear-gradient(90deg, #1c1c28 25%, #252535 50%, #1c1c28 75%);
   background-size: 400% 100%;
 }
 
 html:not(.dark) .skeleton-line {
-  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+  background: linear-gradient(90deg, #e2e2eb 25%, #f0f0f8 50%, #e2e2eb 75%);
   background-size: 400% 100%;
 }
 
@@ -217,27 +225,21 @@ html:not(.dark) .skeleton-line {
   margin: 0.15rem 0;
 }
 .bot-bubble strong {
-  color: #fff;
-}
-.dark .bot-bubble strong {
-  color: #fff;
-}
-html:not(.dark) .bot-bubble strong {
-  color: #000;
+  color: var(--txt-heading);
 }
 .bot-bubble code {
-  background: #2a2a2a;
+  background: #1e1e2e;
   padding: 0.1em 0.35em;
   border-radius: 0.3rem;
   font-size: 0.875em;
 }
 html:not(.dark) .bot-bubble code {
-  background: #d4d4d4;
+  background: #e4e4ef;
 }
 
 .bot-bubble pre {
   padding: 0;
-  border-radius: 0.5rem;
+  border-radius: 0.6rem;
   overflow: hidden;
   margin: 0;
 }
@@ -245,7 +247,7 @@ html:not(.dark) .bot-bubble code {
   display: block;
   padding: 0.75rem !important;
   overflow-x: auto;
-  border-radius: 0.5rem;
+  border-radius: 0.6rem;
   background: #0d1117 !important;
 }
 
@@ -262,10 +264,10 @@ html:not(.dark) .bot-bubble code {
   top: 0.4rem;
   right: 0.4rem;
   opacity: 0;
-  background: #3a3a3a;
+  background: #2a2a3a;
   border: none;
   border-radius: 0.3rem;
-  color: #aaa;
+  color: #9090a4;
   cursor: pointer;
   font-size: 0.75rem;
   padding: 0.2rem 0.45rem;
@@ -277,25 +279,25 @@ html:not(.dark) .bot-bubble code {
 }
 .code-copy-btn:hover {
   color: #fff;
-  background: #555;
+  background: #3a3a50;
 }
 html:not(.dark) .code-copy-btn {
-  background: #ddd;
-  color: #666;
+  background: #d8d8e8;
+  color: #52526a;
 }
 html:not(.dark) .code-copy-btn:hover {
-  background: #bbb;
+  background: #c0c0d4;
   color: #111;
 }
 
 /* ── Thinking block ── */
 .thinking-block {
   margin-bottom: 0.6rem;
-  border-left: 2px solid #252525;
+  border-left: 2px solid #24242e;
   padding-left: 0.75rem;
 }
 html:not(.dark) .thinking-block {
-  border-left-color: #e0e0e0;
+  border-left-color: #d6d6e4;
 }
 
 .thinking-summary {
@@ -305,12 +307,12 @@ html:not(.dark) .thinking-block {
   align-items: center;
   gap: 0.45rem;
   font-size: 0.78rem;
-  color: #555;
+  color: #525265;
   padding: 0.15rem 0;
   user-select: none;
 }
 html:not(.dark) .thinking-summary {
-  color: #aaa;
+  color: #8585a0;
 }
 .thinking-summary::-webkit-details-marker {
   display: none;
@@ -319,11 +321,11 @@ html:not(.dark) .thinking-summary {
   content: "▾";
   margin-left: auto;
   font-size: 0.65rem;
-  color: #444;
+  color: #3a3a50;
   transition: transform 0.15s;
 }
 html:not(.dark) .thinking-summary::after {
-  color: #bbb;
+  color: #c0c0d4;
 }
 .thinking-block:not([open]) .thinking-summary::after {
   transform: rotate(-90deg);
@@ -333,11 +335,11 @@ html:not(.dark) .thinking-summary::after {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #444;
+  background: #3a3a50;
   flex-shrink: 0;
 }
 html:not(.dark) .thinking-dot {
-  background: #bbb;
+  background: #c0c0d4;
 }
 
 .thinking-streaming .thinking-dot {
@@ -346,7 +348,7 @@ html:not(.dark) .thinking-dot {
 
 .thinking-body {
   font-size: 0.8rem;
-  color: #505050;
+  color: #525265;
   line-height: 1.55;
   padding: 0.35rem 0 0.25rem;
   white-space: pre-wrap;
@@ -355,7 +357,7 @@ html:not(.dark) .thinking-dot {
   overflow-y: auto;
 }
 html:not(.dark) .thinking-body {
-  color: #aaa;
+  color: #8585a0;
 }
 
 /* ── Smooth theme transitions ── */
@@ -377,17 +379,17 @@ header {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: #24242e;
   border-radius: 3px;
 }
 html:not(.dark) ::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: #c8c8d8;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: #34344a;
 }
 html:not(.dark) ::-webkit-scrollbar-thumb:hover {
-  background: #aaa;
+  background: #a8a8c0;
 }
 
 /* ── Light mode overrides ── */

@@ -372,7 +372,7 @@ export default function ChatPage() {
           className={`flex-1 flex flex-col overflow-hidden ${homeMode ? "justify-center" : ""}`}
         >
           {homeMode ? (
-            <HomeHero />
+            <HomeHero onSend={(text) => { void handleSend(text); }} />
           ) : (
             <ChatArea
               pairs={pairs}
