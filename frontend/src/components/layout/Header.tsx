@@ -59,7 +59,16 @@ export default function Header({ onOpenSettings }: HeaderProps) {
               : "bg-transparent text-txt-dim hover:bg-bg-muted hover:text-txt-primary"
           }`}
         >
-          <svg viewBox="0 0 18 18" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            viewBox="0 0 18 18"
+            width="17"
+            height="17"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="1.5" y="1.5" width="15" height="15" rx="2.5" />
             <path d="M6.5 1.5v15" />
           </svg>
@@ -68,7 +77,8 @@ export default function Header({ onOpenSettings }: HeaderProps) {
         <span
           className="tracking-[-0.01em]"
           style={{
-            background: "linear-gradient(135deg, var(--txt-heading) 20%, var(--txt-muted) 100%)",
+            background:
+              "linear-gradient(135deg, var(--txt-heading) 20%, var(--txt-muted) 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",

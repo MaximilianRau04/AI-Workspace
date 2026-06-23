@@ -243,7 +243,9 @@ export default function SettingsModal({
             <div className="flex flex-col gap-[0.35rem]">
               <label className={labelCls}>About you</label>
               <p className="text-[0.75rem] text-[#555]">
-                Tell the AI who you are - profession, interests, preferred language, technical level… It will use this in every conversation.
+                Tell the AI who you are - profession, interests, preferred
+                language, technical level… It will use this in every
+                conversation.
               </p>
               <textarea
                 value={profile}
@@ -268,7 +270,8 @@ export default function SettingsModal({
                   </button>
                 </div>
                 <p className="text-[0.75rem] text-[#555]">
-                  Facts the AI has picked up from your conversations. Updated automatically every 5 turns.
+                  Facts the AI has picked up from your conversations. Updated
+                  automatically every 5 turns.
                 </p>
                 <div className="bg-bg-base border border-border rounded-[0.6rem] text-txt-muted text-[0.85rem] leading-[1.5] px-3 py-3 whitespace-pre-wrap">
                   {memory}
@@ -389,12 +392,17 @@ export default function SettingsModal({
                 onChange={(e) => setSttBackend(e.target.value)}
                 className={inputCls}
               >
-                <option value="google">Google (online, no install required)</option>
-                <option value="whisper">Whisper (local, privacy-friendly)</option>
+                <option value="google">
+                  Google (online, no install required)
+                </option>
+                <option value="whisper">
+                  Whisper (local, privacy-friendly)
+                </option>
               </select>
               {sttBackend === "whisper" && (
                 <p className="text-[0.75rem] text-[#888] mt-1">
-                  Requires <code>openai-whisper</code> and <code>ffmpeg</code> installed on the server.
+                  Requires <code>openai-whisper</code> and <code>ffmpeg</code>{" "}
+                  installed on the server.
                 </p>
               )}
             </div>

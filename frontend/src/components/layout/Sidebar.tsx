@@ -1,7 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
-import { deleteChat, moveChatToFolder, pinChat, renameChat } from "../../api/chats";
+import {
+  deleteChat,
+  moveChatToFolder,
+  pinChat,
+  renameChat,
+} from "../../api/chats";
 import type { Folder, Session } from "../../types";
 
 function formatDate(isoStr: string): string {
@@ -14,7 +19,9 @@ function formatDate(isoStr: string): string {
   return d.toLocaleDateString("en", { day: "numeric", month: "short" });
 }
 
-function groupSessions(sessions: Session[]): { label: string; items: Session[] }[] {
+function groupSessions(
+  sessions: Session[],
+): { label: string; items: Session[] }[] {
   const now = Date.now();
   const buckets: [string, Session[]][] = [
     ["Today", []],
@@ -24,7 +31,9 @@ function groupSessions(sessions: Session[]): { label: string; items: Session[] }
     ["Older", []],
   ];
   for (const s of sessions) {
-    const diff = Math.floor((now - new Date(s.updated_at + "Z").getTime()) / 86400000);
+    const diff = Math.floor(
+      (now - new Date(s.updated_at + "Z").getTime()) / 86400000,
+    );
     if (diff < 1) buckets[0][1].push(s);
     else if (diff < 2) buckets[1][1].push(s);
     else if (diff < 7) buckets[2][1].push(s);
@@ -37,13 +46,32 @@ function groupSessions(sessions: Session[]): { label: string; items: Session[] }
 }
 
 const SearchIcon = () => (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+  <svg
+    viewBox="0 0 24 24"
+    width="14"
+    height="14"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="11" cy="11" r="8" />
+    <path d="M21 21l-4.35-4.35" />
   </svg>
 );
 
 const ChatIcon = () => (
-  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="14"
+    height="14"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
@@ -96,7 +124,9 @@ function ChatSearchModal({
       <div className="bg-bg-surface border border-border rounded-[1rem] w-[90%] max-w-[520px] flex flex-col overflow-hidden shadow-[0_20px_72px_rgba(0,0,0,0.45)] max-h-[65vh]">
         {/* Search input row */}
         <div className="flex items-center gap-3 px-4 py-[0.75rem] border-b border-border flex-shrink-0">
-          <span className="text-txt-dim flex-shrink-0"><SearchIcon /></span>
+          <span className="text-txt-dim flex-shrink-0">
+            <SearchIcon />
+          </span>
           <input
             ref={inputRef}
             value={query}
@@ -108,7 +138,15 @@ function ChatSearchModal({
             onClick={onClose}
             className="text-txt-dim hover:text-txt-primary bg-transparent border-none cursor-pointer p-1 rounded-[0.4rem] transition-colors flex-shrink-0"
           >
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
@@ -122,7 +160,16 @@ function ChatSearchModal({
             className="w-full flex items-center gap-[0.65rem] px-3 py-[0.6rem] rounded-[0.65rem] bg-transparent border-none cursor-pointer hover:bg-bg-hover transition-colors text-left mb-[0.25rem]"
           >
             <span className="text-txt-dim flex-shrink-0">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M12 20h9" />
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
               </svg>
@@ -145,8 +192,13 @@ function ChatSearchModal({
                   }`}
                 >
                   <span className="text-accent opacity-70 flex-shrink-0">
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
-                      <path d="M12 2l2.4 6.4L21 9.3l-5 4.7 1.5 6.6L12 17l-5.5 3.6L8 14 3 9.3l6.6-.9z"/>
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="13"
+                      height="13"
+                      fill="currentColor"
+                    >
+                      <path d="M12 2l2.4 6.4L21 9.3l-5 4.7 1.5 6.6L12 17l-5.5 3.6L8 14 3 9.3l6.6-.9z" />
                     </svg>
                   </span>
                   <span className="text-txt-muted text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis">
@@ -173,12 +225,12 @@ function ChatSearchModal({
                     key={s.id}
                     onClick={() => onSelect(s.id)}
                     className={`w-full flex items-center gap-[0.65rem] px-3 py-[0.55rem] rounded-[0.65rem] bg-transparent border-none cursor-pointer text-left transition-colors ${
-                      s.id === currentId
-                        ? "bg-accent-dim"
-                        : "hover:bg-bg-hover"
+                      s.id === currentId ? "bg-accent-dim" : "hover:bg-bg-hover"
                     }`}
                   >
-                    <span className="text-txt-dim flex-shrink-0"><ChatIcon /></span>
+                    <span className="text-txt-dim flex-shrink-0">
+                      <ChatIcon />
+                    </span>
                     <span className="text-txt-muted text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis">
                       {s.title || "New Chat"}
                     </span>
@@ -290,7 +342,16 @@ function SessionContextMenu({
           onClick={() => setPickingFolder(false)}
           className="flex items-center gap-2 w-full bg-transparent border-none px-3 py-[0.4rem] text-left text-[0.8rem] text-txt-dim hover:text-txt-primary rounded-[0.35rem] cursor-pointer hover:bg-bg-hover transition-all mb-[0.15rem]"
         >
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            viewBox="0 0 24 24"
+            width="11"
+            height="11"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M15 18l-6-6 6-6" />
           </svg>
           Move to folder
@@ -300,29 +361,57 @@ function SessionContextMenu({
           <button
             key={f.id}
             onClick={() => {
-              void moveChatToFolder(sessionId, f.id).then(() => { onMoved(f.id); onClose(); });
+              void moveChatToFolder(sessionId, f.id).then(() => {
+                onMoved(f.id);
+                onClose();
+              });
             }}
             className={`flex items-center gap-[0.5rem] w-full bg-transparent border-none px-3 py-[0.45rem] text-left text-[0.85rem] rounded-[0.35rem] cursor-pointer transition-all text-txt-muted hover:bg-bg-hover hover:text-txt-heading ${folderId === f.id ? "font-medium text-txt-primary" : ""}`}
           >
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+            <svg
+              viewBox="0 0 24 24"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="flex-shrink-0"
+            >
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
             {f.name}
           </button>
         ))}
         {folders.length === 0 && (
-          <div className="px-3 py-2 text-[0.8rem] text-txt-dim">No folders yet</div>
+          <div className="px-3 py-2 text-[0.8rem] text-txt-dim">
+            No folders yet
+          </div>
         )}
         {folderId && (
           <>
             <div className="border-t border-border my-[0.2rem]" />
             <button
               onClick={() => {
-                void moveChatToFolder(sessionId, null).then(() => { onMoved(null); onClose(); });
+                void moveChatToFolder(sessionId, null).then(() => {
+                  onMoved(null);
+                  onClose();
+                });
               }}
               className="flex items-center gap-[0.5rem] w-full bg-transparent border-none px-3 py-[0.45rem] text-left text-[0.85rem] rounded-[0.35rem] cursor-pointer transition-all text-txt-dim hover:bg-bg-hover hover:text-txt-heading"
             >
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <svg
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="flex-shrink-0"
+              >
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
               Remove from folder
@@ -372,14 +461,32 @@ function SessionContextMenu({
   }[] = [
     {
       icon: pinned ? (
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="13"
+          height="13"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <line x1="2" y1="2" x2="22" y2="22" />
           <line x1="12" y1="17" x2="12" y2="22" />
           <path d="M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14" />
           <path d="M15 9.34V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0-.56.08" />
         </svg>
       ) : (
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="13"
+          height="13"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <line x1="12" y1="17" x2="12" y2="22" />
           <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
         </svg>
@@ -394,7 +501,16 @@ function SessionContextMenu({
     },
     {
       icon: (
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="13"
+          height="13"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
       ),
@@ -403,7 +519,16 @@ function SessionContextMenu({
     },
     {
       icon: (
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="13"
+          height="13"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
         </svg>
@@ -413,7 +538,16 @@ function SessionContextMenu({
     },
     {
       icon: (
-        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="13"
+          height="13"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <polyline points="3 6 5 6 21 6" />
           <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
           <path d="M10 11v6M14 11v6" />
@@ -421,7 +555,9 @@ function SessionContextMenu({
         </svg>
       ),
       label: "Delete",
-      action: () => { void handleDelete(); },
+      action: () => {
+        void handleDelete();
+      },
       danger: true,
     },
   ];
@@ -520,8 +656,14 @@ function SessionItem({
           className={`text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-[0.35rem] ${isActive ? "text-txt-primary" : "text-txt-muted dark:text-[#bbb]"}`}
         >
           {isPinned && (
-            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" className="text-accent flex-shrink-0 opacity-70">
-              <path d="M12 2l2.4 6.4L21 9.3l-5 4.7 1.5 6.6L12 17l-5.5 3.6L8 14 3 9.3l6.6-.9z"/>
+            <svg
+              viewBox="0 0 24 24"
+              width="10"
+              height="10"
+              fill="currentColor"
+              className="text-accent flex-shrink-0 opacity-70"
+            >
+              <path d="M12 2l2.4 6.4L21 9.3l-5 4.7 1.5 6.6L12 17l-5.5 3.6L8 14 3 9.3l6.6-.9z" />
             </svg>
           )}
           {title}
@@ -547,11 +689,22 @@ function SessionItem({
           folders={folders}
           titleRef={titleRef}
           anchorEl={menuAnchor}
-          onClose={() => { onCloseMenu(); setMenuAnchor(null); }}
-          onDeleted={() => { onCloseMenu(); onDeleted(session.id); }}
-          onRenamed={(newTitle) => { onCloseMenu(); handleRenamed(newTitle); }}
+          onClose={() => {
+            onCloseMenu();
+            setMenuAnchor(null);
+          }}
+          onDeleted={() => {
+            onCloseMenu();
+            onDeleted(session.id);
+          }}
+          onRenamed={(newTitle) => {
+            onCloseMenu();
+            handleRenamed(newTitle);
+          }}
           onPinToggled={handlePinToggled}
-          onMoved={(folderId) => { onMoved(session.id, folderId); }}
+          onMoved={(folderId) => {
+            onMoved(session.id, folderId);
+          }}
         />
       )}
     </>
@@ -617,7 +770,9 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
   }
 
   function handleMoved(chatId: string, folderId: string | null): void {
-    setSessions((prev) => prev.map((s) => s.id === chatId ? { ...s, folder_id: folderId } : s));
+    setSessions((prev) =>
+      prev.map((s) => (s.id === chatId ? { ...s, folder_id: folderId } : s)),
+    );
   }
 
   return (
@@ -632,7 +787,9 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
       >
         {/* Sidebar header */}
         <div className="flex items-center px-4 py-[0.85rem] border-b border-border">
-          <span className="text-[0.72rem] font-semibold tracking-[0.07em] uppercase text-txt-dim">Chats</span>
+          <span className="text-[0.72rem] font-semibold tracking-[0.07em] uppercase text-txt-dim">
+            Chats
+          </span>
         </div>
 
         {/* New chat + Folders buttons */}
@@ -641,8 +798,19 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
             onClick={onNewChat}
             className="w-full flex items-center gap-[0.55rem] px-[0.65rem] py-[0.55rem] bg-transparent hover:bg-bg-hover rounded-[0.65rem] text-txt-dim hover:text-txt-primary text-[0.875rem] font-medium cursor-pointer transition-all border-none"
           >
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-              <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="flex-shrink-0"
+            >
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
             </svg>
             New chat
           </button>
@@ -654,8 +822,18 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
                 : "bg-transparent hover:bg-bg-hover text-txt-dim hover:text-txt-primary"
             }`}
           >
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            <svg
+              viewBox="0 0 24 24"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="flex-shrink-0"
+            >
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
             Folders
           </button>
@@ -667,16 +845,22 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
             onClick={() => setSearchOpen(true)}
             className="w-full flex items-center gap-[0.45rem] bg-bg-muted hover:bg-bg-hover rounded-[0.6rem] px-[0.6rem] py-[0.45rem] border-none cursor-pointer transition-colors"
           >
-            <span className="text-txt-dim flex-shrink-0"><SearchIcon /></span>
-            <span className="flex-1 text-left text-[0.8rem] text-txt-dim">Search chats…</span>
-            <kbd className="text-[0.6rem] text-txt-dim bg-bg-base border border-border rounded px-[0.35rem] py-[0.1rem] font-mono leading-none flex-shrink-0">⌘K</kbd>
+            <span className="text-txt-dim flex-shrink-0">
+              <SearchIcon />
+            </span>
+            <span className="flex-1 text-left text-[0.8rem] text-txt-dim">
+              Search chats…
+            </span>
+            <kbd className="text-[0.6rem] text-txt-dim bg-bg-base border border-border rounded px-[0.35rem] py-[0.1rem] font-mono leading-none flex-shrink-0">
+              ⌘K
+            </kbd>
           </button>
         </div>
 
         {/* Chat list — pinned + ungrouped only */}
         <div className="flex-1 overflow-y-auto px-[0.4rem] py-[0.25rem] flex flex-col gap-[0.1rem]">
           {(() => {
-            const pinned    = sessions.filter((s) => s.pinned);
+            const pinned = sessions.filter((s) => s.pinned);
             const ungrouped = sessions.filter((s) => !s.pinned);
             const sessionItem = (s: Session) => (
               <SessionItem
@@ -687,8 +871,12 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
                 isMenuOpen={openMenuId === s.id}
                 onOpenMenu={() => setOpenMenuId(s.id)}
                 onCloseMenu={() => setOpenMenuId(null)}
-                onSelect={(id) => { void handleSelect(id); }}
-                onDeleted={(id) => { void handleDeleted(id); }}
+                onSelect={(id) => {
+                  void handleSelect(id);
+                }}
+                onDeleted={(id) => {
+                  void handleDeleted(id);
+                }}
                 onRenamed={handleRenamed}
                 onPinToggled={handlePinToggled}
                 onMoved={handleMoved}
@@ -698,20 +886,26 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
               <>
                 {pinned.length > 0 && (
                   <>
-                    <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.4rem] pb-[0.1rem]">Pinned</div>
+                    <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.4rem] pb-[0.1rem]">
+                      Pinned
+                    </div>
                     {pinned.map(sessionItem)}
                   </>
                 )}
                 {ungrouped.length > 0 && (
                   <>
                     {pinned.length > 0 && (
-                      <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.3rem] pb-[0.1rem]">Chats</div>
+                      <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.3rem] pb-[0.1rem]">
+                        Chats
+                      </div>
                     )}
                     {ungrouped.map(sessionItem)}
                   </>
                 )}
                 {sessions.length === 0 && (
-                  <div className="text-txt-dim text-[0.85rem] text-center py-8">No chats yet</div>
+                  <div className="text-txt-dim text-[0.85rem] text-center py-8">
+                    No chats yet
+                  </div>
                 )}
               </>
             );
@@ -722,7 +916,12 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
         <div className="flex items-center justify-between px-4 py-3 border-t border-border gap-2">
           <div className="flex items-center gap-[0.55rem] min-w-0">
             <div className="w-7 h-7 rounded-full bg-bg-muted dark:bg-[#222] border border-border flex items-center justify-center flex-shrink-0 text-txt-dim">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                width="16"
+                height="16"
+              >
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
               </svg>
@@ -736,7 +935,16 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
             title="Settings"
             className="bg-transparent border-none text-[#999] cursor-pointer text-[1.1rem] leading-none px-[0.3rem] py-[0.2rem] rounded-[0.4rem] transition-all hover:text-txt-primary hover:bg-bg-muted flex items-center flex-shrink-0"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="17" height="17">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              width="17"
+              height="17"
+            >
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>

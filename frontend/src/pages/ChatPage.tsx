@@ -156,64 +156,71 @@ export default function ChatPage() {
 
       const thinkingStartRef = { current: 0 };
 
-      await stream(chatId, text, fileForSend, isEdit ? editingIndex : null, {
-        onChunk: (_char, fullText) => {
-          setPairs((prev) =>
-            prev.map((p) =>
-              p.pairIndex === newPairIdx ? { ...p, botText: fullText } : p,
-            ),
-          );
+      await stream(
+        chatId,
+        text,
+        fileForSend,
+        isEdit ? editingIndex : null,
+        {
+          onChunk: (_char, fullText) => {
+            setPairs((prev) =>
+              prev.map((p) =>
+                p.pairIndex === newPairIdx ? { ...p, botText: fullText } : p,
+              ),
+            );
+          },
+          onThinking: (_chunk) => {
+            setPairs((prev) =>
+              prev.map((p) => {
+                if (p.pairIndex !== newPairIdx) return p;
+                if (!p.thinkingText) thinkingStartRef.current = Date.now();
+                return {
+                  ...p,
+                  thinkingText: p.thinkingText + _chunk,
+                  thinkingStreaming: true,
+                };
+              }),
+            );
+          },
+          onSearching: (query) => {
+            setPairs((prev) =>
+              prev.map((p) =>
+                p.pairIndex === newPairIdx ? { ...p, searchQuery: query } : p,
+              ),
+            );
+          },
+          onDone: (fullText) => {
+            const elapsed = Math.round(
+              (Date.now() - (thinkingStartRef.current || Date.now())) / 1000,
+            );
+            setPairs((prev) =>
+              prev.map((p) =>
+                p.pairIndex === newPairIdx
+                  ? {
+                      ...p,
+                      botText: fullText,
+                      isStreaming: false,
+                      thinkingStreaming: false,
+                      thinkingElapsed: elapsed,
+                    }
+                  : p,
+              ),
+            );
+            void refreshSessions();
+          },
+          onTitle: () => {
+            void refreshSessions();
+          },
+          onUsage: (payload) => {
+            setTokenUsage({ prompt: payload.prompt, reply: payload.reply });
+          },
+          onError: (payload) => {
+            setPairs((prev) => prev.filter((p) => p.pairIndex !== newPairIdx));
+            setErrorMessages((prev) => [...prev, payload]);
+          },
         },
-        onThinking: (_chunk) => {
-          setPairs((prev) =>
-            prev.map((p) => {
-              if (p.pairIndex !== newPairIdx) return p;
-              if (!p.thinkingText) thinkingStartRef.current = Date.now();
-              return {
-                ...p,
-                thinkingText: p.thinkingText + _chunk,
-                thinkingStreaming: true,
-              };
-            }),
-          );
-        },
-        onSearching: (query) => {
-          setPairs((prev) =>
-            prev.map((p) =>
-              p.pairIndex === newPairIdx ? { ...p, searchQuery: query } : p,
-            ),
-          );
-        },
-        onDone: (fullText) => {
-          const elapsed = Math.round(
-            (Date.now() - (thinkingStartRef.current || Date.now())) / 1000,
-          );
-          setPairs((prev) =>
-            prev.map((p) =>
-              p.pairIndex === newPairIdx
-                ? {
-                    ...p,
-                    botText: fullText,
-                    isStreaming: false,
-                    thinkingStreaming: false,
-                    thinkingElapsed: elapsed,
-                  }
-                : p,
-            ),
-          );
-          void refreshSessions();
-        },
-        onTitle: () => {
-          void refreshSessions();
-        },
-        onUsage: (payload) => {
-          setTokenUsage({ prompt: payload.prompt, reply: payload.reply });
-        },
-        onError: (payload) => {
-          setPairs((prev) => prev.filter((p) => p.pairIndex !== newPairIdx));
-          setErrorMessages((prev) => [...prev, payload]);
-        },
-      }, webSearch);
+        webSearch,
+      );
 
       setIsStreaming(false);
       streamingPairRef.current = null;
@@ -252,7 +259,12 @@ export default function ChatPage() {
       setPairs((prev) =>
         prev.map((p) =>
           p.pairIndex === idx
-            ? { ...p, isStreaming: false, thinkingStreaming: false, interrupted: true }
+            ? {
+                ...p,
+                isStreaming: false,
+                thinkingStreaming: false,
+                interrupted: true,
+              }
             : p,
         ),
       );
@@ -372,7 +384,11 @@ export default function ChatPage() {
           className={`flex-1 flex flex-col overflow-hidden ${homeMode ? "justify-center" : ""}`}
         >
           {homeMode ? (
-            <HomeHero onSend={(text) => { void handleSend(text); }} />
+            <HomeHero
+              onSend={(text) => {
+                void handleSend(text);
+              }}
+            />
           ) : (
             <ChatArea
               pairs={pairs}

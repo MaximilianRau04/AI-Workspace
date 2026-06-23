@@ -41,7 +41,9 @@ function ActionBtn({ icon, title, active, onClick }: ActionBtnProps) {
       onClick={onClick}
       title={title}
       className={`bg-transparent border-none cursor-pointer text-[1.5rem] px-[0.55rem] py-[0.45rem] rounded-[0.4rem] leading-none transition-all flex items-center hover:bg-bg-hover ${
-        active ? "text-accent hover:text-accent" : "text-txt-dim hover:text-txt-muted"
+        active
+          ? "text-accent hover:text-accent"
+          : "text-txt-dim hover:text-txt-muted"
       }`}
     >
       {icon}

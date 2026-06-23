@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,31 +6,31 @@
 
 /* ── Theme tokens ── */
 :root {
-  --bg-base:      #f3f3f8;
-  --bg-surface:   #ffffff;
-  --bg-muted:     #eaeaef;
-  --bg-hover:     #e2e2eb;
-  --border:       #d6d6e4;
-  --border-subtle:#e8e8f0;
-  --txt-primary:  #16161d;
-  --txt-muted:    #52526a;
-  --txt-dim:      #8585a0;
-  --txt-heading:  #08080f;
-  --accent-dim:   #dde3ff;
+  --bg-base: #f3f3f8;
+  --bg-surface: #ffffff;
+  --bg-muted: #eaeaef;
+  --bg-hover: #e2e2eb;
+  --border: #d6d6e4;
+  --border-subtle: #e8e8f0;
+  --txt-primary: #16161d;
+  --txt-muted: #52526a;
+  --txt-dim: #8585a0;
+  --txt-heading: #08080f;
+  --accent-dim: #dde3ff;
 }
 
 .dark {
-  --bg-base:      #0b0b0e;
-  --bg-surface:   #111117;
-  --bg-muted:     #17171f;
-  --bg-hover:     #1e1e28;
-  --border:       #24242e;
-  --border-subtle:#1c1c24;
-  --txt-primary:  #e0e0ea;
-  --txt-muted:    #9090a4;
-  --txt-dim:      #525265;
-  --txt-heading:  #f0f0fa;
-  --accent-dim:   #171f3a;
+  --bg-base: #0b0b0e;
+  --bg-surface: #111117;
+  --bg-muted: #17171f;
+  --bg-hover: #1e1e28;
+  --border: #24242e;
+  --border-subtle: #1c1c24;
+  --txt-primary: #e0e0ea;
+  --txt-muted: #9090a4;
+  --txt-dim: #525265;
+  --txt-heading: #f0f0fa;
+  --accent-dim: #171f3a;
 }
 
 /* ── Base ── */
@@ -47,7 +47,11 @@ html {
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
   height: 100dvh;
   @apply bg-bg-base text-txt-primary;
 }

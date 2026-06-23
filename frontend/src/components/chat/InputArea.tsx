@@ -19,7 +19,16 @@ interface InputAreaProps {
 
 function PaperclipIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
     </svg>
   );
@@ -27,7 +36,16 @@ function PaperclipIcon() {
 
 function GlobeIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="12" r="10" />
       <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
     </svg>
@@ -36,7 +54,16 @@ function GlobeIcon() {
 
 function MicIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="9" y="2" width="6" height="11" rx="3" />
       <path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8" />
     </svg>
@@ -45,7 +72,16 @@ function MicIcon() {
 
 function ArrowUpIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M12 19V5M5 12l7-7 7 7" />
     </svg>
   );
@@ -85,8 +121,8 @@ function ToolBtn({ onClick, title, active, danger, children }: ToolBtnProps) {
         danger
           ? "text-txt-dim hover:text-[#e74c3c] hover:bg-[#e74c3c]/10"
           : active
-          ? "bg-accent/10 text-accent hover:bg-accent/15"
-          : "bg-transparent text-txt-dim hover:text-txt-muted hover:bg-bg-muted"
+            ? "bg-accent/10 text-accent hover:bg-accent/15"
+            : "bg-transparent text-txt-dim hover:text-txt-muted hover:bg-bg-muted"
       }`}
     >
       {children}
@@ -152,7 +188,8 @@ export default function InputArea({
   const pct = Math.min(prompt / TOKEN_LIMIT, 1);
   const arc = (pct * 100).toFixed(1);
   const arcColor = pct > 0.85 ? "#e74c3c" : pct > 0.6 ? "#e67e22" : "#2f6df5";
-  const fmt = (n: number) => (n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n));
+  const fmt = (n: number) =>
+    n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n);
   const tokenTitle = `Context: ${prompt.toLocaleString("en")} tokens\nReply: ${reply.toLocaleString("en")} tokens\nLimit: 1,000,000 tokens`;
 
   return (
@@ -176,7 +213,15 @@ export default function InputArea({
             </div>
           </div>
           <ToolBtn onClick={onRemoveFile} title="Remove">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </ToolBtn>
@@ -200,7 +245,10 @@ export default function InputArea({
         {/* Bottom toolbar */}
         <div className="flex items-center gap-[0.15rem] px-[0.55rem] pb-[0.55rem] pt-[0.1rem]">
           {/* Attach */}
-          <ToolBtn onClick={() => fileInputRef.current?.click()} title="Attach document">
+          <ToolBtn
+            onClick={() => fileInputRef.current?.click()}
+            title="Attach document"
+          >
             <PaperclipIcon />
           </ToolBtn>
           <input
@@ -212,13 +260,21 @@ export default function InputArea({
           />
 
           {/* Web search */}
-          <ToolBtn onClick={onToggleWebSearch} title={webSearch ? "Web search on" : "Web search off"} active={webSearch}>
+          <ToolBtn
+            onClick={onToggleWebSearch}
+            title={webSearch ? "Web search on" : "Web search off"}
+            active={webSearch}
+          >
             <GlobeIcon />
           </ToolBtn>
 
           {/* Mic */}
           <ToolBtn
-            onClick={() => onToggleRecording((t) => setText((prev) => (prev ? prev + " " + t : t)))}
+            onClick={() =>
+              onToggleRecording((t) =>
+                setText((prev) => (prev ? prev + " " + t : t)),
+              )
+            }
             title="Voice input"
             danger={isRecording}
             active={isRecording}
@@ -233,11 +289,23 @@ export default function InputArea({
 
           {/* Token ring */}
           {tokenUsage !== null && (
-            <div className="flex items-center gap-[0.35rem] cursor-default flex-shrink-0 mr-1" title={tokenTitle}>
+            <div
+              className="flex items-center gap-[0.35rem] cursor-default flex-shrink-0 mr-1"
+              title={tokenTitle}
+            >
               <svg viewBox="0 0 36 36" width="22" height="22">
-                <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--border)" strokeWidth="3.5" />
                 <circle
-                  cx="18" cy="18" r="15.9"
+                  cx="18"
+                  cy="18"
+                  r="15.9"
+                  fill="none"
+                  stroke="var(--border)"
+                  strokeWidth="3.5"
+                />
+                <circle
+                  cx="18"
+                  cy="18"
+                  r="15.9"
                   fill="none"
                   stroke={arcColor}
                   strokeWidth="3.5"
