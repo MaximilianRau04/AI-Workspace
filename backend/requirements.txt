@@ -28,3 +28,6 @@ duckduckgo-search
 edge-tts
 SpeechRecognition
 pydub
+
+# Dev tools
+ruff
