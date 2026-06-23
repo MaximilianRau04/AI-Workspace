@@ -22,6 +22,7 @@ router = APIRouter(tags=["chats"])
 # Request bodies
 # ---------------------------------------------------------------------------
 
+
 class ChatBody(BaseModel):
     message: str = ""
     attached_file: Optional[str] = None
@@ -44,6 +45,7 @@ class FolderBody(BaseModel):
 # ---------------------------------------------------------------------------
 # Session management
 # ---------------------------------------------------------------------------
+
 
 @router.get("/chats")
 async def list_chats(current_user: dict = Depends(login_required)):
@@ -102,9 +104,11 @@ async def pin_chat(
 ):
     user_id = current_user["user_id"]
     with get_session() as db:
-        sess = db.query(ChatSession).filter(
-            ChatSession.id == chat_id, ChatSession.user_id == user_id
-        ).first()
+        sess = (
+            db.query(ChatSession)
+            .filter(ChatSession.id == chat_id, ChatSession.user_id == user_id)
+            .first()
+        )
         if not sess:
             raise HTTPException(status_code=404, detail="Chat not found")
         sess.pinned = body.pinned
@@ -119,9 +123,11 @@ async def move_to_folder(
 ):
     user_id = current_user["user_id"]
     with get_session() as db:
-        sess = db.query(ChatSession).filter(
-            ChatSession.id == chat_id, ChatSession.user_id == user_id
-        ).first()
+        sess = (
+            db.query(ChatSession)
+            .filter(ChatSession.id == chat_id, ChatSession.user_id == user_id)
+            .first()
+        )
         if not sess:
             raise HTTPException(status_code=404, detail="Chat not found")
         sess.folder_id = body.folder_id
@@ -150,20 +156,28 @@ async def delete_chat(chat_id: str, current_user: dict = Depends(login_required)
 # Messaging
 # ---------------------------------------------------------------------------
 
+
 def _parse_error(e: Exception) -> dict:
     import re
+
     msg = str(e)
     if "429" in msg or "quota" in msg.lower() or "rate" in msg.lower():
-        m = re.search(r'retry[^\d]*(\d+)', msg, re.IGNORECASE)
+        m = re.search(r"retry[^\d]*(\d+)", msg, re.IGNORECASE)
         retry_after = int(m.group(1)) if m else None
-        err: dict = {"type": "rate_limit", "title": "Rate limit reached",
-                     "detail": "You've hit the provider's rate limit."}
+        err: dict = {
+            "type": "rate_limit",
+            "title": "Rate limit reached",
+            "detail": "You've hit the provider's rate limit.",
+        }
         if retry_after:
             err["retry_after"] = retry_after
         return err
     if "401" in msg or "403" in msg or "api key" in msg.lower() or "API key" in msg:
-        return {"type": "auth", "title": "Invalid API key",
-                "detail": "Check your API key in Settings."}
+        return {
+            "type": "auth",
+            "title": "Invalid API key",
+            "detail": "Check your API key in Settings.",
+        }
     return {"type": "generic", "title": "Something went wrong", "detail": msg}
 
 
@@ -175,7 +189,7 @@ def _generate_title(user_msg: str, bot_msg: str) -> str:
         f"User: {user_msg[:300]}\n"
         f"Assistant: {bot_msg[:300]}"
     )
-    return llm.generate_text(prompt).strip().strip('"\'').strip()[:60]
+    return llm.generate_text(prompt).strip().strip("\"'").strip()[:60]
 
 
 @router.post("/chats/{chat_id}/messages")
@@ -211,6 +225,7 @@ async def send_message(
         messages = chat_service.build_chat_messages(sess.messages, sess.summary, augmented)
 
         from routes.config import load_system_prompt, get_user_data
+
         system_prompt = load_system_prompt()
         user_data = get_user_data(user_id)
         extra_parts = []
@@ -238,7 +253,7 @@ async def send_message(
             yield 'data: "[DONE]"\n\n'
             return
 
-        sess.messages.append(MessageSchema(role="user",  parts=[user_message]))
+        sess.messages.append(MessageSchema(role="user", parts=[user_message]))
         sess.messages.append(MessageSchema(role="model", parts=[full_reply]))
 
         if chat_service.needs_summarization(sess.messages):

@@ -7,6 +7,7 @@ Internally uses Gemini-format messages throughout:
 stream_chat() yields str chunks, {"thinking": str} for reasoning content,
 and as the final item may yield a {"usage": {...}} dict (Gemini only).
 """
+
 from __future__ import annotations
 
 import itertools
@@ -18,12 +19,12 @@ from typing import Iterator
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "..", "model_config.json")
 
 DEFAULTS: dict = {
-    "provider":    "gemini",
-    "model":       "gemini-2.5-flash",
-    "api_key":     "",
-    "base_url":    "",
-    "reasoning":   False,
-    "presets":     [],
+    "provider": "gemini",
+    "model": "gemini-2.5-flash",
+    "api_key": "",
+    "base_url": "",
+    "reasoning": False,
+    "presets": [],
     "stt_backend": "google",
 }
 
@@ -70,6 +71,7 @@ def save_config(cfg: dict) -> None:
 # Public interface
 # ---------------------------------------------------------------------------
 
+
 def stream_chat(
     messages: list[dict],
     system_prompt: str = "",
@@ -111,6 +113,7 @@ def generate_text(prompt: str) -> str:
 def list_ollama_models(base_url: str) -> list[str]:
     """Return model names from a running Ollama instance."""
     import urllib.request, urllib.error
+
     base = base_url.rstrip("/")
     if base.endswith("/v1"):
         base = base[:-3]
@@ -125,6 +128,7 @@ def list_ollama_models(base_url: str) -> list[str]:
 # ---------------------------------------------------------------------------
 # Format helpers
 # ---------------------------------------------------------------------------
+
 
 def _to_openai_messages(messages: list[dict]) -> list[dict]:
     return [
@@ -146,10 +150,10 @@ def _parse_think_tags(text_iter: Iterator[str]) -> Iterator[str | dict]:
     Yields str for answer text and {"thinking": str} for reasoning content.
     Handles tags split across chunk boundaries.
     """
-    TAG_OPEN  = "<think>"
+    TAG_OPEN = "<think>"
     TAG_CLOSE = "</think>"
-    in_think  = False
-    buf       = ""
+    in_think = False
+    buf = ""
 
     for text in text_iter:
         buf += text
@@ -161,11 +165,11 @@ def _parse_think_tags(text_iter: Iterator[str]) -> Iterator[str | dict]:
                     safe = buf[: max(0, len(buf) - len(TAG_OPEN))]
                     if safe:
                         yield safe
-                        buf = buf[len(safe):]
+                        buf = buf[len(safe) :]
                     break
                 if idx > 0:
                     yield buf[:idx]
-                buf      = buf[idx + len(TAG_OPEN):]
+                buf = buf[idx + len(TAG_OPEN) :]
                 in_think = True
             else:
                 idx = buf.find(TAG_CLOSE)
@@ -173,11 +177,11 @@ def _parse_think_tags(text_iter: Iterator[str]) -> Iterator[str | dict]:
                     safe = buf[: max(0, len(buf) - len(TAG_CLOSE))]
                     if safe:
                         yield {"thinking": safe}
-                        buf = buf[len(safe):]
+                        buf = buf[len(safe) :]
                     break
                 if idx > 0:
                     yield {"thinking": buf[:idx]}
-                buf      = buf[idx + len(TAG_CLOSE):]
+                buf = buf[idx + len(TAG_CLOSE) :]
                 in_think = False
 
     if buf:
@@ -194,27 +198,32 @@ _GEMINI_THINKING_MODELS = ("gemini-2.5-flash", "gemini-2.5-pro")
 def _get_gemini_key(cfg: dict) -> str:
     key = cfg.get("api_key") or os.getenv("GEMINI_API_KEY", "")
     if not key:
-        raise ValueError("Gemini API key not configured. Set it in Settings or in GEMINI_API_KEY env var.")
+        raise ValueError(
+            "Gemini API key not configured. Set it in Settings or in GEMINI_API_KEY env var."
+        )
     return key
 
 
 def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False):
     import google.generativeai as genai
+
     genai.configure(api_key=_get_gemini_key(cfg))
 
     if not messages or messages[-1]["role"] != "user":
         raise ValueError("Last message must be from the user.")
 
-    history    = [{"role": m["role"], "parts": m["parts"]} for m in messages[:-1]]
-    user_msg   = messages[-1]["parts"][0]
-    reasoning  = cfg.get("reasoning", False)
+    history = [{"role": m["role"], "parts": m["parts"]} for m in messages[:-1]]
+    user_msg = messages[-1]["parts"][0]
+    reasoning = cfg.get("reasoning", False)
     model_name = cfg["model"]
 
     use_native = reasoning and any(model_name.startswith(m) for m in _GEMINI_THINKING_MODELS)
 
     actual_prompt = system_prompt
     if not use_native and reasoning:
-        actual_prompt = (system_prompt + _cot_addendum()).strip() if system_prompt else _cot_addendum().strip()
+        actual_prompt = (
+            (system_prompt + _cot_addendum()).strip() if system_prompt else _cot_addendum().strip()
+        )
 
     tools_list = None
     if web_search_enabled:
@@ -329,11 +338,13 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False):
 
     try:
         u = resp.usage_metadata
-        yield {"usage": {
-            "prompt": u.prompt_token_count or 0,
-            "reply":  u.candidates_token_count or 0,
-            "total":  u.total_token_count or 0,
-        }}
+        yield {
+            "usage": {
+                "prompt": u.prompt_token_count or 0,
+                "reply": u.candidates_token_count or 0,
+                "total": u.total_token_count or 0,
+            }
+        }
     except Exception:
         pass
 
@@ -372,6 +383,7 @@ def _gemini_execute_tool(chat, fn_call):
 
 def _generate_gemini(prompt, cfg):
     import google.generativeai as genai
+
     genai.configure(api_key=_get_gemini_key(cfg))
     model = genai.GenerativeModel(cfg["model"])
     return model.generate_content(prompt).text.strip()
@@ -381,8 +393,15 @@ def _generate_gemini(prompt, cfg):
 # Prompt-based tool executor (used by Ollama / providers without native tools)
 # ---------------------------------------------------------------------------
 
-def _prompt_execute_tool(client, model: str, oai_messages: list[dict], tool_call: dict,
-                          reasoning: bool, is_think_tag: bool):
+
+def _prompt_execute_tool(
+    client,
+    model: str,
+    oai_messages: list[dict],
+    tool_call: dict,
+    reasoning: bool,
+    is_think_tag: bool,
+):
     from tools import web_search, format_results, fetch_url
 
     name = tool_call.get("name", "")
@@ -400,8 +419,14 @@ def _prompt_execute_tool(client, model: str, oai_messages: list[dict], tool_call
         return
 
     follow_up = oai_messages + [
-        {"role": "assistant", "content": f'<tool_call>{json.dumps({"name": name, "args": args})}</tool_call>'},
-        {"role": "user",      "content": f"Tool '{name}' returned:\n{result_text}\n\nNow provide your final answer."},
+        {
+            "role": "assistant",
+            "content": f"<tool_call>{json.dumps({'name': name, 'args': args})}</tool_call>",
+        },
+        {
+            "role": "user",
+            "content": f"Tool '{name}' returned:\n{result_text}\n\nNow provide your final answer.",
+        },
     ]
     stream2 = client.chat.completions.create(model=model, messages=follow_up, stream=True)
 
@@ -429,6 +454,7 @@ _OLLAMA_THINK_TAG_MODELS = ("deepseek-r1", "qwq", "phi4-reasoning")
 
 def _openai_client(cfg: dict):
     from openai import OpenAI
+
     key = cfg.get("api_key") or os.getenv("OPENAI_API_KEY", "ollama")
     kwargs: dict = {"api_key": key}
     if cfg.get("base_url"):
@@ -437,9 +463,9 @@ def _openai_client(cfg: dict):
 
 
 def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
-    client    = _openai_client(cfg)
+    client = _openai_client(cfg)
     reasoning = cfg.get("reasoning", False)
-    model     = cfg["model"]
+    model = cfg["model"]
     is_ollama = bool(cfg.get("base_url"))
 
     is_native_reasoning = not is_ollama and any(
@@ -474,11 +500,15 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
 
     # Prompt-based path for Ollama
     if use_prompt_tools:
-        completion = client.chat.completions.create(model=model, messages=oai_messages, stream=False)
+        completion = client.chat.completions.create(
+            model=model, messages=oai_messages, stream=False
+        )
         first_text = completion.choices[0].message.content or ""
-        tool_call  = _parse_prompt_tool_call(first_text)
+        tool_call = _parse_prompt_tool_call(first_text)
         if tool_call:
-            yield from _prompt_execute_tool(client, model, oai_messages, tool_call, reasoning, is_think_tag_model)
+            yield from _prompt_execute_tool(
+                client, model, oai_messages, tool_call, reasoning, is_think_tag_model
+            )
         else:
             if is_think_tag_model or (reasoning and not is_native_reasoning):
                 yield from _parse_think_tags(iter([first_text]))
@@ -590,16 +620,20 @@ def _openai_execute_tools(client, model, oai_messages, tool_calls_buf):
         else:
             continue
 
-        assistant_tool_calls.append({
-            "id": tc["id"],
-            "type": "function",
-            "function": {"name": tc["name"], "arguments": tc["arguments"]},
-        })
-        result_messages.append({
-            "role": "tool",
-            "tool_call_id": tc["id"],
-            "content": result_text,
-        })
+        assistant_tool_calls.append(
+            {
+                "id": tc["id"],
+                "type": "function",
+                "function": {"name": tc["name"], "arguments": tc["arguments"]},
+            }
+        )
+        result_messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tc["id"],
+                "content": result_text,
+            }
+        )
 
     if not assistant_tool_calls:
         return
@@ -633,6 +667,7 @@ _ANTHROPIC_NATIVE_THINKING = ("claude-3-7-sonnet",)
 
 def _anthropic_client(cfg: dict):
     import anthropic
+
     key = cfg.get("api_key") or os.getenv("ANTHROPIC_API_KEY", "")
     if not key:
         raise ValueError("Anthropic API key not configured.")
@@ -640,20 +675,22 @@ def _anthropic_client(cfg: dict):
 
 
 def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False):
-    client    = _anthropic_client(cfg)
+    client = _anthropic_client(cfg)
     reasoning = cfg.get("reasoning", False)
-    model     = cfg["model"]
+    model = cfg["model"]
 
     use_native = reasoning and any(model.startswith(m) for m in _ANTHROPIC_NATIVE_THINKING)
 
     actual_system = system_prompt
     if not use_native and reasoning:
-        actual_system = (system_prompt + _cot_addendum()).strip() if system_prompt else _cot_addendum().strip()
+        actual_system = (
+            (system_prompt + _cot_addendum()).strip() if system_prompt else _cot_addendum().strip()
+        )
 
     kwargs: dict = {
-        "model":      model,
+        "model": model,
         "max_tokens": 16000 if use_native else 8096,
-        "messages":   _to_openai_messages(messages),
+        "messages": _to_openai_messages(messages),
     }
     if actual_system:
         kwargs["system"] = actual_system
@@ -670,9 +707,7 @@ def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False):
                 ),
                 "input_schema": {
                     "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "The search query"}
-                    },
+                    "properties": {"query": {"type": "string", "description": "The search query"}},
                     "required": ["query"],
                 },
             },
@@ -684,9 +719,7 @@ def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False):
                 ),
                 "input_schema": {
                     "type": "object",
-                    "properties": {
-                        "url": {"type": "string", "description": "The URL to fetch"}
-                    },
+                    "properties": {"url": {"type": "string", "description": "The URL to fetch"}},
                     "required": ["url"],
                 },
             },
@@ -766,15 +799,19 @@ def _anthropic_execute_tools(client, original_kwargs, tool_use_blocks):
         else:
             continue
 
-        assistant_content.append({"type": "tool_use", "id": tb["id"], "name": tb["name"], "input": args})
-        user_content.append({"type": "tool_result", "tool_use_id": tb["id"], "content": result_text})
+        assistant_content.append(
+            {"type": "tool_use", "id": tb["id"], "name": tb["name"], "input": args}
+        )
+        user_content.append(
+            {"type": "tool_result", "tool_use_id": tb["id"], "content": result_text}
+        )
 
     if not assistant_content:
         return
 
     new_messages = list(original_kwargs["messages"]) + [
         {"role": "assistant", "content": assistant_content},
-        {"role": "user",      "content": user_content},
+        {"role": "user", "content": user_content},
     ]
     kwargs2 = {k: v for k, v in original_kwargs.items() if k != "tools"}
     kwargs2["messages"] = new_messages

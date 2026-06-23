@@ -76,14 +76,14 @@ async def get_config(current_user: dict = Depends(login_required)):
     return {
         "system_prompt": load_system_prompt(),
         "profile": user_data["profile"],
-        "memory":  user_data["memory"],
+        "memory": user_data["memory"],
         "model": {
-            "provider":  model_cfg["provider"],
-            "model":     model_cfg["model"],
-            "api_key":   model_cfg.get("api_key", ""),
-            "base_url":  model_cfg.get("base_url", ""),
+            "provider": model_cfg["provider"],
+            "model": model_cfg["model"],
+            "api_key": model_cfg.get("api_key", ""),
+            "base_url": model_cfg.get("base_url", ""),
             "reasoning": model_cfg.get("reasoning", False),
-            "presets":   model_cfg.get("presets", []),
+            "presets": model_cfg.get("presets", []),
         },
         "stt_backend": model_cfg.get("stt_backend", "google"),
     }
@@ -100,13 +100,17 @@ async def set_config(body: ConfigBody, current_user: dict = Depends(login_requir
 @router.post("/config/model")
 async def set_model_config(body: ModelConfigBody, current_user: dict = Depends(login_required)):
     cfg = llm.load_config()
-    cfg.update({
-        "provider":  body.provider  if body.provider  is not None else cfg["provider"],
-        "model":     body.model     if body.model     is not None else cfg["model"],
-        "api_key":   body.api_key   if body.api_key   is not None else cfg.get("api_key", ""),
-        "base_url":  body.base_url  if body.base_url  is not None else cfg.get("base_url", ""),
-        "reasoning": body.reasoning if body.reasoning is not None else cfg.get("reasoning", False),
-    })
+    cfg.update(
+        {
+            "provider": body.provider if body.provider is not None else cfg["provider"],
+            "model": body.model if body.model is not None else cfg["model"],
+            "api_key": body.api_key if body.api_key is not None else cfg.get("api_key", ""),
+            "base_url": body.base_url if body.base_url is not None else cfg.get("base_url", ""),
+            "reasoning": body.reasoning
+            if body.reasoning is not None
+            else cfg.get("reasoning", False),
+        }
+    )
     llm.save_config(cfg)
     state.invalidate_all()
     return {"ok": True}

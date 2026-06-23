@@ -4,12 +4,12 @@ import chromadb
 from google import genai
 from google.genai import types
 
-CHROMA_DIR  = os.path.join(os.path.dirname(__file__), "..", "chroma_db")
+CHROMA_DIR = os.path.join(os.path.dirname(__file__), "..", "chroma_db")
 CHUNK_WORDS = 400
-OVERLAP     = 40
-TOP_K       = 3
+OVERLAP = 40
+TOP_K = 3
 EMBED_MODEL = "gemini-embedding-001"
-COLLECTION  = "documents"
+COLLECTION = "documents"
 
 _client: genai.Client | None = None
 _chroma: chromadb.Collection | None = None
@@ -26,6 +26,7 @@ def extract_text(content: bytes, filename: str) -> str:
     ext = os.path.splitext(filename)[1].lower()
     if ext == ".pdf":
         import pypdf
+
         reader = pypdf.PdfReader(io.BytesIO(content))
         return "\n".join(p.extract_text() or "" for p in reader.pages)
     return content.decode("utf-8", errors="ignore")
@@ -71,8 +72,8 @@ def index_file(filename: str, user_id: str, content: str) -> int:
     _delete_chunks(user_id, filename)
 
     embeddings = _embed(chunks)
-    ids        = [f"{user_id}::{filename}::{i}" for i in range(len(chunks))]
-    metadatas  = [{"source": filename, "user_id": user_id} for _ in chunks]
+    ids = [f"{user_id}::{filename}::{i}" for i in range(len(chunks))]
+    metadatas = [{"source": filename, "user_id": user_id} for _ in chunks]
 
     _chroma.add(ids=ids, embeddings=embeddings, documents=chunks, metadatas=metadatas)
     return len(chunks)
@@ -104,7 +105,7 @@ def retrieve(query: str, user_id: str, k: int = TOP_K, filename: str | None = No
     if n == 0:
         return ""
 
-    q_emb   = _embed([query], task="RETRIEVAL_QUERY")[0]
+    q_emb = _embed([query], task="RETRIEVAL_QUERY")[0]
     results = _chroma.query(
         query_embeddings=[q_emb],
         n_results=n,
@@ -112,7 +113,7 @@ def retrieve(query: str, user_id: str, k: int = TOP_K, filename: str | None = No
         include=["documents", "metadatas"],
     )
 
-    docs  = results["documents"][0]
+    docs = results["documents"][0]
     metas = results["metadatas"][0]
     if not docs:
         return ""

@@ -14,7 +14,9 @@ class ChatSession(Base):
     title: Mapped[str] = mapped_column(String, default="")
     summary: Mapped[str] = mapped_column(Text, default="")
     pinned: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
-    folder_id: Mapped[str | None] = mapped_column(ForeignKey("folders.id", ondelete="SET NULL"), nullable=True)
+    folder_id: Mapped[str | None] = mapped_column(
+        ForeignKey("folders.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[str] = mapped_column(String, nullable=False)
     updated_at: Mapped[str] = mapped_column(String, nullable=False)
 

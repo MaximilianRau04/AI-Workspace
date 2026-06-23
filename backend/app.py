@@ -15,10 +15,10 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 
-_base     = os.path.dirname(os.path.abspath(__file__))
-_dist     = os.path.join(_base, "..", "dist")
+_base = os.path.dirname(os.path.abspath(__file__))
+_dist = os.path.join(_base, "..", "dist")
 _frontend = os.path.join(_base, "..", "frontend")
-_serve    = _dist if os.path.isdir(_dist) else _frontend
+_serve = _dist if os.path.isdir(_dist) else _frontend
 
 
 @asynccontextmanager
@@ -45,6 +45,7 @@ app.include_router(voice.router)
 
 # --- SPA routes (must be before StaticFiles mount) ---
 
+
 @app.get("/")
 @app.get("/c/{session_id}")
 async def index(request: Request, session_id: str = None):
@@ -60,4 +61,5 @@ app.mount("/", StaticFiles(directory=_serve, html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("app:app", host="0.0.0.0", port=5000, reload=True)

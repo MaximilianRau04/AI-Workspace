@@ -23,16 +23,16 @@ def _get_whisper_model():
     if _whisper_model is None:
         try:
             import whisper
+
             _whisper_model = whisper.load_model("base")
         except ImportError:
-            raise RuntimeError(
-                "Whisper is not installed. Run: pip install openai-whisper"
-            )
+            raise RuntimeError("Whisper is not installed. Run: pip install openai-whisper")
     return _whisper_model
 
 
 def _webm_to_wav(content: bytes) -> bytes:
     from pydub import AudioSegment
+
     webm = AudioSegment.from_file(io.BytesIO(content), format="webm")
     wav_io = io.BytesIO()
     webm.export(wav_io, format="wav")
@@ -88,6 +88,7 @@ async def stt(
 
     # Google STT (default)
     import speech_recognition as sr_lib
+
     recognizer = sr_lib.Recognizer()
     with sr_lib.AudioFile(io.BytesIO(wav_bytes)) as source:
         audio_data = recognizer.record(source)

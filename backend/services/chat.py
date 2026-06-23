@@ -31,6 +31,7 @@ def _orm_to_schema(sess: ChatSession) -> ChatSessionSchema:
 # DB operations
 # ---------------------------------------------------------------------------
 
+
 def list_sessions(user_id: str) -> list[SessionListItem]:
     with get_session() as db:
         rows = (
@@ -39,7 +40,16 @@ def list_sessions(user_id: str) -> list[SessionListItem]:
             .order_by(ChatSession.pinned.desc(), ChatSession.updated_at.desc())
             .all()
         )
-        return [SessionListItem(id=r.id, title=r.title or "", updated_at=r.updated_at, pinned=r.pinned, folder_id=r.folder_id) for r in rows]
+        return [
+            SessionListItem(
+                id=r.id,
+                title=r.title or "",
+                updated_at=r.updated_at,
+                pinned=r.pinned,
+                folder_id=r.folder_id,
+            )
+            for r in rows
+        ]
 
 
 def get_session_by_id(session_id: str, user_id: str) -> ChatSessionSchema | None:
@@ -102,9 +112,11 @@ def delete_session(session_id: str, user_id: str) -> None:
 
 def rename_session(session_id: str, user_id: str, title: str) -> None:
     with get_session() as db:
-        sess = db.query(ChatSession).filter(
-            ChatSession.id == session_id, ChatSession.user_id == user_id
-        ).first()
+        sess = (
+            db.query(ChatSession)
+            .filter(ChatSession.id == session_id, ChatSession.user_id == user_id)
+            .first()
+        )
         if sess:
             sess.title = title
 
@@ -113,10 +125,15 @@ def rename_session(session_id: str, user_id: str, title: str) -> None:
 # Conversation logic (pure, no DB)
 # ---------------------------------------------------------------------------
 
-def build_chat_messages(messages: list[MessageSchema], summary: str, user_message: str) -> list[dict]:
+
+def build_chat_messages(
+    messages: list[MessageSchema], summary: str, user_message: str
+) -> list[dict]:
     hist: list = []
     if summary:
-        hist.append({"role": "user",  "parts": [f"Summary of our previous conversation:\n{summary}"]})
+        hist.append(
+            {"role": "user", "parts": [f"Summary of our previous conversation:\n{summary}"]}
+        )
         hist.append({"role": "model", "parts": ["Understood. I'll keep that context in mind."]})
     hist.extend({"role": m.role, "parts": m.parts} for m in messages)
     hist.append({"role": "user", "parts": [user_message]})
@@ -129,11 +146,11 @@ def needs_summarization(messages: list[MessageSchema]) -> bool:
 
 def summarize_messages(messages: list[MessageSchema]) -> tuple[list[MessageSchema], str]:
     import llm
+
     to_summarize = messages[:-KEEP_AFTER_SUMMARY]
     keep = messages[-KEEP_AFTER_SUMMARY:]
     conversation_text = "\n".join(
-        f"{'User' if m.role == 'user' else 'Assistant'}: {m.parts[0]}"
-        for m in to_summarize
+        f"{'User' if m.role == 'user' else 'Assistant'}: {m.parts[0]}" for m in to_summarize
     )
     prompt = (
         "Summarize the following conversation concisely in 3-5 sentences. "
@@ -153,9 +170,9 @@ def should_extract_memory(messages: list[MessageSchema]) -> bool:
 
 def extract_memory(messages: list[MessageSchema], current_memory: str) -> str:
     import llm
+
     conversation_text = "\n".join(
-        f"{'User' if m.role == 'user' else 'Assistant'}: {m.parts[0][:500]}"
-        for m in messages[-20:]
+        f"{'User' if m.role == 'user' else 'Assistant'}: {m.parts[0][:500]}" for m in messages[-20:]
     )
     prompt = (
         f"Current memory about this user:\n{current_memory or '(none yet)'}\n\n"

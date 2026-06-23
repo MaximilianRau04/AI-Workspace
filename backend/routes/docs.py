@@ -39,7 +39,7 @@ async def upload_doc(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file")
     filename = secure_filename(file.filename)
-    ext = filename[filename.rfind("."):].lower() if "." in filename else ""
+    ext = filename[filename.rfind(".") :].lower() if "." in filename else ""
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -52,19 +52,23 @@ async def upload_doc(
         raise HTTPException(status_code=400, detail="Could not extract text from file")
 
     with get_session() as db:
-        existing = db.query(Document).filter(
-            Document.user_id == user_id, Document.filename == filename
-        ).first()
+        existing = (
+            db.query(Document)
+            .filter(Document.user_id == user_id, Document.filename == filename)
+            .first()
+        )
         if existing:
             existing.content = text
             existing.created_at = _now_iso()
         else:
-            db.add(Document(
-                user_id=user_id,
-                filename=filename,
-                content=text,
-                created_at=_now_iso(),
-            ))
+            db.add(
+                Document(
+                    user_id=user_id,
+                    filename=filename,
+                    content=text,
+                    created_at=_now_iso(),
+                )
+            )
 
     chunks = rag.index_file(filename, user_id, text)
     return {"file": filename, "chunks": chunks}
@@ -77,9 +81,11 @@ async def delete_doc(body: DeleteBody, current_user: dict = Depends(login_requir
         raise HTTPException(status_code=400, detail="No filename")
 
     with get_session() as db:
-        doc = db.query(Document).filter(
-            Document.user_id == user_id, Document.filename == body.file
-        ).first()
+        doc = (
+            db.query(Document)
+            .filter(Document.user_id == user_id, Document.filename == body.file)
+            .first()
+        )
         if doc:
             db.delete(doc)
 

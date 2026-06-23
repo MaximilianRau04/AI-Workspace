@@ -1,4 +1,5 @@
 """Per-user in-memory state: the current ChatSessionSchema for each user."""
+
 from __future__ import annotations
 
 from services import chat as chat_service
