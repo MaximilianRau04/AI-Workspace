@@ -112,7 +112,8 @@ def generate_text(prompt: str) -> str:
 
 def list_ollama_models(base_url: str) -> list[str]:
     """Return model names from a running Ollama instance."""
-    import urllib.request, urllib.error
+    import urllib.error
+    import urllib.request
 
     base = base_url.rstrip("/")
     if base.endswith("/v1"):
@@ -351,7 +352,8 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False):
 
 def _gemini_execute_tool(chat, fn_call):
     import google.generativeai as genai
-    from tools import web_search, format_results, fetch_url
+
+    from tools import fetch_url, format_results, web_search
 
     args = dict(fn_call.args)
     if fn_call.name == "web_search":
@@ -402,7 +404,7 @@ def _prompt_execute_tool(
     reasoning: bool,
     is_think_tag: bool,
 ):
-    from tools import web_search, format_results, fetch_url
+    from tools import fetch_url, format_results, web_search
 
     name = tool_call.get("name", "")
     args = tool_call.get("args", {})
@@ -602,7 +604,8 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
 
 def _openai_execute_tools(client, model, oai_messages, tool_calls_buf):
     import json
-    from tools import web_search, format_results, fetch_url
+
+    from tools import fetch_url, format_results, web_search
 
     result_messages: list[dict] = []
     assistant_tool_calls = []
@@ -781,7 +784,8 @@ def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False):
 
 def _anthropic_execute_tools(client, original_kwargs, tool_use_blocks):
     import json
-    from tools import web_search, format_results, fetch_url
+
+    from tools import fetch_url, format_results, web_search
 
     assistant_content = []
     user_content = []

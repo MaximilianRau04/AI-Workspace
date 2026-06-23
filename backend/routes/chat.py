@@ -224,7 +224,7 @@ async def send_message(
         augmented = f"{context}\n\nUser: {user_message}" if context else user_message
         messages = chat_service.build_chat_messages(sess.messages, sess.summary, augmented)
 
-        from routes.config import load_system_prompt, get_user_data
+        from routes.config import get_user_data, load_system_prompt
 
         system_prompt = load_system_prompt()
         user_data = get_user_data(user_id)
@@ -271,6 +271,7 @@ async def send_message(
 
         if chat_service.should_extract_memory(sess.messages):
             import threading
+
             from routes.config import get_user_data, save_user_memory
 
             captured_messages = list(sess.messages)

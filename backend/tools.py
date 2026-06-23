@@ -1,5 +1,5 @@
-import urllib.request
 import urllib.error
+import urllib.request
 
 from duckduckgo_search import DDGS
 
