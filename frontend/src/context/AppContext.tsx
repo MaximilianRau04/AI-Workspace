@@ -9,7 +9,8 @@ import { useNavigate } from "react-router-dom";
 import { getMe } from "../api/auth";
 import { getChats } from "../api/chats";
 import { getConfig } from "../api/config";
-import type { User, Session, Config } from "../types";
+import { getFolders } from "../api/folders";
+import type { User, Session, Folder, Config } from "../types";
 
 interface AppContextValue {
   user: User | null | undefined;
@@ -17,6 +18,9 @@ interface AppContextValue {
   sessions: Session[];
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
   refreshSessions: () => Promise<void>;
+  folders: Folder[];
+  setFolders: React.Dispatch<React.SetStateAction<Folder[]>>;
+  refreshFolders: () => Promise<void>;
   currentSessionId: string | null;
   setCurrentSessionId: React.Dispatch<React.SetStateAction<string | null>>;
   config: Config | null;
@@ -35,6 +39,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
   const [theme, setTheme] = useState<string>(
@@ -82,11 +87,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSessions(data.chats || []);
   }, []);
 
-  // Fetch sessions once user is known
+  const refreshFolders = useCallback(async () => {
+    const data = await getFolders();
+    setFolders(data.folders || []);
+  }, []);
+
+  // Fetch sessions + folders once user is known
   useEffect(() => {
     if (!user) return;
     refreshSessions();
-  }, [user, refreshSessions]);
+    refreshFolders();
+  }, [user, refreshSessions, refreshFolders]);
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === "dark" ? "light" : "dark"));
@@ -102,6 +113,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     sessions,
     setSessions,
     refreshSessions,
+    folders,
+    setFolders,
+    refreshFolders,
     currentSessionId,
     setCurrentSessionId,
     config,

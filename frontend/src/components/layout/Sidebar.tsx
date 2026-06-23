@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
-import { deleteChat, pinChat, renameChat } from "../../api/chats";
-import type { Session } from "../../types";
+import { deleteChat, moveChatToFolder, pinChat, renameChat } from "../../api/chats";
+import type { Folder, Session } from "../../types";
 
 function formatDate(isoStr: string): string {
   if (!isoStr) return "";
@@ -196,27 +196,34 @@ function ChatSearchModal({
 interface SessionContextMenuProps {
   sessionId: string;
   pinned: boolean;
+  folderId: string | null;
+  folders: Folder[];
   titleRef: React.MutableRefObject<string>;
   onClose: () => void;
   onDeleted: () => void;
   onRenamed: (newTitle: string) => void;
   onPinToggled: (pinned: boolean) => void;
+  onMoved: (folderId: string | null) => void;
   anchorEl: HTMLElement | null;
 }
 
 function SessionContextMenu({
   sessionId,
   pinned,
+  folderId,
+  folders,
   titleRef,
   onClose,
   onDeleted,
   onRenamed,
   onPinToggled,
+  onMoved,
   anchorEl,
 }: SessionContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: 0, top: 0 });
   const [renaming, setRenaming] = useState(false);
+  const [pickingFolder, setPickingFolder] = useState(false);
   const [renameVal, setRenameVal] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -266,6 +273,64 @@ function SessionContextMenu({
       onRenamed(newTitle);
     }
     onClose();
+  }
+
+  const menuWrapCls =
+    "bg-bg-surface border border-border rounded-[0.55rem] p-1 shadow-[0_6px_24px_rgba(0,0,0,0.25)] min-w-[160px]";
+
+  if (pickingFolder) {
+    return (
+      <div
+        ref={menuRef}
+        style={{ position: "fixed", left: pos.left, top: pos.top, zIndex: 200 }}
+        className={menuWrapCls}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setPickingFolder(false)}
+          className="flex items-center gap-2 w-full bg-transparent border-none px-3 py-[0.4rem] text-left text-[0.8rem] text-txt-dim hover:text-txt-primary rounded-[0.35rem] cursor-pointer hover:bg-bg-hover transition-all mb-[0.15rem]"
+        >
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          Move to folder
+        </button>
+        <div className="border-t border-border my-[0.2rem]" />
+        {folders.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => {
+              void moveChatToFolder(sessionId, f.id).then(() => { onMoved(f.id); onClose(); });
+            }}
+            className={`flex items-center gap-[0.5rem] w-full bg-transparent border-none px-3 py-[0.45rem] text-left text-[0.85rem] rounded-[0.35rem] cursor-pointer transition-all text-txt-muted hover:bg-bg-hover hover:text-txt-heading ${folderId === f.id ? "font-medium text-txt-primary" : ""}`}
+          >
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
+            {f.name}
+          </button>
+        ))}
+        {folders.length === 0 && (
+          <div className="px-3 py-2 text-[0.8rem] text-txt-dim">No folders yet</div>
+        )}
+        {folderId && (
+          <>
+            <div className="border-t border-border my-[0.2rem]" />
+            <button
+              onClick={() => {
+                void moveChatToFolder(sessionId, null).then(() => { onMoved(null); onClose(); });
+              }}
+              className="flex items-center gap-[0.5rem] w-full bg-transparent border-none px-3 py-[0.45rem] text-left text-[0.85rem] rounded-[0.35rem] cursor-pointer transition-all text-txt-dim hover:bg-bg-hover hover:text-txt-heading"
+            >
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+              Remove from folder
+            </button>
+          </>
+        )}
+      </div>
+    );
   }
 
   if (renaming) {
@@ -329,6 +394,15 @@ function SessionContextMenu({
     },
     {
       icon: (
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+      ),
+      label: "Move to folder",
+      action: () => setPickingFolder(true),
+    },
+    {
+      icon: (
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
@@ -356,7 +430,7 @@ function SessionContextMenu({
     <div
       ref={menuRef}
       style={{ position: "fixed", left: pos.left, top: pos.top, zIndex: 200 }}
-      className="bg-bg-surface border border-border rounded-[0.55rem] p-1 shadow-[0_6px_24px_rgba(0,0,0,0.25)] min-w-[148px]"
+      className={menuWrapCls}
       onClick={(e) => e.stopPropagation()}
     >
       {menuItems.map((item) => (
@@ -382,6 +456,7 @@ function SessionContextMenu({
 
 interface SessionItemProps {
   session: Session;
+  folders: Folder[];
   isActive: boolean;
   isMenuOpen: boolean;
   onOpenMenu: () => void;
@@ -390,10 +465,12 @@ interface SessionItemProps {
   onDeleted: (id: string) => void;
   onRenamed: (id: string, newTitle: string) => void;
   onPinToggled: (id: string, pinned: boolean) => void;
+  onMoved: (id: string, folderId: string | null) => void;
 }
 
 function SessionItem({
   session,
+  folders,
   isActive,
   isMenuOpen,
   onOpenMenu,
@@ -402,6 +479,7 @@ function SessionItem({
   onDeleted,
   onRenamed,
   onPinToggled,
+  onMoved,
 }: SessionItemProps) {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const titleRef = useRef<string>(session.title || "New Chat");
@@ -465,12 +543,15 @@ function SessionItem({
         <SessionContextMenu
           sessionId={session.id}
           pinned={isPinned}
+          folderId={session.folder_id}
+          folders={folders}
           titleRef={titleRef}
           anchorEl={menuAnchor}
           onClose={() => { onCloseMenu(); setMenuAnchor(null); }}
           onDeleted={() => { onCloseMenu(); onDeleted(session.id); }}
           onRenamed={(newTitle) => { onCloseMenu(); handleRenamed(newTitle); }}
           onPinToggled={handlePinToggled}
+          onMoved={(folderId) => { onMoved(session.id, folderId); }}
         />
       )}
     </>
@@ -487,15 +568,18 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
     user,
     sessions,
     setSessions,
+    folders,
     currentSessionId,
     setCurrentSessionId,
     refreshSessions,
     sidebarOpen,
-    toggleSidebar,
   } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  const onFoldersPage = location.pathname.startsWith("/folders");
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -522,9 +606,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
     }
   }
 
-  function handleRenamed(_id: string, _newTitle: string): void {
-    // title updated locally in SessionItem; sessions refresh on next message
-  }
+  function handleRenamed(_id: string, _newTitle: string): void {}
 
   function handlePinToggled(id: string, pinned: boolean): void {
     setSessions((prev) =>
@@ -532,6 +614,10 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
         (a, b) => Number(b.pinned) - Number(a.pinned),
       ),
     );
+  }
+
+  function handleMoved(chatId: string, folderId: string | null): void {
+    setSessions((prev) => prev.map((s) => s.id === chatId ? { ...s, folder_id: folderId } : s));
   }
 
   return (
@@ -545,31 +631,33 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
         }`}
       >
         {/* Sidebar header */}
-        <div className="flex items-center px-4 py-[0.85rem] border-b border-border text-[0.72rem] font-semibold tracking-[0.07em] uppercase text-txt-dim">
-          <span>Chats</span>
+        <div className="flex items-center px-4 py-[0.85rem] border-b border-border">
+          <span className="text-[0.72rem] font-semibold tracking-[0.07em] uppercase text-txt-dim">Chats</span>
         </div>
 
-        {/* New chat button */}
-        <div className="px-[0.4rem] py-[0.4rem] border-b border-border">
+        {/* New chat + Folders buttons */}
+        <div className="px-[0.4rem] py-[0.4rem] border-b border-border flex flex-col gap-[0.1rem]">
           <button
             onClick={onNewChat}
-            className="w-full flex items-center gap-[0.55rem] px-[0.65rem] py-[0.55rem] bg-transparent hover:bg-bg-hover rounded-[0.65rem] text-txt-dim hover:text-txt-primary text-[0.875rem] font-medium cursor-pointer transition-all group border-none"
+            className="w-full flex items-center gap-[0.55rem] px-[0.65rem] py-[0.55rem] bg-transparent hover:bg-bg-hover rounded-[0.65rem] text-txt-dim hover:text-txt-primary text-[0.875rem] font-medium cursor-pointer transition-all border-none"
           >
-            <svg
-              viewBox="0 0 24 24"
-              width="15"
-              height="15"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="flex-shrink-0"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
             </svg>
             New chat
+          </button>
+          <button
+            onClick={() => navigate("/folders")}
+            className={`w-full flex items-center gap-[0.55rem] px-[0.65rem] py-[0.55rem] rounded-[0.65rem] text-[0.875rem] font-medium cursor-pointer transition-all border-none ${
+              onFoldersPage
+                ? "bg-accent-dim text-txt-primary"
+                : "bg-transparent hover:bg-bg-hover text-txt-dim hover:text-txt-primary"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            Folders
           </button>
         </div>
 
@@ -580,54 +668,51 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
             className="w-full flex items-center gap-[0.45rem] bg-bg-muted hover:bg-bg-hover rounded-[0.6rem] px-[0.6rem] py-[0.45rem] border-none cursor-pointer transition-colors"
           >
             <span className="text-txt-dim flex-shrink-0"><SearchIcon /></span>
-            <span className="flex-1 text-left text-[0.8rem] text-txt-dim">
-              Search chats…
-            </span>
-            <kbd className="text-[0.6rem] text-txt-dim bg-bg-base border border-border rounded px-[0.35rem] py-[0.1rem] font-mono leading-none flex-shrink-0">
-              ⌘K
-            </kbd>
+            <span className="flex-1 text-left text-[0.8rem] text-txt-dim">Search chats…</span>
+            <kbd className="text-[0.6rem] text-txt-dim bg-bg-base border border-border rounded px-[0.35rem] py-[0.1rem] font-mono leading-none flex-shrink-0">⌘K</kbd>
           </button>
         </div>
 
-        {/* Chat list */}
-        <div className="flex-1 overflow-y-auto px-[0.4rem] py-[0.25rem] flex flex-col gap-[0.15rem]">
-          {!sessions.length ? (
-            <div className="text-txt-dim text-[0.85rem] text-center py-8">
-              No chats yet
-            </div>
-          ) : (() => {
-            const pinned = sessions.filter((s) => s.pinned);
-            const rest   = sessions.filter((s) => !s.pinned);
-            const renderItem = (s: Session) => (
+        {/* Chat list — pinned + ungrouped only */}
+        <div className="flex-1 overflow-y-auto px-[0.4rem] py-[0.25rem] flex flex-col gap-[0.1rem]">
+          {(() => {
+            const pinned    = sessions.filter((s) => s.pinned);
+            const ungrouped = sessions.filter((s) => !s.pinned);
+            const sessionItem = (s: Session) => (
               <SessionItem
                 key={s.id}
                 session={s}
+                folders={folders}
                 isActive={s.id === currentSessionId}
                 isMenuOpen={openMenuId === s.id}
                 onOpenMenu={() => setOpenMenuId(s.id)}
                 onCloseMenu={() => setOpenMenuId(null)}
                 onSelect={(id) => { void handleSelect(id); }}
                 onDeleted={(id) => { void handleDeleted(id); }}
-                onRenamed={(id, newTitle) => { handleRenamed(id, newTitle); }}
+                onRenamed={handleRenamed}
                 onPinToggled={handlePinToggled}
+                onMoved={handleMoved}
               />
             );
             return (
               <>
                 {pinned.length > 0 && (
                   <>
-                    <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.4rem] pb-[0.1rem]">
-                      Pinned
-                    </div>
-                    {pinned.map(renderItem)}
-                    {rest.length > 0 && (
-                      <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.5rem] pb-[0.1rem]">
-                        Chats
-                      </div>
-                    )}
+                    <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.4rem] pb-[0.1rem]">Pinned</div>
+                    {pinned.map(sessionItem)}
                   </>
                 )}
-                {rest.map(renderItem)}
+                {ungrouped.length > 0 && (
+                  <>
+                    {pinned.length > 0 && (
+                      <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.3rem] pb-[0.1rem]">Chats</div>
+                    )}
+                    {ungrouped.map(sessionItem)}
+                  </>
+                )}
+                {sessions.length === 0 && (
+                  <div className="text-txt-dim text-[0.85rem] text-center py-8">No chats yet</div>
+                )}
               </>
             );
           })()}
@@ -637,12 +722,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
         <div className="flex items-center justify-between px-4 py-3 border-t border-border gap-2">
           <div className="flex items-center gap-[0.55rem] min-w-0">
             <div className="w-7 h-7 rounded-full bg-bg-muted dark:bg-[#222] border border-border flex items-center justify-center flex-shrink-0 text-txt-dim">
-              <svg
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                width="16"
-                height="16"
-              >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
               </svg>
@@ -656,16 +736,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
             title="Settings"
             className="bg-transparent border-none text-[#999] cursor-pointer text-[1.1rem] leading-none px-[0.3rem] py-[0.2rem] rounded-[0.4rem] transition-all hover:text-txt-primary hover:bg-bg-muted flex items-center flex-shrink-0"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              width="17"
-              height="17"
-            >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="17" height="17">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>

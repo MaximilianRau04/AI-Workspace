@@ -11,6 +11,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/chats':    { target: 'http://localhost:5000', changeOrigin: true },
+      '/folders':  { target: 'http://localhost:5000', changeOrigin: true },
       '/config':   { target: 'http://localhost:5000', changeOrigin: true },
       '/docs':     { target: 'http://localhost:5000', changeOrigin: true },
       '/tts':      { target: 'http://localhost:5000', changeOrigin: true },

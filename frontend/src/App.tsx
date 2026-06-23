@@ -8,6 +8,7 @@ import {
 import { AppProvider } from "./context/AppContext";
 import ChatPage from "./pages/ChatPage";
 import LoginPage from "./pages/LoginPage";
+import FoldersPage from "./pages/FoldersPage";
 
 export default function App() {
   return (
@@ -19,6 +20,8 @@ export default function App() {
             <Route index element={<Outlet />} />
             <Route path="c/:sessionId" element={<Outlet />} />
           </Route>
+          <Route path="/folders" element={<FoldersPage />} />
+          <Route path="/folders/:folderId" element={<FoldersPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

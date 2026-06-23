@@ -8,11 +8,18 @@ export interface MessagePart {
   parts: string[];
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 export interface Session {
   id: string;
   title: string;
   updated_at: string;
   pinned: boolean;
+  folder_id: string | null;
 }
 
 export interface ChatDetail {

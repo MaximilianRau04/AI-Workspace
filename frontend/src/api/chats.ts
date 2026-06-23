@@ -32,6 +32,18 @@ export async function deleteChat(id: string): Promise<Record<string, unknown>> {
   return res.json() as Promise<Record<string, unknown>>;
 }
 
+export async function moveChatToFolder(
+  id: string,
+  folderId: string | null,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`/chats/${id}/folder`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folder_id: folderId }),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
 export async function pinChat(
   id: string,
   pinned: boolean,
