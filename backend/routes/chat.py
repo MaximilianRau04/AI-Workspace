@@ -37,6 +37,10 @@ class PinBody(BaseModel):
     pinned: bool
 
 
+class FolderBody(BaseModel):
+    folder_id: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Session management
 # ---------------------------------------------------------------------------
@@ -105,6 +109,23 @@ async def pin_chat(
             raise HTTPException(status_code=404, detail="Chat not found")
         sess.pinned = body.pinned
     return {"ok": True, "pinned": body.pinned}
+
+
+@router.patch("/chats/{chat_id}/folder")
+async def move_to_folder(
+    chat_id: str,
+    body: FolderBody,
+    current_user: dict = Depends(login_required),
+):
+    user_id = current_user["user_id"]
+    with get_session() as db:
+        sess = db.query(ChatSession).filter(
+            ChatSession.id == chat_id, ChatSession.user_id == user_id
+        ).first()
+        if not sess:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        sess.folder_id = body.folder_id
+    return {"ok": True}
 
 
 @router.delete("/chats/{chat_id}")

@@ -39,7 +39,7 @@ def list_sessions(user_id: str) -> list[SessionListItem]:
             .order_by(ChatSession.pinned.desc(), ChatSession.updated_at.desc())
             .all()
         )
-        return [SessionListItem(id=r.id, title=r.title or "", updated_at=r.updated_at, pinned=r.pinned) for r in rows]
+        return [SessionListItem(id=r.id, title=r.title or "", updated_at=r.updated_at, pinned=r.pinned, folder_id=r.folder_id) for r in rows]
 
 
 def get_session_by_id(session_id: str, user_id: str) -> ChatSessionSchema | None:

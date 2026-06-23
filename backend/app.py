@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 import db
 import rag
-from routes import auth, chat, config, docs, voice
+from routes import auth, chat, config, docs, folders, voice
 
 load_dotenv()
 
@@ -39,6 +39,7 @@ app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(config.router)
 app.include_router(docs.router)
+app.include_router(folders.router)
 app.include_router(voice.router)
 
 

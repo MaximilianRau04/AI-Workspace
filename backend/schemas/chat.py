@@ -12,6 +12,7 @@ class SessionListItem(BaseModel):
     title: str
     updated_at: str
     pinned: bool = False
+    folder_id: str | None = None
 
 
 class ChatSessionSchema(BaseModel):
