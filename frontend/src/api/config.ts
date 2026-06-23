@@ -53,6 +53,22 @@ export async function saveVoiceConfig(
   return res.json() as Promise<Record<string, unknown>>;
 }
 
+export async function clearMemory(): Promise<Record<string, unknown>> {
+  const res = await fetch("/config/memory", { method: "DELETE" });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+export async function saveProfile(
+  profile: string,
+): Promise<Record<string, unknown>> {
+  const res = await fetch("/config/profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profile }),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
 export async function getOllamaModels(
   baseUrl: string,
 ): Promise<{ models: string[]; error?: string }> {

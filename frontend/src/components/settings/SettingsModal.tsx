@@ -5,6 +5,8 @@ import {
   saveModel,
   savePresets,
   saveVoiceConfig,
+  saveProfile,
+  clearMemory,
   getOllamaModels,
 } from "../../api/config";
 import { useApp } from "../../context/AppContext";
@@ -73,6 +75,8 @@ export default function SettingsModal({
 
   const [tab, setTab] = useState(initialTab);
   const [systemPrompt, setSystemPrompt] = useState("");
+  const [profile, setProfile] = useState("");
+  const [memory, setMemory] = useState("");
   const [provider, setProvider] = useState("gemini");
   const [modelName, setModelName] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -93,6 +97,8 @@ export default function SettingsModal({
   useEffect(() => {
     getConfig().then((data) => {
       setSystemPrompt(data.system_prompt || "");
+      setProfile(data.profile || "");
+      setMemory(data.memory || "");
       const m = data.model || {};
       setProvider(m.provider || "gemini");
       setModelName(m.model || "");
@@ -135,6 +141,7 @@ export default function SettingsModal({
     setSaving(true);
 
     await saveSystemPrompt(systemPrompt);
+    await saveProfile(profile);
     await saveVoiceConfig(sttBackend);
 
     const entry: Preset = {
@@ -167,6 +174,7 @@ export default function SettingsModal({
         ? {
             ...c,
             system_prompt: systemPrompt,
+            profile,
             model: { ...c.model, ...entry, presets: newPresets },
             stt_backend: sttBackend,
           }
@@ -186,6 +194,7 @@ export default function SettingsModal({
 
   const tabs: { id: string; label: string }[] = [
     { id: "prompt", label: "System Prompt" },
+    { id: "profile", label: "Profile" },
     { id: "model", label: "Model" },
     { id: "voice", label: "Voice" },
     { id: "ui", label: "UI" },
@@ -225,6 +234,47 @@ export default function SettingsModal({
               placeholder="Describe the bot's behavior, tone, language, restrictions…"
               className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.9rem] leading-[1.5] px-3 py-3 resize-y min-h-[180px] outline-none focus:border-accent transition-colors"
             />
+          </div>
+        )}
+
+        {/* Profile tab */}
+        {tab === "profile" && (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-[0.35rem]">
+              <label className={labelCls}>About you</label>
+              <p className="text-[0.75rem] text-[#555]">
+                Tell the AI who you are - profession, interests, preferred language, technical level… It will use this in every conversation.
+              </p>
+              <textarea
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                placeholder="e.g. I'm a Python developer working on machine learning projects. I prefer concise answers and code examples over long explanations."
+                className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.9rem] leading-[1.5] px-3 py-3 resize-y min-h-[140px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+              />
+            </div>
+
+            {memory && (
+              <div className="flex flex-col gap-[0.35rem]">
+                <div className="flex items-center justify-between">
+                  <label className={labelCls}>Learned memory</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void clearMemory().then(() => setMemory(""));
+                    }}
+                    className="text-[0.72rem] text-[#666] hover:text-txt-primary bg-transparent border-none cursor-pointer underline transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <p className="text-[0.75rem] text-[#555]">
+                  Facts the AI has picked up from your conversations. Updated automatically every 5 turns.
+                </p>
+                <div className="bg-bg-base border border-border rounded-[0.6rem] text-txt-muted text-[0.85rem] leading-[1.5] px-3 py-3 whitespace-pre-wrap">
+                  {memory}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

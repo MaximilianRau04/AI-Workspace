@@ -40,6 +40,8 @@ export interface Preset {
 
 export interface Config {
   system_prompt: string;
+  profile: string;
+  memory: string;
   model: ModelConfig;
   stt_backend: string;
 }
