@@ -12,6 +12,7 @@ export interface Session {
   id: string;
   title: string;
   updated_at: string;
+  pinned: boolean;
 }
 
 export interface ChatDetail {

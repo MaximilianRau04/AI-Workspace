@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
-import { deleteChat, renameChat } from "../../api/chats";
+import { deleteChat, pinChat, renameChat } from "../../api/chats";
 import type { Session } from "../../types";
 
 function formatDate(isoStr: string): string {
@@ -14,21 +14,204 @@ function formatDate(isoStr: string): string {
   return d.toLocaleDateString("en", { day: "numeric", month: "short" });
 }
 
+function groupSessions(sessions: Session[]): { label: string; items: Session[] }[] {
+  const now = Date.now();
+  const buckets: [string, Session[]][] = [
+    ["Today", []],
+    ["Yesterday", []],
+    ["Previous 7 days", []],
+    ["Previous 30 days", []],
+    ["Older", []],
+  ];
+  for (const s of sessions) {
+    const diff = Math.floor((now - new Date(s.updated_at + "Z").getTime()) / 86400000);
+    if (diff < 1) buckets[0][1].push(s);
+    else if (diff < 2) buckets[1][1].push(s);
+    else if (diff < 7) buckets[2][1].push(s);
+    else if (diff < 30) buckets[3][1].push(s);
+    else buckets[4][1].push(s);
+  }
+  return buckets
+    .filter(([, items]) => items.length > 0)
+    .map(([label, items]) => ({ label, items }));
+}
+
+const SearchIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+  </svg>
+);
+
+const ChatIcon = () => (
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+function ChatSearchModal({
+  sessions,
+  currentId,
+  onSelect,
+  onNewChat,
+  onClose,
+}: {
+  sessions: Session[];
+  currentId: string | null;
+  onSelect: (id: string) => void;
+  onNewChat: () => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  const filtered = query.trim()
+    ? sessions.filter((s) =>
+        (s.title || "New Chat").toLowerCase().includes(query.toLowerCase()),
+      )
+    : sessions;
+
+  const pinnedItems = filtered.filter((s) => s.pinned);
+  const unpinnedItems = filtered.filter((s) => !s.pinned);
+  const groups = groupSessions(unpinnedItems);
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-start justify-center z-[200] pt-[12vh] backdrop-blur-[2px]"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-bg-surface border border-border rounded-[1rem] w-[90%] max-w-[520px] flex flex-col overflow-hidden shadow-[0_20px_72px_rgba(0,0,0,0.45)] max-h-[65vh]">
+        {/* Search input row */}
+        <div className="flex items-center gap-3 px-4 py-[0.75rem] border-b border-border flex-shrink-0">
+          <span className="text-txt-dim flex-shrink-0"><SearchIcon /></span>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search chats…"
+            className="flex-1 bg-transparent border-none outline-none text-txt-primary text-[0.95rem] font-[inherit] placeholder:text-txt-dim"
+          />
+          <button
+            onClick={onClose}
+            className="text-txt-dim hover:text-txt-primary bg-transparent border-none cursor-pointer p-1 rounded-[0.4rem] transition-colors flex-shrink-0"
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Results */}
+        <div className="overflow-y-auto flex-1 p-[0.4rem]">
+          {/* New chat */}
+          <button
+            onClick={onNewChat}
+            className="w-full flex items-center gap-[0.65rem] px-3 py-[0.6rem] rounded-[0.65rem] bg-transparent border-none cursor-pointer hover:bg-bg-hover transition-colors text-left mb-[0.25rem]"
+          >
+            <span className="text-txt-dim flex-shrink-0">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+            </span>
+            <span className="text-txt-muted text-[0.875rem]">New chat</span>
+          </button>
+
+          {/* Pinned */}
+          {pinnedItems.length > 0 && (
+            <div className="mb-[0.6rem]">
+              <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-3 py-[0.3rem]">
+                Pinned
+              </div>
+              {pinnedItems.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => onSelect(s.id)}
+                  className={`w-full flex items-center gap-[0.65rem] px-3 py-[0.55rem] rounded-[0.65rem] bg-transparent border-none cursor-pointer text-left transition-colors ${
+                    s.id === currentId ? "bg-accent-dim" : "hover:bg-bg-hover"
+                  }`}
+                >
+                  <span className="text-accent opacity-70 flex-shrink-0">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
+                      <path d="M12 2l2.4 6.4L21 9.3l-5 4.7 1.5 6.6L12 17l-5.5 3.6L8 14 3 9.3l6.6-.9z"/>
+                    </svg>
+                  </span>
+                  <span className="text-txt-muted text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis">
+                    {s.title || "New Chat"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Grouped list */}
+          {groups.length === 0 && pinnedItems.length === 0 ? (
+            <div className="text-txt-dim text-[0.85rem] text-center py-8">
+              No results
+            </div>
+          ) : groups.length > 0 ? (
+            groups.map(({ label, items }) => (
+              <div key={label} className="mb-[0.6rem]">
+                <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-3 py-[0.3rem]">
+                  {label}
+                </div>
+                {items.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => onSelect(s.id)}
+                    className={`w-full flex items-center gap-[0.65rem] px-3 py-[0.55rem] rounded-[0.65rem] bg-transparent border-none cursor-pointer text-left transition-colors ${
+                      s.id === currentId
+                        ? "bg-accent-dim"
+                        : "hover:bg-bg-hover"
+                    }`}
+                  >
+                    <span className="text-txt-dim flex-shrink-0"><ChatIcon /></span>
+                    <span className="text-txt-muted text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis">
+                      {s.title || "New Chat"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface SessionContextMenuProps {
   sessionId: string;
+  pinned: boolean;
   titleRef: React.MutableRefObject<string>;
   onClose: () => void;
   onDeleted: () => void;
   onRenamed: (newTitle: string) => void;
+  onPinToggled: (pinned: boolean) => void;
   anchorEl: HTMLElement | null;
 }
 
 function SessionContextMenu({
   sessionId,
+  pinned,
   titleRef,
   onClose,
   onDeleted,
   onRenamed,
+  onPinToggled,
   anchorEl,
 }: SessionContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -117,18 +300,54 @@ function SessionContextMenu({
   }
 
   const menuItems: {
-    icon: string;
+    icon: React.ReactNode;
     label: string;
     action: () => void;
     danger?: boolean;
   }[] = [
-    { icon: "✎", label: "Rename", action: startRename },
     {
-      icon: "✕",
-      label: "Delete",
+      icon: pinned ? (
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="2" y1="2" x2="22" y2="22" />
+          <line x1="12" y1="17" x2="12" y2="22" />
+          <path d="M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14" />
+          <path d="M15 9.34V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0-.56.08" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="17" x2="12" y2="22" />
+          <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+        </svg>
+      ),
+      label: pinned ? "Unpin" : "Pin",
       action: () => {
-        void handleDelete();
+        void pinChat(sessionId, !pinned).then(() => {
+          onPinToggled(!pinned);
+          onClose();
+        });
       },
+    },
+    {
+      icon: (
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
+        </svg>
+      ),
+      label: "Rename",
+      action: startRename,
+    },
+    {
+      icon: (
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+          <path d="M10 11v6M14 11v6" />
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+        </svg>
+      ),
+      label: "Delete",
+      action: () => { void handleDelete(); },
       danger: true,
     },
   ];
@@ -147,15 +366,13 @@ function SessionContextMenu({
             e.stopPropagation();
             item.action();
           }}
-          className={`block w-full bg-transparent border-none px-3 py-2 text-left text-[0.85rem] rounded-[0.35rem] cursor-pointer transition-all ${
+          className={`flex items-center gap-[0.55rem] w-full bg-transparent border-none px-3 py-2 text-left text-[0.85rem] rounded-[0.35rem] cursor-pointer transition-all ${
             item.danger
               ? "text-[#e05252] hover:bg-[#2d1515] dark:hover:bg-[#2d1515] hover:bg-red-50 hover:text-[#e05252]"
               : "text-txt-muted dark:text-[#ccc] hover:bg-bg-hover hover:text-txt-heading"
           }`}
         >
-          <span className="inline-block w-[1.3rem] text-[0.85rem] opacity-85">
-            {item.icon}
-          </span>
+          <span className="flex-shrink-0 opacity-80">{item.icon}</span>
           {item.label}
         </button>
       ))}
@@ -172,6 +389,7 @@ interface SessionItemProps {
   onSelect: (id: string) => void;
   onDeleted: (id: string) => void;
   onRenamed: (id: string, newTitle: string) => void;
+  onPinToggled: (id: string, pinned: boolean) => void;
 }
 
 function SessionItem({
@@ -183,10 +401,12 @@ function SessionItem({
   onSelect,
   onDeleted,
   onRenamed,
+  onPinToggled,
 }: SessionItemProps) {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const titleRef = useRef<string>(session.title || "New Chat");
   const [title, setTitle] = useState<string>(session.title || "New Chat");
+  const [isPinned, setIsPinned] = useState(session.pinned);
 
   function openMenu(
     e: React.MouseEvent<HTMLButtonElement>,
@@ -203,6 +423,11 @@ function SessionItem({
     onRenamed(session.id, newTitle);
   }
 
+  function handlePinToggled(pinned: boolean): void {
+    setIsPinned(pinned);
+    onPinToggled(session.id, pinned);
+  }
+
   return (
     <>
       <div
@@ -214,8 +439,13 @@ function SessionItem({
         }`}
       >
         <span
-          className={`text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis ${isActive ? "text-txt-primary" : "text-txt-muted dark:text-[#bbb]"}`}
+          className={`text-[0.875rem] whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-[0.35rem] ${isActive ? "text-txt-primary" : "text-txt-muted dark:text-[#bbb]"}`}
         >
+          {isPinned && (
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" className="text-accent flex-shrink-0 opacity-70">
+              <path d="M12 2l2.4 6.4L21 9.3l-5 4.7 1.5 6.6L12 17l-5.5 3.6L8 14 3 9.3l6.6-.9z"/>
+            </svg>
+          )}
           {title}
         </span>
         <span className="text-[0.7rem] text-txt-dim whitespace-nowrap flex-shrink-0">
@@ -234,20 +464,13 @@ function SessionItem({
       {isMenuOpen && (
         <SessionContextMenu
           sessionId={session.id}
+          pinned={isPinned}
           titleRef={titleRef}
           anchorEl={menuAnchor}
-          onClose={() => {
-            onCloseMenu();
-            setMenuAnchor(null);
-          }}
-          onDeleted={() => {
-            onCloseMenu();
-            onDeleted(session.id);
-          }}
-          onRenamed={(newTitle) => {
-            onCloseMenu();
-            handleRenamed(newTitle);
-          }}
+          onClose={() => { onCloseMenu(); setMenuAnchor(null); }}
+          onDeleted={() => { onCloseMenu(); onDeleted(session.id); }}
+          onRenamed={(newTitle) => { onCloseMenu(); handleRenamed(newTitle); }}
+          onPinToggled={handlePinToggled}
         />
       )}
     </>
@@ -263,6 +486,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
   const {
     user,
     sessions,
+    setSessions,
     currentSessionId,
     setCurrentSessionId,
     refreshSessions,
@@ -271,7 +495,18 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
   } = useApp();
   const navigate = useNavigate();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, []);
 
   async function handleSelect(id: string): Promise<void> {
     if (id === currentSessionId) return;
@@ -289,6 +524,14 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
 
   function handleRenamed(_id: string, _newTitle: string): void {
     // title updated locally in SessionItem; sessions refresh on next message
+  }
+
+  function handlePinToggled(id: string, pinned: boolean): void {
+    setSessions((prev) =>
+      [...prev.map((s) => (s.id === id ? { ...s, pinned } : s))].sort(
+        (a, b) => Number(b.pinned) - Number(a.pinned),
+      ),
+    );
   }
 
   return (
@@ -330,30 +573,20 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
           </button>
         </div>
 
-        {/* Search */}
+        {/* Search trigger */}
         <div className="px-[0.5rem] pt-[0.4rem] pb-[0.25rem]">
-          <div className="flex items-center gap-[0.45rem] bg-bg-muted rounded-[0.6rem] px-[0.6rem] py-[0.45rem]">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-txt-dim flex-shrink-0">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search chats…"
-              className="flex-1 bg-transparent border-none outline-none text-[0.8rem] text-txt-primary placeholder:text-txt-dim font-[inherit] min-w-0"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch("")}
-                className="text-txt-dim hover:text-txt-muted border-none bg-transparent cursor-pointer leading-none flex-shrink-0 p-0"
-              >
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="w-full flex items-center gap-[0.45rem] bg-bg-muted hover:bg-bg-hover rounded-[0.6rem] px-[0.6rem] py-[0.45rem] border-none cursor-pointer transition-colors"
+          >
+            <span className="text-txt-dim flex-shrink-0"><SearchIcon /></span>
+            <span className="flex-1 text-left text-[0.8rem] text-txt-dim">
+              Search chats…
+            </span>
+            <kbd className="text-[0.6rem] text-txt-dim bg-bg-base border border-border rounded px-[0.35rem] py-[0.1rem] font-mono leading-none flex-shrink-0">
+              ⌘K
+            </kbd>
+          </button>
         </div>
 
         {/* Chat list */}
@@ -363,14 +596,9 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
               No chats yet
             </div>
           ) : (() => {
-            const filtered = sessions.filter((s) =>
-              (s.title || "New Chat").toLowerCase().includes(search.toLowerCase())
-            );
-            return filtered.length === 0 ? (
-              <div className="text-txt-dim text-[0.82rem] text-center py-6">
-                No results
-              </div>
-            ) : filtered.map((s) => (
+            const pinned = sessions.filter((s) => s.pinned);
+            const rest   = sessions.filter((s) => !s.pinned);
+            const renderItem = (s: Session) => (
               <SessionItem
                 key={s.id}
                 session={s}
@@ -378,17 +606,30 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
                 isMenuOpen={openMenuId === s.id}
                 onOpenMenu={() => setOpenMenuId(s.id)}
                 onCloseMenu={() => setOpenMenuId(null)}
-                onSelect={(id) => {
-                  void handleSelect(id);
-                }}
-                onDeleted={(id) => {
-                  void handleDeleted(id);
-                }}
-                onRenamed={(id, newTitle) => {
-                  void handleRenamed(id, newTitle);
-                }}
+                onSelect={(id) => { void handleSelect(id); }}
+                onDeleted={(id) => { void handleDeleted(id); }}
+                onRenamed={(id, newTitle) => { handleRenamed(id, newTitle); }}
+                onPinToggled={handlePinToggled}
               />
-            ));
+            );
+            return (
+              <>
+                {pinned.length > 0 && (
+                  <>
+                    <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.4rem] pb-[0.1rem]">
+                      Pinned
+                    </div>
+                    {pinned.map(renderItem)}
+                    {rest.length > 0 && (
+                      <div className="text-[0.67rem] font-semibold tracking-[0.07em] uppercase text-txt-dim px-[0.65rem] pt-[0.5rem] pb-[0.1rem]">
+                        Chats
+                      </div>
+                    )}
+                  </>
+                )}
+                {rest.map(renderItem)}
+              </>
+            );
           })()}
         </div>
 
@@ -431,6 +672,22 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
           </button>
         </div>
       </aside>
+
+      {searchOpen && (
+        <ChatSearchModal
+          sessions={sessions}
+          currentId={currentSessionId}
+          onSelect={(id) => {
+            void handleSelect(id);
+            setSearchOpen(false);
+          }}
+          onNewChat={() => {
+            onNewChat();
+            setSearchOpen(false);
+          }}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
     </>
   );
 }

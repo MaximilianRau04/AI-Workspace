@@ -9,6 +9,8 @@ from starlette.concurrency import iterate_in_threadpool
 import llm
 import rag
 import state
+from db import get_session
+from models.chat import ChatSession
 from schemas.chat import MessageSchema
 from services import chat as chat_service
 from utils import login_required
@@ -29,6 +31,10 @@ class ChatBody(BaseModel):
 
 class RenameBody(BaseModel):
     title: str = ""
+
+
+class PinBody(BaseModel):
+    pinned: bool
 
 
 # ---------------------------------------------------------------------------
@@ -82,6 +88,23 @@ async def rename_chat(
     if user_state["current_session"].id == chat_id:
         user_state["current_session"].title = title
     return {"ok": True}
+
+
+@router.patch("/chats/{chat_id}/pin")
+async def pin_chat(
+    chat_id: str,
+    body: PinBody,
+    current_user: dict = Depends(login_required),
+):
+    user_id = current_user["user_id"]
+    with get_session() as db:
+        sess = db.query(ChatSession).filter(
+            ChatSession.id == chat_id, ChatSession.user_id == user_id
+        ).first()
+        if not sess:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        sess.pinned = body.pinned
+    return {"ok": True, "pinned": body.pinned}
 
 
 @router.delete("/chats/{chat_id}")

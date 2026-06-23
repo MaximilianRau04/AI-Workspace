@@ -36,10 +36,10 @@ def list_sessions(user_id: str) -> list[SessionListItem]:
         rows = (
             db.query(ChatSession)
             .filter(ChatSession.user_id == user_id)
-            .order_by(ChatSession.updated_at.desc())
+            .order_by(ChatSession.pinned.desc(), ChatSession.updated_at.desc())
             .all()
         )
-        return [SessionListItem(id=r.id, title=r.title or "", updated_at=r.updated_at) for r in rows]
+        return [SessionListItem(id=r.id, title=r.title or "", updated_at=r.updated_at, pinned=r.pinned) for r in rows]
 
 
 def get_session_by_id(session_id: str, user_id: str) -> ChatSessionSchema | None:

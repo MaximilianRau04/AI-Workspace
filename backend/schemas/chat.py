@@ -11,6 +11,7 @@ class SessionListItem(BaseModel):
     id: str
     title: str
     updated_at: str
+    pinned: bool = False
 
 
 class ChatSessionSchema(BaseModel):

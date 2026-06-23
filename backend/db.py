@@ -30,8 +30,9 @@ def init_db() -> None:
 def _migrate_columns() -> None:
     from sqlalchemy import text
     migrations = [
-        ("users", "profile", "TEXT DEFAULT ''"),
-        ("users", "memory",  "TEXT DEFAULT ''"),
+        ("users",    "profile", "TEXT DEFAULT ''"),
+        ("users",    "memory",  "TEXT DEFAULT ''"),
+        ("sessions", "pinned",  "INTEGER DEFAULT 0"),
     ]
     with engine.connect() as conn:
         for table, col, col_def in migrations:

@@ -32,6 +32,18 @@ export async function deleteChat(id: string): Promise<Record<string, unknown>> {
   return res.json() as Promise<Record<string, unknown>>;
 }
 
+export async function pinChat(
+  id: string,
+  pinned: boolean,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`/chats/${id}/pin`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pinned }),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
 export function streamMessage(
   chatId: string,
   message: string,
