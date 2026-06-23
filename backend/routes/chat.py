@@ -166,8 +166,17 @@ async def send_message(
         augmented = f"{context}\n\nUser: {user_message}" if context else user_message
         messages = chat_service.build_chat_messages(sess.messages, sess.summary, augmented)
 
-        from routes.config import load_system_prompt
+        from routes.config import load_system_prompt, get_user_data
         system_prompt = load_system_prompt()
+        user_data = get_user_data(user_id)
+        extra_parts = []
+        if user_data["profile"]:
+            extra_parts.append(f"User profile:\n{user_data['profile']}")
+        if user_data["memory"]:
+            extra_parts.append(f"Things I've learned about this user:\n{user_data['memory']}")
+        if extra_parts:
+            suffix = "\n\n".join(extra_parts)
+            system_prompt = f"{system_prompt}\n\n---\n\n{suffix}" if system_prompt else suffix
 
         try:
             for item in llm.stream_chat(messages, system_prompt, web_search=body.web_search):
@@ -200,6 +209,24 @@ async def send_message(
                 pass
 
         chat_service.save_session(sess, user_id)
+
+        if chat_service.should_extract_memory(sess.messages):
+            import threading
+            from routes.config import get_user_data, save_user_memory
+
+            captured_messages = list(sess.messages)
+            captured_user_id = user_id
+
+            def _extract():
+                try:
+                    data = get_user_data(captured_user_id)
+                    new_memory = chat_service.extract_memory(captured_messages, data["memory"])
+                    save_user_memory(captured_user_id, new_memory)
+                except Exception:
+                    pass
+
+            threading.Thread(target=_extract, daemon=True).start()
+
         yield 'data: "[DONE]"\n\n'
 
     return StreamingResponse(

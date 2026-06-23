@@ -24,6 +24,21 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 def init_db() -> None:
     import models  # noqa: F401 — ensures all models are registered before create_all
     Base.metadata.create_all(engine)
+    _migrate_columns()
+
+
+def _migrate_columns() -> None:
+    from sqlalchemy import text
+    migrations = [
+        ("users", "profile", "TEXT DEFAULT ''"),
+        ("users", "memory",  "TEXT DEFAULT ''"),
+    ]
+    with engine.connect() as conn:
+        for table, col, col_def in migrations:
+            existing = [r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))]
+            if col not in existing:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}"))
+                conn.commit()
 
 
 @contextmanager

@@ -6,11 +6,35 @@ from pydantic import BaseModel
 
 import llm
 import state
+from db import get_session
+from models.user import User
 from utils import login_required
 
 SYSTEM_PROMPT_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "system_prompt.txt")
 
 router = APIRouter(tags=["config"])
+
+
+def get_user_data(user_id: str) -> dict:
+    with get_session() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return {"profile": "", "memory": ""}
+        return {"profile": user.profile or "", "memory": user.memory or ""}
+
+
+def save_user_profile(user_id: str, profile: str) -> None:
+    with get_session() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.profile = profile
+
+
+def save_user_memory(user_id: str, memory: str) -> None:
+    with get_session() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.memory = memory
 
 
 def load_system_prompt() -> str:
@@ -40,11 +64,19 @@ class VoiceConfigBody(BaseModel):
     stt_backend: Optional[str] = None
 
 
+class ProfileBody(BaseModel):
+    profile: str = ""
+
+
 @router.get("/config")
 async def get_config(current_user: dict = Depends(login_required)):
+    user_id = current_user["user_id"]
     model_cfg = llm.load_config()
+    user_data = get_user_data(user_id)
     return {
         "system_prompt": load_system_prompt(),
+        "profile": user_data["profile"],
+        "memory":  user_data["memory"],
         "model": {
             "provider":  model_cfg["provider"],
             "model":     model_cfg["model"],
@@ -94,6 +126,18 @@ async def set_voice_config(body: VoiceConfigBody, current_user: dict = Depends(l
     if body.stt_backend is not None:
         cfg["stt_backend"] = body.stt_backend
     llm.save_config(cfg)
+    return {"ok": True}
+
+
+@router.post("/config/profile")
+async def set_profile(body: ProfileBody, current_user: dict = Depends(login_required)):
+    save_user_profile(current_user["user_id"], body.profile.strip())
+    return {"ok": True}
+
+
+@router.delete("/config/memory")
+async def clear_memory(current_user: dict = Depends(login_required)):
+    save_user_memory(current_user["user_id"], "")
     return {"ok": True}
 
 

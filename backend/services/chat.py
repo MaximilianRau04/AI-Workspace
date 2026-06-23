@@ -141,3 +141,30 @@ def summarize_messages(messages: list[MessageSchema]) -> tuple[list[MessageSchem
         f"{conversation_text}"
     )
     return keep, llm.generate_text(prompt)
+
+
+MEMORY_EXTRACTION_INTERVAL = 5  # extract every N user turns
+
+
+def should_extract_memory(messages: list[MessageSchema]) -> bool:
+    turn_count = sum(1 for m in messages if m.role == "user")
+    return turn_count > 0 and turn_count % MEMORY_EXTRACTION_INTERVAL == 0
+
+
+def extract_memory(messages: list[MessageSchema], current_memory: str) -> str:
+    import llm
+    conversation_text = "\n".join(
+        f"{'User' if m.role == 'user' else 'Assistant'}: {m.parts[0][:500]}"
+        for m in messages[-20:]
+    )
+    prompt = (
+        f"Current memory about this user:\n{current_memory or '(none yet)'}\n\n"
+        f"Recent conversation:\n{conversation_text}\n\n"
+        "Extract any new facts, preferences, or context about the user from this conversation "
+        "that would be useful to remember in future conversations — e.g. profession, interests, "
+        "technical level, preferred language, ongoing projects, communication style. "
+        "Update and expand the existing memory. Keep it under 150 words. "
+        "If nothing new was learned, return the current memory unchanged. "
+        "Return ONLY the updated memory text, no explanation."
+    )
+    return llm.generate_text(prompt).strip()
