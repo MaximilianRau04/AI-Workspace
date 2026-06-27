@@ -222,7 +222,13 @@ async def send_message(
         full_reply = ""
 
         context = rag.retrieve(user_message, user_id, filename=body.attached_file)
-        augmented = f"{context}\n\nUser: {user_message}" if context else user_message
+        folder_context = (
+            rag.retrieve_folder(user_message, user_id, sess.folder_id)
+            if getattr(sess, "folder_id", None)
+            else ""
+        )
+        combined = "\n\n".join(filter(None, [folder_context, context]))
+        augmented = f"{combined}\n\nUser: {user_message}" if combined else user_message
         messages = chat_service.build_chat_messages(sess.messages, sess.summary, augmented)
 
         from routes.config import get_user_data, load_system_prompt

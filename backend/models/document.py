@@ -14,5 +14,6 @@ class Document(Base):
     filename: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[str] = mapped_column(String, nullable=False)
+    folder_id: Mapped[str | None] = mapped_column(String, nullable=True, default=None)
 
     user: Mapped[User] = relationship(back_populates="documents")  # noqa: F821

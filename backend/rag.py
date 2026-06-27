@@ -11,16 +11,19 @@ OVERLAP = 40
 TOP_K = 3
 EMBED_MODEL = "gemini-embedding-001"
 COLLECTION = "documents"
+FOLDER_COLLECTION = "folder_documents"
 
 _client: genai.Client | None = None
 _chroma: chromadb.Collection | None = None
+_folder_chroma: chromadb.Collection | None = None
 
 
 def init(api_key: str) -> None:
-    global _client, _chroma
+    global _client, _chroma, _folder_chroma
     _client = genai.Client(api_key=api_key)
     db = chromadb.PersistentClient(path=CHROMA_DIR)
     _chroma = db.get_or_create_collection(COLLECTION)
+    _folder_chroma = db.get_or_create_collection(FOLDER_COLLECTION)
 
 
 def extract_text(content: bytes, filename: str) -> str:
@@ -57,6 +60,14 @@ def _where_user(user_id: str) -> dict:
 
 def _where_user_file(user_id: str, filename: str) -> dict:
     return {"$and": [{"user_id": user_id}, {"source": filename}]}
+
+
+def _where_folder(user_id: str, folder_id: str) -> dict:
+    return {"$and": [{"user_id": user_id}, {"folder_id": folder_id}]}
+
+
+def _where_folder_file(user_id: str, folder_id: str, filename: str) -> dict:
+    return {"$and": [{"user_id": user_id}, {"folder_id": folder_id}, {"source": filename}]}
 
 
 def _delete_chunks(user_id: str, filename: str) -> None:
@@ -121,3 +132,78 @@ def retrieve(query: str, user_id: str, k: int = TOP_K, filename: str | None = No
 
     parts = [f"[{m['source']}]\n{d}" for d, m in zip(docs, metas)]
     return "Relevant context from documents:\n\n" + "\n\n---\n\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Folder-scoped document functions
+# ---------------------------------------------------------------------------
+
+
+def _delete_folder_chunks(user_id: str, folder_id: str, filename: str) -> None:
+    if _folder_chroma is None:
+        return
+    existing = _folder_chroma.get(where=_where_folder_file(user_id, folder_id, filename), include=[])
+    if existing["ids"]:
+        _folder_chroma.delete(where=_where_folder_file(user_id, folder_id, filename))
+
+
+def index_folder_file(filename: str, user_id: str, folder_id: str, content: str) -> int:
+    if _folder_chroma is None or _client is None:
+        return 0
+    chunks = _chunk(content)
+    if not chunks:
+        return 0
+
+    _delete_folder_chunks(user_id, folder_id, filename)
+
+    embeddings = _embed(chunks)
+    ids = [f"{user_id}::{folder_id}::{filename}::{i}" for i in range(len(chunks))]
+    metadatas = [{"source": filename, "user_id": user_id, "folder_id": folder_id} for _ in chunks]
+
+    _folder_chroma.add(ids=ids, embeddings=embeddings, documents=chunks, metadatas=metadatas)
+    return len(chunks)
+
+
+def delete_folder_file(filename: str, user_id: str, folder_id: str) -> None:
+    _delete_folder_chunks(user_id, folder_id, filename)
+
+
+def list_folder_indexed(user_id: str, folder_id: str) -> list[str]:
+    if _folder_chroma is None:
+        return []
+    result = _folder_chroma.get(where=_where_folder(user_id, folder_id), include=["metadatas"])
+    seen: set[str] = set()
+    files: list[str] = []
+    for meta in result["metadatas"]:
+        src = meta.get("source", "")
+        if src and src not in seen:
+            seen.add(src)
+            files.append(src)
+    return files
+
+
+def retrieve_folder(query: str, user_id: str, folder_id: str, k: int = TOP_K) -> str:
+    if _folder_chroma is None or _folder_chroma.count() == 0:
+        return ""
+
+    where = _where_folder(user_id, folder_id)
+    matching = _folder_chroma.get(where=where, include=[])
+    n = min(k, len(matching["ids"]))
+    if n == 0:
+        return ""
+
+    q_emb = _embed([query], task="RETRIEVAL_QUERY")[0]
+    results = _folder_chroma.query(
+        query_embeddings=[q_emb],
+        n_results=n,
+        where=where,
+        include=["documents", "metadatas"],
+    )
+
+    docs = results["documents"][0]
+    metas = results["metadatas"][0]
+    if not docs:
+        return ""
+
+    parts = [f"[{m['source']}]\n{d}" for d, m in zip(docs, metas)]
+    return "Relevant context from project files:\n\n" + "\n\n---\n\n".join(parts)

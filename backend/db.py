@@ -38,6 +38,7 @@ def _migrate_columns() -> None:
         ("users", "memory", "TEXT DEFAULT ''"),
         ("sessions", "pinned", "INTEGER DEFAULT 0"),
         ("sessions", "folder_id", "TEXT"),
+        ("documents", "folder_id", "TEXT"),
     ]
     with engine.connect() as conn:
         for table, col, col_def in migrations:
