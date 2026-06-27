@@ -62,49 +62,76 @@ def fetch_url(url: str, max_chars: int = 6000) -> str:
 
 EXECUTE_CODE_TOOL_NAME = "execute_code"
 EXECUTE_CODE_TOOL_DESCRIPTION = (
-    "Execute code in a sandboxed subprocess and return stdout/stderr. "
-    "Supported languages: python, javascript (Node.js), bash. "
-    "Use when the user asks to run, compute, or test something in code."
+    "Execute code in an isolated Docker container and return stdout/stderr. "
+    "Supported languages: python, javascript, typescript, bash, c, cpp, java, go. "
+    "Java: the public class must be named Main. "
+    "Use when asked to run, compute, or test something in code."
 )
 
-
-_DOCKER_IMAGES: dict[str, tuple[str, list[str]]] = {
-    "python":     ("python:3.12-slim", ["python3", "-c"]),
-    "python3":    ("python:3.12-slim", ["python3", "-c"]),
-    "javascript": ("node:20-alpine",   ["node",    "-e"]),
-    "js":         ("node:20-alpine",   ["node",    "-e"]),
-    "bash":       ("alpine:latest",    ["sh",      "-c"]),
-    "sh":         ("alpine:latest",    ["sh",      "-c"]),
+# (docker_image, command_inside_container)
+# Code is always passed via stdin so there are no shell-escaping issues.
+_DOCKER_LANGS: dict[str, tuple[str, list[str]]] = {
+    # Interpreters — read code from stdin
+    "python":     ("python:3.12-slim",            ["python3", "-"]),
+    "python3":    ("python:3.12-slim",            ["python3", "-"]),
+    "javascript": ("node:20-alpine",              ["node"]),
+    "js":         ("node:20-alpine",              ["node"]),
+    "typescript": ("denoland/deno:alpine",        ["deno", "run", "-"]),
+    "ts":         ("denoland/deno:alpine",        ["deno", "run", "-"]),
+    "bash":       ("alpine:latest",              ["sh"]),
+    "sh":         ("alpine:latest",              ["sh"]),
+    # Compile languages — stdin is written to a file, then compiled and run
+    "c": (
+        "gcc:latest",
+        ["sh", "-c", "cat>/tmp/main.c && gcc /tmp/main.c -o /tmp/main -lm && /tmp/main"],
+    ),
+    "cpp": (
+        "gcc:latest",
+        ["sh", "-c", "cat>/tmp/main.cpp && g++ /tmp/main.cpp -o /tmp/main && /tmp/main"],
+    ),
+    "c++": (
+        "gcc:latest",
+        ["sh", "-c", "cat>/tmp/main.cpp && g++ /tmp/main.cpp -o /tmp/main && /tmp/main"],
+    ),
+    "java": (
+        "eclipse-temurin:21-jdk-alpine",
+        ["sh", "-c", "cat>/tmp/Main.java && javac /tmp/Main.java -d /tmp && java -cp /tmp Main"],
+    ),
+    "go": (
+        "golang:1.22-alpine",
+        ["sh", "-c", "cat>/tmp/main.go && GOCACHE=/tmp/goc GOPATH=/tmp/gop go run /tmp/main.go"],
+    ),
 }
+
+_SUPPORTED_LANGS = "python, javascript, typescript, bash, c, cpp, java, go"
 
 
 def execute_code(code: str, language: str) -> dict:
     lang = language.lower().strip()
-    entry = _DOCKER_IMAGES.get(lang)
+    entry = _DOCKER_LANGS.get(lang)
     if entry is None:
         return {
             "stdout": "",
-            "stderr": f"Unsupported language: {language!r}. Use python, javascript, or bash.",
+            "stderr": f"Unsupported language: {language!r}. Supported: {_SUPPORTED_LANGS}.",
             "exit_code": 1,
         }
 
-    image, cmd_prefix = entry
+    image, cmd = entry
     try:
         result = subprocess.run(
             [
-                "docker", "run", "--rm",
+                "docker", "run", "--rm", "--interactive",
                 "--network=none",
                 "--memory=256m",
                 "--cpus=0.5",
-                "--read-only",
-                "--tmpfs=/tmp:size=64m,mode=1777",
+                "--tmpfs=/tmp:size=256m,mode=1777",
                 image,
-                *cmd_prefix,
-                code,
+                *cmd,
             ],
+            input=code,
             capture_output=True,
             text=True,
-            timeout=20,
+            timeout=30,
         )
         return {
             "stdout": result.stdout[:4000],
@@ -112,7 +139,7 @@ def execute_code(code: str, language: str) -> dict:
             "exit_code": result.returncode,
         }
     except subprocess.TimeoutExpired:
-        return {"stdout": "", "stderr": "Execution timed out (20s limit).", "exit_code": 124}
+        return {"stdout": "", "stderr": "Execution timed out (30s limit).", "exit_code": 124}
     except FileNotFoundError:
         return {
             "stdout": "",

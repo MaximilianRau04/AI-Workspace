@@ -194,8 +194,15 @@ const LANG_LABELS: Record<string, string> = {
   python3: "Python",
   javascript: "JavaScript",
   js: "JavaScript",
+  typescript: "TypeScript",
+  ts: "TypeScript",
   bash: "Bash",
   sh: "Bash",
+  c: "C",
+  cpp: "C++",
+  "c++": "C++",
+  java: "Java",
+  go: "Go",
 };
 
 function CodeResultBlock({ result }: CodeResultBlockProps) {

@@ -132,8 +132,8 @@ The active provider and model are configured via the ⚙️ Settings button → 
 - **Auto-summarization** - old messages are summarized automatically to keep context efficient
 - **Syntax highlighting** - code blocks highlighted via highlight.js
 - **Agentic ReAct loop** - the model autonomously decides when and how often to call tools; it can chain multiple tool calls in a single turn (e.g. search → read page → run code → answer) up to a configurable step limit (`MAX_AGENT_STEPS`)
-- **Web search** - enable via the 🔍 button; the agent searches via DuckDuckGo and fetches URLs as needed — you control access, the model decides usage
-- **Code interpreter** - enable via the `</>` button; the agent can write and execute Python, JavaScript, and Bash in isolated Docker containers (no network, read-only filesystem, memory/CPU limits), including multi-step compute tasks
+- **Web search** - enable via the 🔍 button; the agent searches via DuckDuckGo and fetches URLs as needed - you control access, the model decides usage
+- **Code interpreter** - enable via the `</>` button; the agent can write and execute code in isolated Docker containers (no network, memory/CPU limits); supported languages: Python, JavaScript, TypeScript (Deno), Bash, C, C++, Java, Go - Java class must be named `Main`
 - **Voice input** - microphone button (Chrome / Edge only)
 - **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
@@ -177,7 +177,7 @@ ChatBot/
 │       ├── types.ts        # Shared TypeScript interfaces
 │       ├── globals.d.ts    # Type declarations for CDN globals (marked, hljs)
 │       ├── api/            # Typed fetch wrappers (auth, chats, config, docs, voice)
-│       ├── context/        # AppContext — auth, sessions, config, theme
+│       ├── context/        # AppContext - auth, sessions, config, theme
 │       ├── hooks/          # useStream (SSE), useVoice (mic + TTS)
 │       ├── pages/          # ChatPage, LoginPage
 │       ├── components/
@@ -210,7 +210,7 @@ User message
                       └─ LLM produces final answer
 ```
 
-The toggle buttons in the input bar control **which tools the model has access to** — not whether a tool will be called. The model decides autonomously if and when a tool is needed. Example multi-step flows:
+The toggle buttons in the input bar control **which tools the model has access to** - not whether a tool will be called. The model decides autonomously if and when a tool is needed. Example multi-step flows:
 
 - *"What's the current EUR/USD rate and how much is 1500 EUR in USD?"* → web_search → execute_code → answer
 - *"Summarize the article at this URL and translate it to German"* → fetch_url → answer
