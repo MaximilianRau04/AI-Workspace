@@ -1,4 +1,4 @@
-A self-hosted chat interface supporting multiple LLM providers (Gemini, OpenAI, Anthropic, Ollama) with streaming responses, reasoning/thinking blocks, voice input & output, document upload, code interpreter, and per-user chat history.
+A self-hosted AI workspace supporting multiple LLM providers (Gemini, OpenAI, Anthropic, Ollama) with streaming responses, an agentic ReAct loop for autonomous tool use, reasoning/thinking blocks, voice input & output, document upload, code interpreter, and per-user chat history.
 
 ## Running with Docker (recommended)
 
@@ -7,8 +7,8 @@ A self-hosted chat interface supporting multiple LLM providers (Gemini, OpenAI, 
 **1. Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/ChatBot.git
-cd ChatBot
+git clone https://github.com/MaximilianRau04/AI-Workspace.git
+cd AI-Workspace
 ```
 
 **2. Create a `.env` file** in the project root
@@ -47,8 +47,8 @@ Open `http://localhost:5000`. Data (database, config, uploads) is stored in the 
 **1. Clone the repository**
 
 ```bash
-git clone https://github.com/your-username/ChatBot.git
-cd ChatBot
+git clone https://github.com/MaximilianRau04/AI-Workspace.git
+cd AI-Workspace
 ```
 
 **2. Create a virtual environment**
@@ -131,7 +131,9 @@ The active provider and model are configured via the ⚙️ Settings button → 
 - **Persistent chat sessions** with sidebar for switching between conversations
 - **Auto-summarization** - old messages are summarized automatically to keep context efficient
 - **Syntax highlighting** - code blocks highlighted via highlight.js
-- **Code interpreter** - AI can execute Python, JavaScript, and Bash in isolated Docker containers (no network, read-only filesystem, memory/CPU limits)
+- **Agentic ReAct loop** - the model autonomously decides when and how often to call tools; it can chain multiple tool calls in a single turn (e.g. search → read page → run code → answer) up to a configurable step limit (`MAX_AGENT_STEPS`)
+- **Web search** - enable via the 🔍 button; the agent searches via DuckDuckGo and fetches URLs as needed — you control access, the model decides usage
+- **Code interpreter** - enable via the `</>` button; the agent can write and execute Python, JavaScript, and Bash in isolated Docker containers (no network, read-only filesystem, memory/CPU limits), including multi-step compute tasks
 - **Voice input** - microphone button (Chrome / Edge only)
 - **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
@@ -194,6 +196,27 @@ ChatBot/
 ├── .env                    # API keys & secret key (not tracked by git)
 └── README.md
 ```
+
+## Agent Loop
+
+When web search or code interpreter is enabled, the model runs in a **ReAct loop** (Reasoning + Acting):
+
+```
+User message
+  └─ LLM thinks → calls tool (web_search / fetch_url / execute_code)
+       └─ result returned to LLM
+            └─ LLM thinks again → calls another tool (optional)
+                 └─ ... repeat up to MAX_AGENT_STEPS (default: 10)
+                      └─ LLM produces final answer
+```
+
+The toggle buttons in the input bar control **which tools the model has access to** — not whether a tool will be called. The model decides autonomously if and when a tool is needed. Example multi-step flows:
+
+- *"What's the current EUR/USD rate and how much is 1500 EUR in USD?"* → web_search → execute_code → answer
+- *"Summarize the article at this URL and translate it to German"* → fetch_url → answer
+- *"Write a Python script that sorts a list and show me the output"* → execute_code → answer
+
+The intermediate steps (searches, code executions) are streamed to the frontend in real time so you can follow what the agent is doing.
 
 ## Security
 
