@@ -1,3 +1,5 @@
+import resource
+import subprocess
 import urllib.error
 import urllib.request
 
@@ -57,3 +59,69 @@ def fetch_url(url: str, max_chars: int = 6000) -> str:
     if len(text) > max_chars:
         text = text[:max_chars] + "\n\n[content truncated]"
     return text or "No readable content found."
+
+
+EXECUTE_CODE_TOOL_NAME = "execute_code"
+EXECUTE_CODE_TOOL_DESCRIPTION = (
+    "Execute code in a sandboxed subprocess and return stdout/stderr. "
+    "Supported languages: python, javascript (Node.js), bash. "
+    "Use when the user asks to run, compute, or test something in code."
+)
+
+
+def execute_code(code: str, language: str) -> dict:
+    lang = language.lower().strip()
+    runners: dict[str, list[str]] = {
+        "python":     ["python3", "-c", code],
+        "python3":    ["python3", "-c", code],
+        "javascript": ["node", "-e", code],
+        "js":         ["node", "-e", code],
+        "bash":       ["bash", "-c", code],
+        "sh":         ["bash", "-c", code],
+    }
+    cmd = runners.get(lang)
+    if cmd is None:
+        return {
+            "stdout": "",
+            "stderr": f"Unsupported language: {language!r}. Use python, javascript, or bash.",
+            "exit_code": 1,
+        }
+
+    def _set_limits():
+        try:
+            resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
+            resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+            resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
+        except Exception:
+            pass
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            preexec_fn=_set_limits,
+        )
+        return {
+            "stdout": result.stdout[:4000],
+            "stderr": result.stderr[:2000],
+            "exit_code": result.returncode,
+        }
+    except subprocess.TimeoutExpired:
+        return {"stdout": "", "stderr": "Execution timed out (15s limit).", "exit_code": 124}
+    except FileNotFoundError as exc:
+        return {"stdout": "", "stderr": f"Runtime not found: {exc}", "exit_code": 127}
+    except Exception as exc:
+        return {"stdout": "", "stderr": f"Execution error: {exc}", "exit_code": 1}
+
+
+def format_code_result(result: dict) -> str:
+    parts = [f"Exit code: {result['exit_code']}"]
+    if result["stdout"]:
+        parts.append(f"Stdout:\n{result['stdout'].rstrip()}")
+    if result["stderr"]:
+        parts.append(f"Stderr:\n{result['stderr'].rstrip()}")
+    if not result["stdout"] and not result["stderr"]:
+        parts.append("(no output)")
+    return "\n\n".join(parts)

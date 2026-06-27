@@ -28,6 +28,7 @@ class ChatBody(BaseModel):
     attached_file: Optional[str] = None
     pair_index: Optional[int] = None
     web_search: bool = False
+    code_interpreter: bool = False
 
 
 class RenameBody(BaseModel):
@@ -238,13 +239,22 @@ async def send_message(
             system_prompt = f"{system_prompt}\n\n---\n\n{suffix}" if system_prompt else suffix
 
         try:
-            for item in llm.stream_chat(messages, system_prompt, web_search=body.web_search):
+            for item in llm.stream_chat(
+                messages,
+                system_prompt,
+                web_search=body.web_search,
+                code_interpreter=body.code_interpreter,
+            ):
                 if isinstance(item, dict) and "usage" in item:
                     yield f"event: usage\ndata: {json.dumps(item['usage'])}\n\n"
                 elif isinstance(item, dict) and "thinking" in item:
                     yield f"event: thinking\ndata: {json.dumps(item['thinking'])}\n\n"
                 elif isinstance(item, dict) and "searching" in item:
                     yield f"event: searching\ndata: {json.dumps(item['searching'])}\n\n"
+                elif isinstance(item, dict) and "executing" in item:
+                    yield f"event: executing\ndata: {json.dumps(item['executing'])}\n\n"
+                elif isinstance(item, dict) and "code_result" in item:
+                    yield f"event: code_result\ndata: {json.dumps(item['code_result'])}\n\n"
                 else:
                     full_reply += item
                     yield f"data: {json.dumps(item)}\n\n"

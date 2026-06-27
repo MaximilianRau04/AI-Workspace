@@ -33,16 +33,21 @@ DEFAULTS: dict = {
 # Prompt-based tool dispatch (fallback for models without native tool calling)
 # ---------------------------------------------------------------------------
 
-_TOOL_SYSTEM_ADDENDUM = """
-
-You have access to the following tools. When you need to use one, respond with ONLY this JSON block and nothing else before or after it:
-<tool_call>{"name": "<tool_name>", "args": {<args_json>}}</tool_call>
-
-Available tools:
-- web_search: Search the web for current information. Args: {"query": "your search query"}
-- fetch_url: Fetch and read the content of a URL. Args: {"url": "https://example.com"}
-
-Only use a tool when the question requires real-time or external information. Otherwise answer normally."""
+def _build_tool_addendum(web_search: bool, code_interpreter: bool) -> str:
+    if not web_search and not code_interpreter:
+        return ""
+    lines = [
+        "\n\nYou have access to the following tools. When you need to use one, respond with ONLY this JSON block and nothing else before or after it:",
+        '<tool_call>{"name": "<tool_name>", "args": {<args_json>}}</tool_call>',
+        "\nAvailable tools:",
+    ]
+    if web_search:
+        lines.append('- web_search: Search the web for current information. Args: {"query": "your search query"}')
+        lines.append('- fetch_url: Fetch and read the content of a URL. Args: {"url": "https://example.com"}')
+    if code_interpreter:
+        lines.append('- execute_code: Execute code. Args: {"language": "python|javascript|bash", "code": "your code"}')
+    lines.append("\nOnly use a tool when needed. Otherwise answer normally.")
+    return "\n".join(lines)
 
 
 def _parse_prompt_tool_call(text: str) -> dict | None:
@@ -76,22 +81,25 @@ def stream_chat(
     messages: list[dict],
     system_prompt: str = "",
     web_search: bool = False,
+    code_interpreter: bool = False,
 ) -> Iterator[str | dict]:
     """
     Yield text chunks from the configured LLM.
     May yield {"thinking": str} chunks for reasoning content.
     May yield {"searching": str} when a web_search tool call is in progress.
+    May yield {"executing": {"language": str, "code": str}} before code execution.
+    May yield {"code_result": {"language": str, "code": str, "stdout": str, "stderr": str, "exit_code": int}}.
     The final item may be {"usage": {"prompt": N, "reply": N, "total": N}}.
     messages format: [{"role": "user"/"model", "parts": ["..."]}]
     """
     cfg = load_config()
     provider = cfg["provider"]
     if provider == "gemini":
-        yield from _stream_gemini(messages, system_prompt, cfg, web_search)
+        yield from _stream_gemini(messages, system_prompt, cfg, web_search, code_interpreter)
     elif provider == "openai":
-        yield from _stream_openai(messages, system_prompt, cfg, web_search)
+        yield from _stream_openai(messages, system_prompt, cfg, web_search, code_interpreter)
     elif provider == "anthropic":
-        yield from _stream_anthropic(messages, system_prompt, cfg, web_search)
+        yield from _stream_anthropic(messages, system_prompt, cfg, web_search, code_interpreter)
     else:
         raise ValueError(f"Unknown provider: {provider!r}")
 
@@ -205,7 +213,7 @@ def _get_gemini_key(cfg: dict) -> str:
     return key
 
 
-def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False):
+def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False, code_interpreter=False):
     import google.generativeai as genai
 
     genai.configure(api_key=_get_gemini_key(cfg))
@@ -226,9 +234,9 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False):
             (system_prompt + _cot_addendum()).strip() if system_prompt else _cot_addendum().strip()
         )
 
-    tools_list = None
+    fn_decls = []
     if web_search_enabled:
-        search_decl = genai.protos.FunctionDeclaration(
+        fn_decls.append(genai.protos.FunctionDeclaration(
             name="web_search",
             description=(
                 "Search the web for current information. Use when the user asks about "
@@ -245,8 +253,8 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False):
                 },
                 required=["query"],
             ),
-        )
-        fetch_decl = genai.protos.FunctionDeclaration(
+        ))
+        fn_decls.append(genai.protos.FunctionDeclaration(
             name="fetch_url",
             description=(
                 "Fetch and read the content of a specific URL. Use when the user "
@@ -262,8 +270,30 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False):
                 },
                 required=["url"],
             ),
-        )
-        tools_list = [genai.protos.Tool(function_declarations=[search_decl, fetch_decl])]
+        ))
+    if code_interpreter:
+        fn_decls.append(genai.protos.FunctionDeclaration(
+            name="execute_code",
+            description=(
+                "Execute code in a sandboxed subprocess and return stdout/stderr. "
+                "Supported languages: python, javascript, bash."
+            ),
+            parameters=genai.protos.Schema(
+                type=genai.protos.Type.OBJECT,
+                properties={
+                    "language": genai.protos.Schema(
+                        type=genai.protos.Type.STRING,
+                        description="python, javascript, or bash",
+                    ),
+                    "code": genai.protos.Schema(
+                        type=genai.protos.Type.STRING,
+                        description="The code to execute",
+                    ),
+                },
+                required=["language", "code"],
+            ),
+        ))
+    tools_list = [genai.protos.Tool(function_declarations=fn_decls)] if fn_decls else None
 
     def _make_model(with_thinking):
         gc = None
@@ -353,7 +383,7 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False):
 def _gemini_execute_tool(chat, fn_call):
     import google.generativeai as genai
 
-    from tools import fetch_url, format_results, web_search
+    from tools import execute_code, fetch_url, format_code_result, format_results, web_search
 
     args = dict(fn_call.args)
     if fn_call.name == "web_search":
@@ -364,6 +394,13 @@ def _gemini_execute_tool(chat, fn_call):
         url = args.get("url", "")
         yield {"searching": url}
         result_text = fetch_url(url)
+    elif fn_call.name == "execute_code":
+        lang = args.get("language", "python")
+        code = args.get("code", "")
+        yield {"executing": {"language": lang, "code": code}}
+        result = execute_code(code, lang)
+        yield {"code_result": {"language": lang, "code": code, **result}}
+        result_text = format_code_result(result)
     else:
         return
 
@@ -404,7 +441,7 @@ def _prompt_execute_tool(
     reasoning: bool,
     is_think_tag: bool,
 ):
-    from tools import fetch_url, format_results, web_search
+    from tools import execute_code, fetch_url, format_code_result, format_results, web_search
 
     name = tool_call.get("name", "")
     args = tool_call.get("args", {})
@@ -417,6 +454,13 @@ def _prompt_execute_tool(
         url = args.get("url", "")
         yield {"searching": url}
         result_text = fetch_url(url)
+    elif name == "execute_code":
+        lang = args.get("language", "python")
+        code = args.get("code", "")
+        yield {"executing": {"language": lang, "code": code}}
+        result = execute_code(code, lang)
+        yield {"code_result": {"language": lang, "code": code, **result}}
+        result_text = format_code_result(result)
     else:
         return
 
@@ -464,7 +508,7 @@ def _openai_client(cfg: dict):
     return OpenAI(**kwargs)
 
 
-def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
+def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False, code_interpreter=False):
     client = _openai_client(cfg)
     reasoning = cfg.get("reasoning", False)
     model = cfg["model"]
@@ -478,7 +522,7 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
     )
 
     # Ollama/LM Studio: inject tools into the system prompt — most local models lack native tool support
-    use_prompt_tools = is_ollama and web_search_enabled
+    use_prompt_tools = is_ollama and (web_search_enabled or code_interpreter)
 
     oai_messages: list[dict] = []
     if system_prompt:
@@ -493,10 +537,11 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
             oai_messages.append({"role": "system", "content": cot.strip()})
 
     if use_prompt_tools:
+        addendum = _build_tool_addendum(web_search_enabled, code_interpreter)
         if oai_messages:
-            oai_messages[0]["content"] += _TOOL_SYSTEM_ADDENDUM
+            oai_messages[0]["content"] += addendum
         else:
-            oai_messages.append({"role": "system", "content": _TOOL_SYSTEM_ADDENDUM.strip()})
+            oai_messages.append({"role": "system", "content": addendum.strip()})
 
     oai_messages.extend(_to_openai_messages(messages))
 
@@ -520,8 +565,9 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
 
     # Native tool-calling path (OpenAI cloud + reasoning models)
     tools_param: list[dict] | None = None
+    _oai_tools: list[dict] = []
     if web_search_enabled:
-        tools_param = [
+        _oai_tools += [
             {
                 "type": "function",
                 "function": {
@@ -558,6 +604,27 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
                 },
             },
         ]
+    if code_interpreter:
+        _oai_tools.append({
+            "type": "function",
+            "function": {
+                "name": "execute_code",
+                "description": (
+                    "Execute code in a sandboxed subprocess and return stdout/stderr. "
+                    "Supported languages: python, javascript, bash."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "language": {"type": "string", "description": "python, javascript, or bash"},
+                        "code": {"type": "string", "description": "The code to execute"},
+                    },
+                    "required": ["language", "code"],
+                },
+            },
+        })
+    if _oai_tools:
+        tools_param = _oai_tools
 
     create_kwargs: dict = {"model": model, "messages": oai_messages, "stream": True}
     if tools_param:
@@ -605,7 +672,7 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False):
 def _openai_execute_tools(client, model, oai_messages, tool_calls_buf):
     import json
 
-    from tools import fetch_url, format_results, web_search
+    from tools import execute_code, fetch_url, format_code_result, format_results, web_search
 
     result_messages: list[dict] = []
     assistant_tool_calls = []
@@ -620,6 +687,13 @@ def _openai_execute_tools(client, model, oai_messages, tool_calls_buf):
             url = args.get("url", "")
             yield {"searching": url}
             result_text = fetch_url(url)
+        elif tc["name"] == "execute_code":
+            lang = args.get("language", "python")
+            code = args.get("code", "")
+            yield {"executing": {"language": lang, "code": code}}
+            result = execute_code(code, lang)
+            yield {"code_result": {"language": lang, "code": code, **result}}
+            result_text = format_code_result(result)
         else:
             continue
 
@@ -677,7 +751,7 @@ def _anthropic_client(cfg: dict):
     return anthropic.Anthropic(api_key=key)
 
 
-def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False):
+def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False, code_interpreter=False):
     client = _anthropic_client(cfg)
     reasoning = cfg.get("reasoning", False)
     model = cfg["model"]
@@ -699,8 +773,9 @@ def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False):
         kwargs["system"] = actual_system
     if use_native:
         kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10000}
+    _ant_tools: list[dict] = []
     if web_search_enabled:
-        kwargs["tools"] = [
+        _ant_tools += [
             {
                 "name": "web_search",
                 "description": (
@@ -727,6 +802,24 @@ def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False):
                 },
             },
         ]
+    if code_interpreter:
+        _ant_tools.append({
+            "name": "execute_code",
+            "description": (
+                "Execute code in a sandboxed subprocess and return stdout/stderr. "
+                "Supported languages: python, javascript, bash."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "language": {"type": "string", "description": "python, javascript, or bash"},
+                    "code": {"type": "string", "description": "The code to execute"},
+                },
+                "required": ["language", "code"],
+            },
+        })
+    if _ant_tools:
+        kwargs["tools"] = _ant_tools
 
     tool_use_blocks: list[dict] = []
     current_tool: dict | None = None
@@ -785,7 +878,7 @@ def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False):
 def _anthropic_execute_tools(client, original_kwargs, tool_use_blocks):
     import json
 
-    from tools import fetch_url, format_results, web_search
+    from tools import execute_code, fetch_url, format_code_result, format_results, web_search
 
     assistant_content = []
     user_content = []
@@ -800,6 +893,13 @@ def _anthropic_execute_tools(client, original_kwargs, tool_use_blocks):
             url = args.get("url", "")
             yield {"searching": url}
             result_text = fetch_url(url)
+        elif tb["name"] == "execute_code":
+            lang = args.get("language", "python")
+            code = args.get("code", "")
+            yield {"executing": {"language": lang, "code": code}}
+            result = execute_code(code, lang)
+            yield {"code_result": {"language": lang, "code": code, **result}}
+            result_text = format_code_result(result)
         else:
             continue
 
