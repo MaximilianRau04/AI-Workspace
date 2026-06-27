@@ -71,6 +71,14 @@ export interface TitleEvent {
   title: string;
 }
 
+export interface CodeResult {
+  language: string;
+  code: string;
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+}
+
 export interface ChatPair {
   pairIndex: number;
   userText: string;
@@ -82,4 +90,5 @@ export interface ChatPair {
   thinkingStreaming: boolean;
   thinkingElapsed: number;
   searchQuery: string | null;
+  codeResults: CodeResult[];
 }

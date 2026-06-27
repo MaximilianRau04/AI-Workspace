@@ -13,6 +13,8 @@ interface InputAreaProps {
   tokenUsage: TokenUsage | null;
   webSearch: boolean;
   onToggleWebSearch: () => void;
+  codeInterpreter: boolean;
+  onToggleCodeInterpreter: () => void;
 }
 
 /* ── Icon components ── */
@@ -66,6 +68,24 @@ function MicIcon() {
     >
       <rect x="9" y="2" width="6" height="11" rx="3" />
       <path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8" />
+    </svg>
+  );
+}
+
+function TerminalIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="4 17 10 11 4 5" />
+      <line x1="12" y1="19" x2="20" y2="19" />
     </svg>
   );
 }
@@ -142,6 +162,8 @@ export default function InputArea({
   tokenUsage,
   webSearch,
   onToggleWebSearch,
+  codeInterpreter,
+  onToggleCodeInterpreter,
 }: InputAreaProps) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -266,6 +288,15 @@ export default function InputArea({
             active={webSearch}
           >
             <GlobeIcon />
+          </ToolBtn>
+
+          {/* Code interpreter */}
+          <ToolBtn
+            onClick={onToggleCodeInterpreter}
+            title={codeInterpreter ? "Code interpreter on" : "Code interpreter off"}
+            active={codeInterpreter}
+          >
+            <TerminalIcon />
           </ToolBtn>
 
           {/* Mic */}

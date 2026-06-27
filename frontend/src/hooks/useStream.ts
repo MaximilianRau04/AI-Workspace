@@ -1,11 +1,13 @@
 import { useRef, useCallback } from "react";
 import { streamMessage } from "../api/chats";
-import type { TokenUsage, StreamError, TitleEvent } from "../types";
+import type { CodeResult, TokenUsage, StreamError, TitleEvent } from "../types";
 
 interface StreamCallbacks {
   onChunk?: (char: string, fullText: string) => void;
   onThinking?: (chunk: string) => void;
   onSearching?: (query: string) => void;
+  onExecuting?: (info: { language: string; code: string }) => void;
+  onCodeResult?: (result: CodeResult) => void;
   onDone?: (fullText: string) => void;
   onTitle?: (id: string, title: string) => void;
   onUsage?: (payload: TokenUsage) => void;
@@ -36,6 +38,7 @@ export function useStream(): {
     pairIndex: number | null,
     callbacks: StreamCallbacks,
     webSearch?: boolean,
+    codeInterpreter?: boolean,
   ) => Promise<void>;
   abort: () => void;
 } {
@@ -56,11 +59,14 @@ export function useStream(): {
       pairIndex: number | null,
       callbacks: StreamCallbacks,
       webSearch: boolean = false,
+      codeInterpreter: boolean = false,
     ): Promise<void> => {
       const {
         onChunk,
         onThinking,
         onSearching,
+        onExecuting,
+        onCodeResult,
         onDone,
         onTitle,
         onUsage,
@@ -87,6 +93,7 @@ export function useStream(): {
           pairIndex,
           controller.signal,
           webSearch,
+          codeInterpreter,
         );
 
         const reader = res.body!.getReader();
@@ -147,6 +154,16 @@ export function useStream(): {
             }
             if (eventType === "searching") {
               onSearching?.(payload as string);
+              eventType = "message";
+              continue;
+            }
+            if (eventType === "executing") {
+              onExecuting?.(payload as { language: string; code: string });
+              eventType = "message";
+              continue;
+            }
+            if (eventType === "code_result") {
+              onCodeResult?.(payload as import("../types").CodeResult);
               eventType = "message";
               continue;
             }

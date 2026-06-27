@@ -45,6 +45,9 @@ export default function ChatPage() {
   const [webSearch, setWebSearch] = useState<boolean>(
     () => localStorage.getItem("webSearch") === "true",
   );
+  const [codeInterpreter, setCodeInterpreter] = useState<boolean>(
+    () => localStorage.getItem("codeInterpreter") === "true",
+  );
 
   const pairCounterRef = useRef<number>(0);
   const streamingPairRef = useRef<number | null>(null);
@@ -95,6 +98,7 @@ export default function ChatPage() {
           thinkingStreaming: false,
           thinkingElapsed: 0,
           searchQuery: null,
+          codeResults: [],
         });
       }
       setPairs(newPairs);
@@ -144,6 +148,7 @@ export default function ChatPage() {
         thinkingStreaming: false,
         thinkingElapsed: 0,
         searchQuery: null,
+        codeResults: [],
       };
       setPairs((prev) => [
         ...prev.filter((p) => p.pairIndex < newPairIdx),
@@ -189,6 +194,24 @@ export default function ChatPage() {
               ),
             );
           },
+          onExecuting: (info) => {
+            setPairs((prev) =>
+              prev.map((p) =>
+                p.pairIndex === newPairIdx
+                  ? { ...p, searchQuery: `Running ${info.language}…` }
+                  : p,
+              ),
+            );
+          },
+          onCodeResult: (result) => {
+            setPairs((prev) =>
+              prev.map((p) =>
+                p.pairIndex === newPairIdx
+                  ? { ...p, codeResults: [...p.codeResults, result], searchQuery: null }
+                  : p,
+              ),
+            );
+          },
           onDone: (fullText) => {
             const elapsed = Math.round(
               (Date.now() - (thinkingStartRef.current || Date.now())) / 1000,
@@ -220,6 +243,7 @@ export default function ChatPage() {
           },
         },
         webSearch,
+        codeInterpreter,
       );
 
       setIsStreaming(false);
@@ -429,6 +453,14 @@ export default function ChatPage() {
               setWebSearch((prev) => {
                 const next = !prev;
                 localStorage.setItem("webSearch", String(next));
+                return next;
+              });
+            }}
+            codeInterpreter={codeInterpreter}
+            onToggleCodeInterpreter={() => {
+              setCodeInterpreter((prev) => {
+                const next = !prev;
+                localStorage.setItem("codeInterpreter", String(next));
                 return next;
               });
             }}

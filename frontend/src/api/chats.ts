@@ -63,11 +63,13 @@ export function streamMessage(
   pairIndex: number | null | undefined,
   signal: AbortSignal,
   webSearch: boolean = false,
+  codeInterpreter: boolean = false,
 ): Promise<Response> {
   const body: Record<string, unknown> = {
     message,
     attached_file: attachedFile ?? null,
     web_search: webSearch,
+    code_interpreter: codeInterpreter,
   };
   if (pairIndex !== null && pairIndex !== undefined)
     body.pair_index = pairIndex;

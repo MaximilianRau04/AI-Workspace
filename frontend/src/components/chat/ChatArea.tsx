@@ -74,6 +74,7 @@ export default function ChatArea({
               thinkingStreaming={pair.thinkingStreaming}
               thinkingElapsed={pair.thinkingElapsed}
               searchQuery={pair.searchQuery}
+              codeResults={pair.codeResults}
               onRetry={onRetry}
               onEdit={onEdit}
               onSpeak={onSpeak}

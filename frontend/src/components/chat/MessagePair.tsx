@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { renderMarkdown, decorateCodeBlocks } from "../../utils/markdown";
+import type { CodeResult } from "../../types";
 
 // ── Attachment chip inside user message ──────────────────────────────────────
 interface AttachmentChipProps {
@@ -183,6 +184,55 @@ function InlineEdit({ initialText, onSave, onCancel }: InlineEditProps) {
   );
 }
 
+// ── Code execution result block ───────────────────────────────────────────────
+interface CodeResultBlockProps {
+  result: CodeResult;
+}
+
+const LANG_LABELS: Record<string, string> = {
+  python: "Python",
+  python3: "Python",
+  javascript: "JavaScript",
+  js: "JavaScript",
+  bash: "Bash",
+  sh: "Bash",
+};
+
+function CodeResultBlock({ result }: CodeResultBlockProps) {
+  const [open, setOpen] = useState(true);
+  const label = LANG_LABELS[result.language.toLowerCase()] ?? result.language;
+  const success = result.exit_code === 0;
+
+  return (
+    <details
+      open={open}
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+      className="mb-[0.6rem] rounded-[0.6rem] border border-border overflow-hidden"
+    >
+      <summary className="flex items-center gap-2 px-3 py-[0.4rem] bg-bg-muted cursor-pointer select-none text-[0.8rem] text-txt-muted list-none">
+        <span
+          className={`w-[7px] h-[7px] rounded-full flex-shrink-0 ${success ? "bg-[#2ecc71]" : "bg-[#e74c3c]"}`}
+        />
+        <span className="font-mono">{label}</span>
+        <span className="text-txt-dim">·</span>
+        <span className="text-txt-dim">exit {result.exit_code}</span>
+        <span className="ml-auto text-[0.72rem]">{open ? "▲" : "▼"}</span>
+      </summary>
+      <div className="px-3 py-2 bg-bg-base text-[0.82rem] font-mono leading-[1.5] overflow-x-auto">
+        {result.stdout && (
+          <pre className="whitespace-pre-wrap break-words text-txt-primary m-0">{result.stdout}</pre>
+        )}
+        {result.stderr && (
+          <pre className="whitespace-pre-wrap break-words text-[#e74c3c] m-0 mt-1">{result.stderr}</pre>
+        )}
+        {!result.stdout && !result.stderr && (
+          <span className="text-txt-dim italic">(no output)</span>
+        )}
+      </div>
+    </details>
+  );
+}
+
 // ── Bot bubble with markdown ──────────────────────────────────────────────────
 interface BotBubbleProps {
   text: string;
@@ -190,6 +240,7 @@ interface BotBubbleProps {
   thinkingText: string;
   thinkingStreaming: boolean;
   thinkingElapsed: number;
+  codeResults: CodeResult[];
 }
 
 function BotBubble({
@@ -198,6 +249,7 @@ function BotBubble({
   thinkingText,
   thinkingStreaming,
   thinkingElapsed,
+  codeResults,
 }: BotBubbleProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevTextRef = useRef<string>("");
@@ -240,6 +292,9 @@ function BotBubble({
           elapsed={thinkingElapsed}
         />
       )}
+      {codeResults.map((r, i) => (
+        <CodeResultBlock key={i} result={r} />
+      ))}
       <div
         ref={containerRef}
         className="bot-bubble text-[0.95rem] leading-[1.55] word-break-break-word text-txt-primary dark:text-txt-primary"
@@ -260,6 +315,7 @@ interface MessagePairProps {
   thinkingStreaming: boolean;
   thinkingElapsed: number;
   searchQuery: string | null;
+  codeResults: CodeResult[];
   onRetry: (pairIndex: number, text: string) => void;
   onEdit: (pairIndex: number, newText: string) => void;
   onSpeak: (id: number, text: string) => void;
@@ -277,6 +333,7 @@ export default function MessagePair({
   thinkingStreaming,
   thinkingElapsed,
   searchQuery,
+  codeResults,
   onRetry,
   onEdit,
   onSpeak,
@@ -351,6 +408,7 @@ export default function MessagePair({
               thinkingText={thinkingText}
               thinkingStreaming={thinkingStreaming}
               thinkingElapsed={thinkingElapsed}
+              codeResults={codeResults}
             />
           )}
           {!isStreaming && interrupted && (
