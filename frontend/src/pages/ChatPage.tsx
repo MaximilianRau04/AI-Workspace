@@ -207,7 +207,11 @@ export default function ChatPage() {
             setPairs((prev) =>
               prev.map((p) =>
                 p.pairIndex === newPairIdx
-                  ? { ...p, codeResults: [...p.codeResults, result], searchQuery: null }
+                  ? {
+                      ...p,
+                      codeResults: [...p.codeResults, result],
+                      searchQuery: null,
+                    }
                   : p,
               ),
             );

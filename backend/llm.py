@@ -35,6 +35,7 @@ MAX_AGENT_STEPS = 10
 # Prompt-based tool dispatch (fallback for models without native tool calling)
 # ---------------------------------------------------------------------------
 
+
 def _build_tool_addendum(web_search: bool, code_interpreter: bool) -> str:
     if not web_search and not code_interpreter:
         return ""
@@ -44,10 +45,16 @@ def _build_tool_addendum(web_search: bool, code_interpreter: bool) -> str:
         "\nAvailable tools:",
     ]
     if web_search:
-        lines.append('- web_search: Search the web for current information. Args: {"query": "your search query"}')
-        lines.append('- fetch_url: Fetch and read the content of a URL. Args: {"url": "https://example.com"}')
+        lines.append(
+            '- web_search: Search the web for current information. Args: {"query": "your search query"}'
+        )
+        lines.append(
+            '- fetch_url: Fetch and read the content of a URL. Args: {"url": "https://example.com"}'
+        )
     if code_interpreter:
-        lines.append('- execute_code: Execute code. Args: {"language": "python|javascript|typescript|bash|c|cpp|java|go", "code": "your code"}')
+        lines.append(
+            '- execute_code: Execute code. Args: {"language": "python|javascript|typescript|bash|c|cpp|java|go", "code": "your code"}'
+        )
     lines.append("\nOnly use a tool when needed. Otherwise answer normally.")
     return "\n".join(lines)
 
@@ -264,64 +271,70 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False, code_
 
     fn_decls = []
     if web_search_enabled:
-        fn_decls.append(genai.protos.FunctionDeclaration(
-            name="web_search",
-            description=(
-                "Search the web for current information. Use when the user asks about "
-                "recent events, current prices, live data, news, or anything that may "
-                "have changed after your training cutoff."
-            ),
-            parameters=genai.protos.Schema(
-                type=genai.protos.Type.OBJECT,
-                properties={
-                    "query": genai.protos.Schema(
-                        type=genai.protos.Type.STRING,
-                        description="The search query",
-                    )
-                },
-                required=["query"],
-            ),
-        ))
-        fn_decls.append(genai.protos.FunctionDeclaration(
-            name="fetch_url",
-            description=(
-                "Fetch and read the content of a specific URL. Use when the user "
-                "provides a link and wants to know what is on that page."
-            ),
-            parameters=genai.protos.Schema(
-                type=genai.protos.Type.OBJECT,
-                properties={
-                    "url": genai.protos.Schema(
-                        type=genai.protos.Type.STRING,
-                        description="The URL to fetch",
-                    )
-                },
-                required=["url"],
-            ),
-        ))
+        fn_decls.append(
+            genai.protos.FunctionDeclaration(
+                name="web_search",
+                description=(
+                    "Search the web for current information. Use when the user asks about "
+                    "recent events, current prices, live data, news, or anything that may "
+                    "have changed after your training cutoff."
+                ),
+                parameters=genai.protos.Schema(
+                    type=genai.protos.Type.OBJECT,
+                    properties={
+                        "query": genai.protos.Schema(
+                            type=genai.protos.Type.STRING,
+                            description="The search query",
+                        )
+                    },
+                    required=["query"],
+                ),
+            )
+        )
+        fn_decls.append(
+            genai.protos.FunctionDeclaration(
+                name="fetch_url",
+                description=(
+                    "Fetch and read the content of a specific URL. Use when the user "
+                    "provides a link and wants to know what is on that page."
+                ),
+                parameters=genai.protos.Schema(
+                    type=genai.protos.Type.OBJECT,
+                    properties={
+                        "url": genai.protos.Schema(
+                            type=genai.protos.Type.STRING,
+                            description="The URL to fetch",
+                        )
+                    },
+                    required=["url"],
+                ),
+            )
+        )
     if code_interpreter:
-        fn_decls.append(genai.protos.FunctionDeclaration(
-            name="execute_code",
-            description=(
-                "Execute code in an isolated Docker container and return stdout/stderr. "
-                "Supported languages: python, javascript, typescript, bash, c, cpp, java, go. "
-                "Java: class must be named Main."
-            ),
-            parameters=genai.protos.Schema(
-                type=genai.protos.Type.OBJECT,
-                properties={
-                    "language": genai.protos.Schema(
-                        type=genai.protos.Type.STRING,
-                        description="python, javascript, or bash",
-                    ),
-                    "code": genai.protos.Schema(
-                        type=genai.protos.Type.STRING,
-                        description="The code to execute",
-                    ),
-                },
-                required=["language", "code"],
-            ),
-        ))
+        fn_decls.append(
+            genai.protos.FunctionDeclaration(
+                name="execute_code",
+                description=(
+                    "Execute code in an isolated Docker container and return stdout/stderr. "
+                    "Supported languages: python, javascript, typescript, bash, c, cpp, java, go. "
+                    "Java: class must be named Main."
+                ),
+                parameters=genai.protos.Schema(
+                    type=genai.protos.Type.OBJECT,
+                    properties={
+                        "language": genai.protos.Schema(
+                            type=genai.protos.Type.STRING,
+                            description="python, javascript, or bash",
+                        ),
+                        "code": genai.protos.Schema(
+                            type=genai.protos.Type.STRING,
+                            description="The code to execute",
+                        ),
+                    },
+                    required=["language", "code"],
+                ),
+            )
+        )
     tools_list = [genai.protos.Tool(function_declarations=fn_decls)] if fn_decls else None
 
     def _make_model(with_thinking):
@@ -382,6 +395,7 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False, code_
                         else:
                             yield part.text
         else:
+
             def _chunks():
                 nonlocal fn_call
                 for chunk in full_iter:
@@ -564,24 +578,29 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False, code_
             },
         ]
     if code_interpreter:
-        _oai_tools.append({
-            "type": "function",
-            "function": {
-                "name": "execute_code",
-                "description": (
-                    "Execute code in a sandboxed subprocess and return stdout/stderr. "
-                    "Supported languages: python, javascript, bash."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "language": {"type": "string", "description": "python, javascript, or bash"},
-                        "code": {"type": "string", "description": "The code to execute"},
+        _oai_tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": "execute_code",
+                    "description": (
+                        "Execute code in a sandboxed subprocess and return stdout/stderr. "
+                        "Supported languages: python, javascript, bash."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "language": {
+                                "type": "string",
+                                "description": "python, javascript, or bash",
+                            },
+                            "code": {"type": "string", "description": "The code to execute"},
+                        },
+                        "required": ["language", "code"],
                     },
-                    "required": ["language", "code"],
                 },
-            },
-        })
+            }
+        )
     if _oai_tools:
         tools_param = _oai_tools
 
@@ -637,16 +656,20 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False, code_
             events, result_text = _run_tool(tc["name"], args)
             for event in events:
                 yield event
-            assistant_tool_calls.append({
-                "id": tc["id"],
-                "type": "function",
-                "function": {"name": tc["name"], "arguments": tc["arguments"]},
-            })
-            result_messages.append({
-                "role": "tool",
-                "tool_call_id": tc["id"],
-                "content": result_text,
-            })
+            assistant_tool_calls.append(
+                {
+                    "id": tc["id"],
+                    "type": "function",
+                    "function": {"name": tc["name"], "arguments": tc["arguments"]},
+                }
+            )
+            result_messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc["id"],
+                    "content": result_text,
+                }
+            )
 
         current_messages = current_messages + [
             {"role": "assistant", "content": None, "tool_calls": assistant_tool_calls},
@@ -680,7 +703,9 @@ def _anthropic_client(cfg: dict):
     return anthropic.Anthropic(api_key=key)
 
 
-def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False, code_interpreter=False):
+def _stream_anthropic(
+    messages, system_prompt, cfg, web_search_enabled=False, code_interpreter=False
+):
     client = _anthropic_client(cfg)
     reasoning = cfg.get("reasoning", False)
     model = cfg["model"]
@@ -733,22 +758,27 @@ def _stream_anthropic(messages, system_prompt, cfg, web_search_enabled=False, co
             },
         ]
     if code_interpreter:
-        _ant_tools.append({
-            "name": "execute_code",
-            "description": (
-                "Execute code in an isolated Docker container and return stdout/stderr. "
-                "Supported languages: python, javascript, typescript, bash, c, cpp, java, go. "
-                "Java: class must be named Main."
-            ),
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "language": {"type": "string", "description": "python, javascript, or bash"},
-                    "code": {"type": "string", "description": "The code to execute"},
+        _ant_tools.append(
+            {
+                "name": "execute_code",
+                "description": (
+                    "Execute code in an isolated Docker container and return stdout/stderr. "
+                    "Supported languages: python, javascript, typescript, bash, c, cpp, java, go. "
+                    "Java: class must be named Main."
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "language": {
+                            "type": "string",
+                            "description": "python, javascript, or bash",
+                        },
+                        "code": {"type": "string", "description": "The code to execute"},
+                    },
+                    "required": ["language", "code"],
                 },
-                "required": ["language", "code"],
-            },
-        })
+            }
+        )
     if _ant_tools:
         kwargs["tools"] = _ant_tools
 

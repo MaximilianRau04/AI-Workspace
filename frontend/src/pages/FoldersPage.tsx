@@ -505,14 +505,25 @@ export default function FoldersPage() {
           {/* Content: two columns */}
           <div className="flex-1 overflow-y-auto p-6">
             <div className="max-w-[1100px] mx-auto flex flex-row gap-6 items-start">
-
               {/* Chats — left, grows to fill */}
               <div className="flex-1 min-w-0 border border-border rounded-[0.85rem] overflow-hidden">
                 <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-bg-muted">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-txt-dim">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-txt-dim"
+                  >
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
-                  <span className="text-[0.85rem] font-semibold text-txt-primary">Chats</span>
+                  <span className="text-[0.85rem] font-semibold text-txt-primary">
+                    Chats
+                  </span>
                 </div>
                 {folderSessions.length === 0 ? (
                   <div className="px-5 py-6 text-[0.85rem] text-txt-dim text-center">
@@ -538,17 +549,41 @@ export default function FoldersPage() {
               <div className="w-[300px] flex-shrink-0 border border-border rounded-[0.85rem] overflow-hidden">
                 <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-bg-muted">
                   <div className="flex items-center gap-2">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-txt-dim flex-shrink-0">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-txt-dim flex-shrink-0"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
                     </svg>
-                    <span className="text-[0.85rem] font-semibold text-txt-primary">Knowledge base</span>
+                    <span className="text-[0.85rem] font-semibold text-txt-primary">
+                      Knowledge base
+                    </span>
                   </div>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={docsLoading}
                     className="flex items-center gap-[0.4rem] bg-accent hover:bg-accent/90 disabled:opacity-40 text-white rounded-[0.5rem] px-3 py-[0.35rem] text-[0.8rem] font-medium cursor-pointer transition-colors border-none"
                   >
-                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
                     Add file
                   </button>
                   <input
@@ -566,7 +601,9 @@ export default function FoldersPage() {
                         await uploadFolderDoc(folderId, f);
                         await loadFolderDocs(folderId);
                       } catch (err) {
-                        setDocsError(err instanceof Error ? err.message : "Upload failed");
+                        setDocsError(
+                          err instanceof Error ? err.message : "Upload failed",
+                        );
                       } finally {
                         setDocsLoading(false);
                       }
@@ -574,36 +611,83 @@ export default function FoldersPage() {
                   />
                 </div>
                 {docsError && (
-                  <div className="px-5 py-2 text-[0.8rem] text-red-400 bg-red-900/10 border-b border-border">{docsError}</div>
+                  <div className="px-5 py-2 text-[0.8rem] text-red-400 bg-red-900/10 border-b border-border">
+                    {docsError}
+                  </div>
                 )}
                 {folderDocs.length === 0 ? (
                   <div className="px-5 py-8 flex flex-col items-center gap-2 text-txt-dim">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="opacity-30">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="28"
+                      height="28"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="opacity-30"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
                     </svg>
-                    <span className="text-[0.8rem] text-center leading-relaxed">No files yet.<br/>.txt, .md or .pdf</span>
+                    <span className="text-[0.8rem] text-center leading-relaxed">
+                      No files yet.
+                      <br />
+                      .txt, .md or .pdf
+                    </span>
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
                     {folderDocs.map((filename) => (
-                      <div key={filename} className="flex items-center justify-between px-5 py-3 hover:bg-bg-hover transition-colors group">
+                      <div
+                        key={filename}
+                        className="flex items-center justify-between px-5 py-3 hover:bg-bg-hover transition-colors group"
+                      >
                         <div className="flex items-center gap-2 min-w-0">
-                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-txt-dim flex-shrink-0">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="13"
+                            height="13"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-txt-dim flex-shrink-0"
+                          >
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
                           </svg>
-                          <span className="text-[0.85rem] text-txt-primary truncate">{filename}</span>
+                          <span className="text-[0.85rem] text-txt-primary truncate">
+                            {filename}
+                          </span>
                         </div>
                         <button
                           onClick={async () => {
                             if (!folderId) return;
                             await deleteFolderDoc(folderId, filename);
-                            setFolderDocs((prev) => prev.filter((f) => f !== filename));
+                            setFolderDocs((prev) =>
+                              prev.filter((f) => f !== filename),
+                            );
                           }}
                           className="opacity-0 group-hover:opacity-100 bg-transparent border-none text-txt-dim hover:text-red-400 cursor-pointer p-1 rounded transition-all"
                           title="Remove"
                         >
-                          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          <svg
+                            viewBox="0 0 24 24"
+                            width="13"
+                            height="13"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                           </svg>
                         </button>
                       </div>
@@ -611,7 +695,6 @@ export default function FoldersPage() {
                   </div>
                 )}
               </div>
-
             </div>
           </div>
         </div>

@@ -142,7 +142,9 @@ def retrieve(query: str, user_id: str, k: int = TOP_K, filename: str | None = No
 def _delete_folder_chunks(user_id: str, folder_id: str, filename: str) -> None:
     if _folder_chroma is None:
         return
-    existing = _folder_chroma.get(where=_where_folder_file(user_id, folder_id, filename), include=[])
+    existing = _folder_chroma.get(
+        where=_where_folder_file(user_id, folder_id, filename), include=[]
+    )
     if existing["ids"]:
         _folder_chroma.delete(where=_where_folder_file(user_id, folder_id, filename))
 

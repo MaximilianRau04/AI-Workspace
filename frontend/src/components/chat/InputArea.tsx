@@ -293,7 +293,9 @@ export default function InputArea({
           {/* Code interpreter */}
           <ToolBtn
             onClick={onToggleCodeInterpreter}
-            title={codeInterpreter ? "Code interpreter on" : "Code interpreter off"}
+            title={
+              codeInterpreter ? "Code interpreter on" : "Code interpreter off"
+            }
             active={codeInterpreter}
           >
             <TerminalIcon />

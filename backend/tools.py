@@ -72,14 +72,14 @@ EXECUTE_CODE_TOOL_DESCRIPTION = (
 # Code is always passed via stdin so there are no shell-escaping issues.
 _DOCKER_LANGS: dict[str, tuple[str, list[str]]] = {
     # Interpreters — read code from stdin
-    "python":     ("python:3.12-slim",            ["python3", "-"]),
-    "python3":    ("python:3.12-slim",            ["python3", "-"]),
-    "javascript": ("node:20-alpine",              ["node"]),
-    "js":         ("node:20-alpine",              ["node"]),
-    "typescript": ("denoland/deno:alpine",        ["deno", "run", "-"]),
-    "ts":         ("denoland/deno:alpine",        ["deno", "run", "-"]),
-    "bash":       ("alpine:latest",              ["sh"]),
-    "sh":         ("alpine:latest",              ["sh"]),
+    "python": ("python:3.12-slim", ["python3", "-"]),
+    "python3": ("python:3.12-slim", ["python3", "-"]),
+    "javascript": ("node:20-alpine", ["node"]),
+    "js": ("node:20-alpine", ["node"]),
+    "typescript": ("denoland/deno:alpine", ["deno", "run", "-"]),
+    "ts": ("denoland/deno:alpine", ["deno", "run", "-"]),
+    "bash": ("alpine:latest", ["sh"]),
+    "sh": ("alpine:latest", ["sh"]),
     # Compile languages — stdin is written to a file, then compiled and run
     "c": (
         "gcc:latest",
@@ -120,7 +120,10 @@ def execute_code(code: str, language: str) -> dict:
     try:
         result = subprocess.run(
             [
-                "docker", "run", "--rm", "--interactive",
+                "docker",
+                "run",
+                "--rm",
+                "--interactive",
                 "--network=none",
                 "--memory=256m",
                 "--cpus=0.5",

@@ -22,6 +22,7 @@ class DeleteDocBody(BaseModel):
 def _now_iso() -> str:
     return datetime.utcnow().isoformat()
 
+
 router = APIRouter(tags=["folders"])
 
 
@@ -81,7 +82,11 @@ async def delete_folder(folder_id: str, current_user: dict = Depends(login_requi
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
         # Remove all folder docs from ChromaDB
-        for doc in db.query(Document).filter(Document.user_id == user_id, Document.folder_id == folder_id).all():
+        for doc in (
+            db.query(Document)
+            .filter(Document.user_id == user_id, Document.folder_id == folder_id)
+            .all()
+        ):
             rag.delete_folder_file(doc.filename, user_id, folder_id)
             db.delete(doc)
         db.query(ChatSession).filter(ChatSession.folder_id == folder_id).update({"folder_id": None})
@@ -101,7 +106,11 @@ async def list_folder_docs(folder_id: str, current_user: dict = Depends(login_re
         folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == user_id).first()
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
-        docs = db.query(Document).filter(Document.user_id == user_id, Document.folder_id == folder_id).all()
+        docs = (
+            db.query(Document)
+            .filter(Document.user_id == user_id, Document.folder_id == folder_id)
+            .all()
+        )
         return {"files": [d.filename for d in docs]}
 
 
@@ -120,9 +129,11 @@ async def upload_folder_doc(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file")
     filename = secure_filename(file.filename)
-    ext = filename[filename.rfind("."):].lower() if "." in filename else ""
+    ext = filename[filename.rfind(".") :].lower() if "." in filename else ""
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"Unsupported type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}")
+        raise HTTPException(
+            status_code=400, detail=f"Unsupported type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
 
     content_bytes = await file.read()
     text = rag.extract_text(content_bytes, filename)
@@ -130,22 +141,28 @@ async def upload_folder_doc(
         raise HTTPException(status_code=400, detail="Could not extract text from file")
 
     with get_session() as db:
-        existing = db.query(Document).filter(
-            Document.user_id == user_id,
-            Document.folder_id == folder_id,
-            Document.filename == filename,
-        ).first()
+        existing = (
+            db.query(Document)
+            .filter(
+                Document.user_id == user_id,
+                Document.folder_id == folder_id,
+                Document.filename == filename,
+            )
+            .first()
+        )
         if existing:
             existing.content = text
             existing.created_at = _now_iso()
         else:
-            db.add(Document(
-                user_id=user_id,
-                filename=filename,
-                content=text,
-                created_at=_now_iso(),
-                folder_id=folder_id,
-            ))
+            db.add(
+                Document(
+                    user_id=user_id,
+                    filename=filename,
+                    content=text,
+                    created_at=_now_iso(),
+                    folder_id=folder_id,
+                )
+            )
 
     chunks = rag.index_folder_file(filename, user_id, folder_id, text)
     return {"file": filename, "chunks": chunks}
@@ -165,11 +182,15 @@ async def delete_folder_doc(
         folder = db.query(Folder).filter(Folder.id == folder_id, Folder.user_id == user_id).first()
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
-        doc = db.query(Document).filter(
-            Document.user_id == user_id,
-            Document.folder_id == folder_id,
-            Document.filename == body.file,
-        ).first()
+        doc = (
+            db.query(Document)
+            .filter(
+                Document.user_id == user_id,
+                Document.folder_id == folder_id,
+                Document.filename == body.file,
+            )
+            .first()
+        )
         if doc:
             db.delete(doc)
 

@@ -227,10 +227,14 @@ function CodeResultBlock({ result }: CodeResultBlockProps) {
       </summary>
       <div className="px-3 py-2 bg-bg-base text-[0.82rem] font-mono leading-[1.5] overflow-x-auto">
         {result.stdout && (
-          <pre className="whitespace-pre-wrap break-words text-txt-primary m-0">{result.stdout}</pre>
+          <pre className="whitespace-pre-wrap break-words text-txt-primary m-0">
+            {result.stdout}
+          </pre>
         )}
         {result.stderr && (
-          <pre className="whitespace-pre-wrap break-words text-[#e74c3c] m-0 mt-1">{result.stderr}</pre>
+          <pre className="whitespace-pre-wrap break-words text-[#e74c3c] m-0 mt-1">
+            {result.stderr}
+          </pre>
         )}
         {!result.stdout && !result.stderr && (
           <span className="text-txt-dim italic">(no output)</span>
