@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      # Docker socket — required for code interpreter sandboxing
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persistent data
+      - ./chatbot.db:/app/chatbot.db
+      - ./chroma_db:/app/chroma_db
+      - ./model_config.json:/app/model_config.json
+      - ./system_prompt.txt:/app/system_prompt.txt
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+    restart: unless-stopped

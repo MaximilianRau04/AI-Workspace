@@ -1,12 +1,48 @@
-A self-hosted chat interface supporting multiple LLM providers (Gemini, OpenAI, Anthropic, Ollama) with streaming responses, reasoning/thinking blocks, voice input & output, document upload, and per-user chat history.
+A self-hosted chat interface supporting multiple LLM providers (Gemini, OpenAI, Anthropic, Ollama) with streaming responses, reasoning/thinking blocks, voice input & output, document upload, code interpreter, and per-user chat history.
 
-## Requirements
+## Running with Docker (recommended)
 
-- Python 3.10+
-- Node.js 18+
-- At least one LLM provider (see below)
+**Requirements:** Docker + Docker Compose
 
-## Setup
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/your-username/ChatBot.git
+cd ChatBot
+```
+
+**2. Create a `.env` file** in the project root
+
+```env
+SECRET_KEY=your_random_secret_key_here
+
+# Add the key for whichever provider(s) you want to use:
+GEMINI_API_KEY=your_gemini_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
+
+Generate a secure `SECRET_KEY`:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+**3. Start**
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:5000`. Data (database, config, uploads) is stored in the project root and persists across container restarts.
+
+> **Note:** The code interpreter runs user code in isolated Docker containers with no network access. Docker must be running on the host for this feature to work.
+
+---
+
+## Running without Docker
+
+**Requirements:** Python 3.10+, Node.js 18+
 
 **1. Clone the repository**
 
@@ -24,42 +60,20 @@ source venv/bin/activate   # Linux / macOS
 venv\Scripts\activate      # Windows
 ```
 
-**3. Install Python dependencies**
+**3. Install dependencies**
 
 ```bash
 pip install -r requirements.txt
-```
-
-**4. Install frontend dependencies**
-
-```bash
 cd ../frontend && npm install
 ```
 
-**5. Create a `.env` file** (in the project root)
-
-```
-SECRET_KEY=your_random_secret_key_here
-
-# Add the key for whichever provider(s) you want to use:
-GEMINI_API_KEY=your_gemini_api_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-```
-
-Generate a secure `SECRET_KEY`:
-
-```bash
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
+**4. Create a `.env` file** in the project root (same format as above)
 
 API keys can also be entered directly in the in-app settings instead of the `.env` file.
 
-## Usage
+### Development
 
-### Development (recommended)
-
-Run the backend and the Vite dev server in two separate terminals:
+Run backend and Vite dev server in two separate terminals:
 
 ```bash
 # Terminal 1 – API server
@@ -69,12 +83,10 @@ cd backend && venv/bin/uvicorn app:app --host 0.0.0.0 --port 5000 --reload
 cd frontend && npm run dev
 ```
 
-Open `http://localhost:5173`. The Vite dev server proxies all API calls to the backend on port 5000 and provides hot module replacement — CSS and JS changes apply instantly without a page reload.
-
-To format the frontend source files:
+Open `http://localhost:5173`. The Vite dev server proxies API calls to port 5000 and provides hot module replacement.
 
 ```bash
-cd frontend && npm run format
+cd frontend && npm run format   # auto-format source files
 ```
 
 ### Production
@@ -84,7 +96,7 @@ cd frontend && npm run build
 cd ../backend && venv/bin/uvicorn app:app --host 0.0.0.0 --port 5000
 ```
 
-`npm run build` bundles everything into `dist/`. The backend automatically detects the `dist/` folder and serves the optimised files instead of the raw `frontend/` sources. Open `http://localhost:5000`.
+`npm run build` bundles everything into `dist/`. The backend detects `dist/` and serves it automatically. Open `http://localhost:5000`.
 
 ## Supported Providers
 
@@ -119,6 +131,7 @@ The active provider and model are configured via the ⚙️ Settings button → 
 - **Persistent chat sessions** with sidebar for switching between conversations
 - **Auto-summarization** - old messages are summarized automatically to keep context efficient
 - **Syntax highlighting** - code blocks highlighted via highlight.js
+- **Code interpreter** - AI can execute Python, JavaScript, and Bash in isolated Docker containers (no network, read-only filesystem, memory/CPU limits)
 - **Voice input** - microphone button (Chrome / Edge only)
 - **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)

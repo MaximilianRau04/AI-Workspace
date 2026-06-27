@@ -1,0 +1,13 @@
+backend/venv/
+frontend/node_modules/
+dist/
+chroma_db/
+*.db
+*.db-shm
+*.db-wal
+.env
+.git/
+.claude/
+__pycache__/
+*.pyc
+*.pyo

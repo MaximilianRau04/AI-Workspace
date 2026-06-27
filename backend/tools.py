@@ -1,4 +1,3 @@
-import resource
 import subprocess
 import urllib.error
 import urllib.request
@@ -69,39 +68,43 @@ EXECUTE_CODE_TOOL_DESCRIPTION = (
 )
 
 
+_DOCKER_IMAGES: dict[str, tuple[str, list[str]]] = {
+    "python":     ("python:3.12-slim", ["python3", "-c"]),
+    "python3":    ("python:3.12-slim", ["python3", "-c"]),
+    "javascript": ("node:20-alpine",   ["node",    "-e"]),
+    "js":         ("node:20-alpine",   ["node",    "-e"]),
+    "bash":       ("alpine:latest",    ["sh",      "-c"]),
+    "sh":         ("alpine:latest",    ["sh",      "-c"]),
+}
+
+
 def execute_code(code: str, language: str) -> dict:
     lang = language.lower().strip()
-    runners: dict[str, list[str]] = {
-        "python":     ["python3", "-c", code],
-        "python3":    ["python3", "-c", code],
-        "javascript": ["node", "-e", code],
-        "js":         ["node", "-e", code],
-        "bash":       ["bash", "-c", code],
-        "sh":         ["bash", "-c", code],
-    }
-    cmd = runners.get(lang)
-    if cmd is None:
+    entry = _DOCKER_IMAGES.get(lang)
+    if entry is None:
         return {
             "stdout": "",
             "stderr": f"Unsupported language: {language!r}. Use python, javascript, or bash.",
             "exit_code": 1,
         }
 
-    def _set_limits():
-        try:
-            resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
-            resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
-            resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
-        except Exception:
-            pass
-
+    image, cmd_prefix = entry
     try:
         result = subprocess.run(
-            cmd,
+            [
+                "docker", "run", "--rm",
+                "--network=none",
+                "--memory=256m",
+                "--cpus=0.5",
+                "--read-only",
+                "--tmpfs=/tmp:size=64m,mode=1777",
+                image,
+                *cmd_prefix,
+                code,
+            ],
             capture_output=True,
             text=True,
-            timeout=15,
-            preexec_fn=_set_limits,
+            timeout=20,
         )
         return {
             "stdout": result.stdout[:4000],
@@ -109,9 +112,13 @@ def execute_code(code: str, language: str) -> dict:
             "exit_code": result.returncode,
         }
     except subprocess.TimeoutExpired:
-        return {"stdout": "", "stderr": "Execution timed out (15s limit).", "exit_code": 124}
-    except FileNotFoundError as exc:
-        return {"stdout": "", "stderr": f"Runtime not found: {exc}", "exit_code": 127}
+        return {"stdout": "", "stderr": "Execution timed out (20s limit).", "exit_code": 124}
+    except FileNotFoundError:
+        return {
+            "stdout": "",
+            "stderr": "Docker not found. Make sure Docker is installed and running.",
+            "exit_code": 127,
+        }
     except Exception as exc:
         return {"stdout": "", "stderr": f"Execution error: {exc}", "exit_code": 1}
 
