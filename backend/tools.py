@@ -63,7 +63,7 @@ def fetch_url(url: str, max_chars: int = 6000) -> str:
 EXECUTE_CODE_TOOL_NAME = "execute_code"
 EXECUTE_CODE_TOOL_DESCRIPTION = (
     "Execute code in an isolated Docker container and return stdout/stderr. "
-    "Supported languages: python, javascript, typescript, bash, c, cpp, java, go. "
+    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go. "
     "Java: the public class must be named Main. "
     "Use when asked to run, compute, or test something in code."
 )
@@ -78,8 +78,16 @@ _DOCKER_LANGS: dict[str, tuple[str, list[str]]] = {
     "js": ("node:20-alpine", ["node"]),
     "typescript": ("denoland/deno:alpine", ["deno", "run", "-"]),
     "ts": ("denoland/deno:alpine", ["deno", "run", "-"]),
-    "bash": ("alpine:latest", ["sh"]),
-    "sh": ("alpine:latest", ["sh"]),
+    "bash":    ("alpine:latest",            ["sh"]),
+    "sh":      ("alpine:latest",            ["sh"]),
+    "ruby":    ("ruby:3-alpine",            ["ruby"]),
+    "rb":      ("ruby:3-alpine",            ["ruby"]),
+    "php":     ("php:8-cli-alpine",         ["php"]),
+    "perl":    ("perl:5-slim",              ["perl"]),
+    "pl":      ("perl:5-slim",              ["perl"]),
+    "elixir":  ("elixir:1.17-alpine",      ["elixir", "-"]),
+    "ex":      ("elixir:1.17-alpine",      ["elixir", "-"]),
+    "lua":     ("nickblah/lua:5.4-alpine",  ["lua", "-"]),
     # Compile languages — stdin is written to a file, then compiled and run
     "c": (
         "gcc:latest",
@@ -103,7 +111,7 @@ _DOCKER_LANGS: dict[str, tuple[str, list[str]]] = {
     ),
 }
 
-_SUPPORTED_LANGS = "python, javascript, typescript, bash, c, cpp, java, go"
+_SUPPORTED_LANGS = "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go"
 
 
 def execute_code(code: str, language: str) -> dict:

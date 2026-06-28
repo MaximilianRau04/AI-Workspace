@@ -133,7 +133,7 @@ The active provider and model are configured via the ⚙️ Settings button → 
 - **Syntax highlighting** - code blocks highlighted via highlight.js
 - **Agentic ReAct loop** - the model autonomously decides when and how often to call tools; it can chain multiple tool calls in a single turn (e.g. search → read page → run code → answer) up to a configurable step limit (`MAX_AGENT_STEPS`)
 - **Web search** - enable via the 🔍 button; the agent searches via DuckDuckGo and fetches URLs as needed - you control access, the model decides usage
-- **Code interpreter** - enable via the `</>` button; the agent can write and execute code in isolated Docker containers (no network, memory/CPU limits); supported languages: Python, JavaScript, TypeScript (Deno), Bash, C, C++, Java, Go - Java class must be named `Main`
+- **Code interpreter** - enable via the `</>` button; the agent can write and execute code in isolated Docker containers (no network, memory/CPU limits); supported languages: Python, JavaScript, TypeScript (Deno), Bash, Ruby, PHP, Perl, Elixir, Lua, C, C++, Java, Go - Java class must be named `Main`
 - **Voice input** - microphone button (Chrome / Edge only)
 - **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)

@@ -53,7 +53,7 @@ def _build_tool_addendum(web_search: bool, code_interpreter: bool) -> str:
         )
     if code_interpreter:
         lines.append(
-            '- execute_code: Execute code. Args: {"language": "python|javascript|typescript|bash|c|cpp|java|go", "code": "your code"}'
+            '- execute_code: Execute code. Args: {"language": "python|javascript|typescript|bash|ruby|php|perl|elixir|lua|c|cpp|java|go", "code": "your code"}'
         )
     lines.append("\nOnly use a tool when needed. Otherwise answer normally.")
     return "\n".join(lines)
@@ -316,7 +316,7 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False, code_
                 name="execute_code",
                 description=(
                     "Execute code in an isolated Docker container and return stdout/stderr. "
-                    "Supported languages: python, javascript, typescript, bash, c, cpp, java, go. "
+                    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go. "
                     "Java: class must be named Main."
                 ),
                 parameters=genai.protos.Schema(
@@ -585,7 +585,7 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False, code_
                     "name": "execute_code",
                     "description": (
                         "Execute code in a sandboxed subprocess and return stdout/stderr. "
-                        "Supported languages: python, javascript, bash."
+                        "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go."
                     ),
                     "parameters": {
                         "type": "object",
@@ -763,7 +763,7 @@ def _stream_anthropic(
                 "name": "execute_code",
                 "description": (
                     "Execute code in an isolated Docker container and return stdout/stderr. "
-                    "Supported languages: python, javascript, typescript, bash, c, cpp, java, go. "
+                    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go. "
                     "Java: class must be named Main."
                 ),
                 "input_schema": {
