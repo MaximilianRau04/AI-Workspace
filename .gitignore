@@ -1,6 +1,7 @@
 .env
 .claude/
 model_config.json
+mcp_servers.json
 venv/
 __pycache__/
 chatbot.db

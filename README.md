@@ -134,6 +134,7 @@ The active provider and model are configured via the ⚙️ Settings button → 
 - **Agentic ReAct loop** - the model autonomously decides when and how often to call tools; it can chain multiple tool calls in a single turn (e.g. search → read page → run code → answer) up to a configurable step limit (`MAX_AGENT_STEPS`)
 - **Web search** - enable via the 🔍 button; the agent searches via DuckDuckGo and fetches URLs as needed - you control access, the model decides usage
 - **Code interpreter** - enable via the `</>` button; the agent can write and execute code in isolated Docker containers (no network, memory/CPU limits); supported languages: Python, JavaScript, TypeScript (Deno), Bash, Ruby, PHP, Perl, Elixir, Lua, C, C++, Java, Go, Rust, C# (Mono) - Java class must be named `Main`
+- **MCP servers** - enable via the 🔌 button; connect any [MCP](https://modelcontextprotocol.io) server (folder access, GitHub, email, calendar, …) as tools for the agent, see [MCP Servers](#mcp-servers) below
 - **Voice input** - microphone button (Chrome / Edge only)
 - **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
@@ -153,6 +154,8 @@ ChatBot/
 │   ├── llm.py              # Provider abstraction (Gemini / OpenAI / Anthropic)
 │   ├── rag.py              # Document indexing & retrieval (Gemini embeddings)
 │   ├── state.py            # Per-user in-memory chat state
+│   ├── mcp_store.py        # MCP server config storage (mcp_servers.json)
+│   ├── mcp_manager.py      # MCP client: background event loop, connects to configured servers
 │   ├── utils.py            # Shared helpers (login_required dependency)
 │   ├── requirements.txt    # Python dependencies
 │   ├── venv/               # Virtual environment (not tracked by git)
@@ -161,6 +164,7 @@ ChatBot/
 │       ├── chat.py         # /chat (streaming SSE)
 │       ├── config.py       # /config  /config/model  /config/ollama-models
 │       ├── docs.py         # /docs  /docs/upload  /docs/delete
+│       ├── mcp.py          # /mcp/servers - add/edit/delete/list MCP servers
 │       ├── sessions.py     # /sessions  /sessions/new  /sessions/<id>
 │       └── voice.py        # /tts  /stt
 ├── frontend/
@@ -218,10 +222,32 @@ The toggle buttons in the input bar control **which tools the model has access t
 
 The intermediate steps (searches, code executions) are streamed to the frontend in real time so you can follow what the agent is doing.
 
+## MCP Servers
+
+The ⚙️ Settings → **MCP Servers** tab lets you connect any [Model Context Protocol](https://modelcontextprotocol.io) server to give the agent new tools - folder access, GitHub, email, calendar, and anything else with an MCP server. Servers run locally as subprocesses (via `npx` or `uvx`) and stay connected for the lifetime of the backend process; discovered tools show up automatically once the 🔌 button is enabled in a chat.
+
+**Requirements:** Node.js/npm (for `npx`-based servers, already included in the Docker image) and/or [`uv`](https://github.com/astral-sh/uv) (installed as a Python dependency, provides `uvx`).
+
+**Example: folder access** - add a server with:
+- Command: `npx`
+- Args: `-y @modelcontextprotocol/server-filesystem /path/to/folder`
+
+Any folder passed as an arg becomes readable/writable by the agent. When running via Docker, make sure that folder is also mounted into the container (see `docker-compose.yml`).
+
+**Example: GitHub** - add a server with:
+- Command: `npx`
+- Args: `-y @modelcontextprotocol/server-github`
+- Env: `GITHUB_PERSONAL_ACCESS_TOKEN=<your token>`
+
+Servers with secrets (tokens, API keys) should pass them via the **Env** field rather than baking them into args - they're stored in `mcp_servers.json` (not tracked by git, same as `model_config.json`).
+
+Email and calendar servers (Gmail, Google Calendar, etc.) typically need an OAuth setup of their own; check the specific server's documentation for how to obtain and pass credentials, then add it the same way.
+
 ## Security
 
 - Passwords are hashed with `werkzeug.security` (scrypt + salt) - never stored in plain text.
 - The session cookie is signed with `SECRET_KEY` via Starlette's `SessionMiddleware`; use a long random value in production.
 - API keys and `SECRET_KEY` live in `.env` and are excluded from version control.
 - Model config (including any API key entered via the UI) is stored in `model_config.json`, which is also excluded from version control.
+- MCP server config (including any tokens entered in the Env field) is stored in `mcp_servers.json`, also excluded from version control. MCP servers run as local subprocesses with full access to whatever the server implementation exposes - only add servers you trust.
 - `chatbot.db` contains user data and chat history - never commit it to version control.

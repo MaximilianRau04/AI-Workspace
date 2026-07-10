@@ -10,6 +10,7 @@ services:
       - ./chatbot.db:/app/chatbot.db
       - ./chroma_db:/app/chroma_db
       - ./model_config.json:/app/model_config.json
+      - ./mcp_servers.json:/app/mcp_servers.json
       - ./system_prompt.txt:/app/system_prompt.txt
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}

@@ -24,6 +24,10 @@ chromadb
 # Web search
 duckduckgo-search
 
+# MCP (Model Context Protocol) client
+mcp
+uv
+
 # Voice
 edge-tts
 SpeechRecognition
