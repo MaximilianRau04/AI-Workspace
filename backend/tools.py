@@ -63,8 +63,8 @@ def fetch_url(url: str, max_chars: int = 6000) -> str:
 EXECUTE_CODE_TOOL_NAME = "execute_code"
 EXECUTE_CODE_TOOL_DESCRIPTION = (
     "Execute code in an isolated Docker container and return stdout/stderr. "
-    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go. "
-    "Java: the public class must be named Main. "
+    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp. "
+    "Java: the public class must be named Main. C#: uses Mono (class-based programs). "
     "Use when asked to run, compute, or test something in code."
 )
 
@@ -109,10 +109,26 @@ _DOCKER_LANGS: dict[str, tuple[str, list[str]]] = {
         "golang:1.22-alpine",
         ["sh", "-c", "cat>/tmp/main.go && GOCACHE=/tmp/goc GOPATH=/tmp/gop go run /tmp/main.go"],
     ),
+    "rust": (
+        "rust:alpine",
+        ["sh", "-c", "cat>/tmp/main.rs && rustc /tmp/main.rs -o /tmp/main && /tmp/main"],
+    ),
+    "rs": (
+        "rust:alpine",
+        ["sh", "-c", "cat>/tmp/main.rs && rustc /tmp/main.rs -o /tmp/main && /tmp/main"],
+    ),
+    "csharp": (
+        "mono:latest",
+        ["sh", "-c", "cat>/tmp/Program.cs && mcs /tmp/Program.cs -out:/tmp/Program.exe && mono /tmp/Program.exe"],
+    ),
+    "cs": (
+        "mono:latest",
+        ["sh", "-c", "cat>/tmp/Program.cs && mcs /tmp/Program.cs -out:/tmp/Program.exe && mono /tmp/Program.exe"],
+    ),
 }
 
 _SUPPORTED_LANGS = (
-    "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go"
+    "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp"
 )
 
 

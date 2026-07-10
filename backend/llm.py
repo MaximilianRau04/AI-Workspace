@@ -53,7 +53,7 @@ def _build_tool_addendum(web_search: bool, code_interpreter: bool) -> str:
         )
     if code_interpreter:
         lines.append(
-            '- execute_code: Execute code. Args: {"language": "python|javascript|typescript|bash|ruby|php|perl|elixir|lua|c|cpp|java|go", "code": "your code"}'
+            '- execute_code: Execute code. Args: {"language": "python|javascript|typescript|bash|ruby|php|perl|elixir|lua|c|cpp|java|go|rust|csharp", "code": "your code"}'
         )
     lines.append("\nOnly use a tool when needed. Otherwise answer normally.")
     return "\n".join(lines)
@@ -316,15 +316,15 @@ def _stream_gemini(messages, system_prompt, cfg, web_search_enabled=False, code_
                 name="execute_code",
                 description=(
                     "Execute code in an isolated Docker container and return stdout/stderr. "
-                    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go. "
-                    "Java: class must be named Main."
+                    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp. "
+                    "Java: class must be named Main. C#: uses Mono (class-based programs)."
                 ),
                 parameters=genai.protos.Schema(
                     type=genai.protos.Type.OBJECT,
                     properties={
                         "language": genai.protos.Schema(
                             type=genai.protos.Type.STRING,
-                            description="python, javascript, or bash",
+                            description="python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp",
                         ),
                         "code": genai.protos.Schema(
                             type=genai.protos.Type.STRING,
@@ -585,14 +585,14 @@ def _stream_openai(messages, system_prompt, cfg, web_search_enabled=False, code_
                     "name": "execute_code",
                     "description": (
                         "Execute code in a sandboxed subprocess and return stdout/stderr. "
-                        "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go."
+                        "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp."
                     ),
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "language": {
                                 "type": "string",
-                                "description": "python, javascript, or bash",
+                                "description": "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp",
                             },
                             "code": {"type": "string", "description": "The code to execute"},
                         },
@@ -763,15 +763,15 @@ def _stream_anthropic(
                 "name": "execute_code",
                 "description": (
                     "Execute code in an isolated Docker container and return stdout/stderr. "
-                    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go. "
-                    "Java: class must be named Main."
+                    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp. "
+                    "Java: class must be named Main. C#: uses Mono (class-based programs)."
                 ),
                 "input_schema": {
                     "type": "object",
                     "properties": {
                         "language": {
                             "type": "string",
-                            "description": "python, javascript, or bash",
+                            "description": "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp",
                         },
                         "code": {"type": "string", "description": "The code to execute"},
                     },

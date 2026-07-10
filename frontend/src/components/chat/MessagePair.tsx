@@ -211,6 +211,10 @@ const LANG_LABELS: Record<string, string> = {
   "c++": "C++",
   java: "Java",
   go: "Go",
+  rust: "Rust",
+  rs: "Rust",
+  csharp: "C#",
+  cs: "C#",
 };
 
 function CodeResultBlock({ result }: CodeResultBlockProps) {
