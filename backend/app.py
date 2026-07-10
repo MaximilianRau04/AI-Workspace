@@ -8,8 +8,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 import db
+import mcp_store
 import rag
-from routes import auth, chat, config, docs, folders, voice
+from mcp_manager import manager as mcp_manager
+from routes import auth, chat, config, docs, folders, mcp, voice
 
 load_dotenv()
 
@@ -27,7 +29,9 @@ async def lifespan(app: FastAPI):
     _gemini_key = os.getenv("GEMINI_API_KEY")
     if _gemini_key:
         rag.init(_gemini_key)
+    mcp_manager.connect_all(mcp_store.load_mcp_servers())
     yield
+    mcp_manager.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -40,6 +44,7 @@ app.include_router(chat.router)
 app.include_router(config.router)
 app.include_router(docs.router)
 app.include_router(folders.router)
+app.include_router(mcp.router)
 app.include_router(voice.router)
 
 
