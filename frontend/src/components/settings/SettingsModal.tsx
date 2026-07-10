@@ -9,8 +9,14 @@ import {
   clearMemory,
   getOllamaModels,
 } from "../../api/config";
+import {
+  getMcpServers,
+  addMcpServer,
+  updateMcpServer,
+  deleteMcpServer,
+} from "../../api/mcp";
 import { useApp } from "../../context/AppContext";
-import type { Preset } from "../../types";
+import type { Preset, McpServer } from "../../types";
 
 const MODEL_LISTS: Record<string, string[]> = {
   gemini: [
@@ -90,9 +96,62 @@ export default function SettingsModal({
   const [saving, setSaving] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [mcpLoaded, setMcpLoaded] = useState(false);
+  const [newMcpName, setNewMcpName] = useState("");
+  const [newMcpCommand, setNewMcpCommand] = useState("npx");
+  const [newMcpArgs, setNewMcpArgs] = useState("");
+  const [newMcpEnv, setNewMcpEnv] = useState("");
+  const [mcpSaving, setMcpSaving] = useState(false);
+
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
+
+  function reloadMcpServers(): void {
+    getMcpServers().then((data) => {
+      setMcpServers(data.servers || []);
+      setMcpLoaded(true);
+    });
+  }
+
+  useEffect(() => {
+    if (tab === "mcp" && !mcpLoaded) reloadMcpServers();
+  }, [tab, mcpLoaded]);
+
+  async function handleAddMcpServer(): Promise<void> {
+    const name = newMcpName.trim();
+    const command = newMcpCommand.trim();
+    if (!name || !command) return;
+    setMcpSaving(true);
+    const args = newMcpArgs.trim() ? newMcpArgs.trim().split(/\s+/) : [];
+    const env: Record<string, string> = {};
+    for (const line of newMcpEnv.split("\n")) {
+      const idx = line.indexOf("=");
+      if (idx > 0) {
+        const key = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (key) env[key] = value;
+      }
+    }
+    await addMcpServer({ name, command, args, env });
+    setNewMcpName("");
+    setNewMcpCommand("npx");
+    setNewMcpArgs("");
+    setNewMcpEnv("");
+    setMcpSaving(false);
+    reloadMcpServers();
+  }
+
+  async function handleToggleMcpServer(server: McpServer): Promise<void> {
+    await updateMcpServer(server.id, { enabled: !server.enabled });
+    reloadMcpServers();
+  }
+
+  async function handleDeleteMcpServer(id: string): Promise<void> {
+    await deleteMcpServer(id);
+    reloadMcpServers();
+  }
 
   useEffect(() => {
     getConfig().then((data) => {
@@ -196,6 +255,7 @@ export default function SettingsModal({
     { id: "prompt", label: "System Prompt" },
     { id: "profile", label: "Profile" },
     { id: "model", label: "Model" },
+    { id: "mcp", label: "MCP Servers" },
     { id: "voice", label: "Voice" },
     { id: "ui", label: "UI" },
   ];
@@ -378,6 +438,132 @@ export default function SettingsModal({
                 onChange={(e) => setReasoning(e.target.checked)}
                 className="w-4 h-4 flex-shrink-0 accent-accent cursor-pointer"
               />
+            </div>
+          </div>
+        )}
+
+        {/* MCP Servers tab */}
+        {tab === "mcp" && (
+          <div className="flex flex-col gap-4">
+            <p className="text-[0.75rem] text-[#555]">
+              Connect MCP servers (folder access, GitHub, email, calendar…)
+              to give the model new tools. Servers run locally as
+              subprocesses via <code>npx</code> or <code>uvx</code>.
+            </p>
+
+            <div className="flex flex-col gap-2">
+              {mcpServers.length === 0 && (
+                <p className="text-[0.8rem] text-txt-dim">
+                  No MCP servers configured yet.
+                </p>
+              )}
+              {mcpServers.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex flex-col gap-1 bg-bg-base border border-border rounded-[0.6rem] px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                          s.status?.connected
+                            ? "bg-[#2ecc71]"
+                            : s.status?.error
+                              ? "bg-[#e74c3c]"
+                              : "bg-[#888]"
+                        }`}
+                        title={
+                          s.status?.error ||
+                          (s.status?.connected ? "Connected" : "Disabled")
+                        }
+                      />
+                      <span className="text-[0.85rem] text-txt-primary font-medium truncate">
+                        {s.name}
+                      </span>
+                      <span className="text-[0.72rem] text-txt-dim truncate">
+                        {s.command} {s.args.join(" ")}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={s.enabled}
+                        onChange={() => {
+                          void handleToggleMcpServer(s);
+                        }}
+                        className="w-4 h-4 accent-accent cursor-pointer"
+                        title="Enabled"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleDeleteMcpServer(s.id);
+                        }}
+                        className="text-[0.72rem] text-[#888] hover:text-[#e74c3c] bg-transparent border-none cursor-pointer underline transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  {s.status?.error && (
+                    <p className="text-[0.72rem] text-[#e74c3c]">
+                      {s.status.error}
+                    </p>
+                  )}
+                  {s.status?.connected && s.status.tool_count > 0 && (
+                    <p className="text-[0.72rem] text-txt-dim">
+                      {s.status.tool_count} tool
+                      {s.status.tool_count === 1 ? "" : "s"}:{" "}
+                      {s.status.tools.map((t) => t.name).join(", ")}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-border pt-3">
+              <label className={labelCls}>Add server</label>
+              <input
+                type="text"
+                value={newMcpName}
+                onChange={(e) => setNewMcpName(e.target.value)}
+                placeholder="Name, e.g. Filesystem"
+                className={inputCls}
+              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMcpCommand}
+                  onChange={(e) => setNewMcpCommand(e.target.value)}
+                  placeholder="npx"
+                  className={`${inputCls} w-24 flex-shrink-0`}
+                />
+                <input
+                  type="text"
+                  value={newMcpArgs}
+                  onChange={(e) => setNewMcpArgs(e.target.value)}
+                  placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
+                  className={`${inputCls} flex-1`}
+                />
+              </div>
+              <textarea
+                value={newMcpEnv}
+                onChange={(e) => setNewMcpEnv(e.target.value)}
+                placeholder={
+                  "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
+                }
+                className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  void handleAddMcpServer();
+                }}
+                disabled={mcpSaving || !newMcpName.trim() || !newMcpCommand.trim()}
+                className="self-start bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
+              >
+                {mcpSaving ? "Adding…" : "Add server"}
+              </button>
             </div>
           </div>
         )}

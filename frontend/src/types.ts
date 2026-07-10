@@ -79,6 +79,25 @@ export interface CodeResult {
   exit_code: number;
 }
 
+export interface McpServerStatus {
+  server_id: string;
+  name: string;
+  connected: boolean;
+  tool_count: number;
+  tools: { name: string; description: string }[];
+  error: string | null;
+}
+
+export interface McpServer {
+  id: string;
+  name: string;
+  enabled: boolean;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  status: McpServerStatus | null;
+}
+
 export interface ChatPair {
   pairIndex: number;
   userText: string;
