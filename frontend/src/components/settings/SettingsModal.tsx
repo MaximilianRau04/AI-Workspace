@@ -446,9 +446,9 @@ export default function SettingsModal({
         {tab === "mcp" && (
           <div className="flex flex-col gap-4">
             <p className="text-[0.75rem] text-[#555]">
-              Connect MCP servers (folder access, GitHub, email, calendar…)
-              to give the model new tools. Servers run locally as
-              subprocesses via <code>npx</code> or <code>uvx</code>.
+              Connect MCP servers (folder access, GitHub, email, calendar…) to
+              give the model new tools. Servers run locally as subprocesses via{" "}
+              <code>npx</code> or <code>uvx</code>.
             </p>
 
             <div className="flex flex-col gap-2">
@@ -559,7 +559,9 @@ export default function SettingsModal({
                 onClick={() => {
                   void handleAddMcpServer();
                 }}
-                disabled={mcpSaving || !newMcpName.trim() || !newMcpCommand.trim()}
+                disabled={
+                  mcpSaving || !newMcpName.trim() || !newMcpCommand.trim()
+                }
                 className="self-start bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
               >
                 {mcpSaving ? "Adding…" : "Add server"}

@@ -119,17 +119,23 @@ _DOCKER_LANGS: dict[str, tuple[str, list[str]]] = {
     ),
     "csharp": (
         "mono:latest",
-        ["sh", "-c", "cat>/tmp/Program.cs && mcs /tmp/Program.cs -out:/tmp/Program.exe && mono /tmp/Program.exe"],
+        [
+            "sh",
+            "-c",
+            "cat>/tmp/Program.cs && mcs /tmp/Program.cs -out:/tmp/Program.exe && mono /tmp/Program.exe",
+        ],
     ),
     "cs": (
         "mono:latest",
-        ["sh", "-c", "cat>/tmp/Program.cs && mcs /tmp/Program.cs -out:/tmp/Program.exe && mono /tmp/Program.exe"],
+        [
+            "sh",
+            "-c",
+            "cat>/tmp/Program.cs && mcs /tmp/Program.cs -out:/tmp/Program.exe && mono /tmp/Program.exe",
+        ],
     ),
 }
 
-_SUPPORTED_LANGS = (
-    "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp"
-)
+_SUPPORTED_LANGS = "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp"
 
 
 def execute_code(code: str, language: str) -> dict:

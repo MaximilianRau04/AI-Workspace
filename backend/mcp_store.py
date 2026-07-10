@@ -41,7 +41,11 @@ def update_server(server_id: str, updates: dict) -> dict | None:
     for server in servers:
         if server["id"] == server_id:
             server.update(
-                {k: v for k, v in updates.items() if k in ("name", "enabled", "command", "args", "env")}
+                {
+                    k: v
+                    for k, v in updates.items()
+                    if k in ("name", "enabled", "command", "args", "env")
+                }
             )
             save_mcp_servers(servers)
             return server

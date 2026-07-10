@@ -33,12 +33,7 @@ def _reconnect() -> None:
 async def list_servers(current_user: dict = Depends(login_required)):
     servers = mcp_store.load_mcp_servers()
     status_by_id = {s["server_id"]: s for s in manager.get_status()}
-    return {
-        "servers": [
-            {**s, "status": status_by_id.get(s["id"])}
-            for s in servers
-        ]
-    }
+    return {"servers": [{**s, "status": status_by_id.get(s["id"])} for s in servers]}
 
 
 @router.post("/servers")

@@ -115,7 +115,9 @@ def stream_chat(
     elif provider == "openai":
         yield from _stream_openai(messages, system_prompt, cfg, web_search, code_interpreter, mcp)
     elif provider == "anthropic":
-        yield from _stream_anthropic(messages, system_prompt, cfg, web_search, code_interpreter, mcp)
+        yield from _stream_anthropic(
+            messages, system_prompt, cfg, web_search, code_interpreter, mcp
+        )
     else:
         raise ValueError(f"Unknown provider: {provider!r}")
 
