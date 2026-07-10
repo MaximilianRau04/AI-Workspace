@@ -48,6 +48,9 @@ export default function ChatPage() {
   const [codeInterpreter, setCodeInterpreter] = useState<boolean>(
     () => localStorage.getItem("codeInterpreter") === "true",
   );
+  const [mcp, setMcp] = useState<boolean>(
+    () => localStorage.getItem("mcp") === "true",
+  );
 
   const pairCounterRef = useRef<number>(0);
   const streamingPairRef = useRef<number | null>(null);
@@ -248,6 +251,7 @@ export default function ChatPage() {
         },
         webSearch,
         codeInterpreter,
+        mcp,
       );
 
       setIsStreaming(false);
@@ -465,6 +469,14 @@ export default function ChatPage() {
               setCodeInterpreter((prev) => {
                 const next = !prev;
                 localStorage.setItem("codeInterpreter", String(next));
+                return next;
+              });
+            }}
+            mcp={mcp}
+            onToggleMcp={() => {
+              setMcp((prev) => {
+                const next = !prev;
+                localStorage.setItem("mcp", String(next));
                 return next;
               });
             }}

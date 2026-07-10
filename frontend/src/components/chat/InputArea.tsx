@@ -15,6 +15,8 @@ interface InputAreaProps {
   onToggleWebSearch: () => void;
   codeInterpreter: boolean;
   onToggleCodeInterpreter: () => void;
+  mcp: boolean;
+  onToggleMcp: () => void;
 }
 
 /* ── Icon components ── */
@@ -86,6 +88,24 @@ function TerminalIcon() {
     >
       <polyline points="4 17 10 11 4 5" />
       <line x1="12" y1="19" x2="20" y2="19" />
+    </svg>
+  );
+}
+
+function PlugIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 2v6M15 2v6M6 8h12l-1 5a5 5 0 0 1-5 4v0a5 5 0 0 1-5-4L6 8z" />
+      <path d="M12 17v5" />
     </svg>
   );
 }
@@ -164,6 +184,8 @@ export default function InputArea({
   onToggleWebSearch,
   codeInterpreter,
   onToggleCodeInterpreter,
+  mcp,
+  onToggleMcp,
 }: InputAreaProps) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -299,6 +321,15 @@ export default function InputArea({
             active={codeInterpreter}
           >
             <TerminalIcon />
+          </ToolBtn>
+
+          {/* MCP */}
+          <ToolBtn
+            onClick={onToggleMcp}
+            title={mcp ? "MCP tools on" : "MCP tools off"}
+            active={mcp}
+          >
+            <PlugIcon />
           </ToolBtn>
 
           {/* Mic */}
