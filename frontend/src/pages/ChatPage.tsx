@@ -6,6 +6,7 @@ import { useVoice } from "../hooks/useVoice";
 import { getChat, createChat } from "../api/chats";
 import { uploadDoc, deleteDoc } from "../api/docs";
 import { logout } from "../api/auth";
+import { getMcpServers } from "../api/mcp";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
 import ChatArea from "../components/chat/ChatArea";
@@ -13,7 +14,17 @@ import InputArea from "../components/chat/InputArea";
 import HomeHero from "../components/chat/HomeHero";
 import SettingsModal from "../components/settings/SettingsModal";
 import DocsModal from "../components/documents/DocsModal";
-import type { ChatPair, TokenUsage, StreamError } from "../types";
+import type { ChatPair, TokenUsage, StreamError, McpServer } from "../types";
+
+function loadStoredMcpServerIds(): string[] {
+  try {
+    const raw = localStorage.getItem("mcpServerIds");
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 const ALLOWED_EXTS = [".txt", ".md", ".pdf"];
 
@@ -48,8 +59,9 @@ export default function ChatPage() {
   const [codeInterpreter, setCodeInterpreter] = useState<boolean>(
     () => localStorage.getItem("codeInterpreter") === "true",
   );
-  const [mcp, setMcp] = useState<boolean>(
-    () => localStorage.getItem("mcp") === "true",
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [mcpServerIds, setMcpServerIds] = useState<string[]>(
+    loadStoredMcpServerIds,
   );
 
   const pairCounterRef = useRef<number>(0);
@@ -61,6 +73,25 @@ export default function ChatPage() {
   const { speakingId, speak, isRecording, toggleRecording } = useVoice();
 
   const homeMode = !sessionId; // URL param is immediately available, avoids race with context state
+
+  // ── MCP servers ──────────────────────────────────────────────────────────────
+  const reloadMcpServers = useCallback(() => {
+    getMcpServers().then((data) => {
+      const servers = data.servers || [];
+      setMcpServers(servers);
+      setMcpServerIds((prev) => {
+        const next = prev.filter((id) => servers.some((s) => s.id === id));
+        if (next.length !== prev.length) {
+          localStorage.setItem("mcpServerIds", JSON.stringify(next));
+        }
+        return next;
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (user) reloadMcpServers();
+  }, [user, reloadMcpServers]);
 
   // ── Load session from URL ───────────────────────────────────────────────────
   useEffect(() => {
@@ -251,7 +282,7 @@ export default function ChatPage() {
         },
         webSearch,
         codeInterpreter,
-        mcp,
+        mcpServerIds,
       );
 
       setIsStreaming(false);
@@ -472,11 +503,14 @@ export default function ChatPage() {
                 return next;
               });
             }}
-            mcp={mcp}
-            onToggleMcp={() => {
-              setMcp((prev) => {
-                const next = !prev;
-                localStorage.setItem("mcp", String(next));
+            mcpServers={mcpServers}
+            enabledMcpServerIds={mcpServerIds}
+            onToggleMcpServer={(id) => {
+              setMcpServerIds((prev) => {
+                const next = prev.includes(id)
+                  ? prev.filter((x) => x !== id)
+                  : [...prev, id];
+                localStorage.setItem("mcpServerIds", JSON.stringify(next));
                 return next;
               });
             }}
@@ -497,7 +531,10 @@ export default function ChatPage() {
       {settingsOpen && (
         <SettingsModal
           initialTab={settingsTab}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false);
+            reloadMcpServers();
+          }}
         />
       )}
       {docsOpen && (

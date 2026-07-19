@@ -64,14 +64,14 @@ export function streamMessage(
   signal: AbortSignal,
   webSearch: boolean = false,
   codeInterpreter: boolean = false,
-  mcp: boolean = false,
+  mcpServers: string[] = [],
 ): Promise<Response> {
   const body: Record<string, unknown> = {
     message,
     attached_file: attachedFile ?? null,
     web_search: webSearch,
     code_interpreter: codeInterpreter,
-    mcp,
+    mcp_servers: mcpServers,
   };
   if (pairIndex !== null && pairIndex !== undefined)
     body.pair_index = pairIndex;

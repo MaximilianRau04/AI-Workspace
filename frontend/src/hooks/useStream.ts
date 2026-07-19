@@ -39,7 +39,7 @@ export function useStream(): {
     callbacks: StreamCallbacks,
     webSearch?: boolean,
     codeInterpreter?: boolean,
-    mcp?: boolean,
+    mcpServers?: string[],
   ) => Promise<void>;
   abort: () => void;
 } {
@@ -61,7 +61,7 @@ export function useStream(): {
       callbacks: StreamCallbacks,
       webSearch: boolean = false,
       codeInterpreter: boolean = false,
-      mcp: boolean = false,
+      mcpServers: string[] = [],
     ): Promise<void> => {
       const {
         onChunk,
@@ -96,7 +96,7 @@ export function useStream(): {
           controller.signal,
           webSearch,
           codeInterpreter,
-          mcp,
+          mcpServers,
         );
 
         const reader = res.body!.getReader();

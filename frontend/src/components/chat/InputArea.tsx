@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from "react";
-import type { TokenUsage } from "../../types";
+import type { McpServer, TokenUsage } from "../../types";
+import ToolsMenu from "./ToolsMenu";
 
 interface InputAreaProps {
   onSend: (text: string) => void;
@@ -15,8 +16,9 @@ interface InputAreaProps {
   onToggleWebSearch: () => void;
   codeInterpreter: boolean;
   onToggleCodeInterpreter: () => void;
-  mcp: boolean;
-  onToggleMcp: () => void;
+  mcpServers: McpServer[];
+  enabledMcpServerIds: string[];
+  onToggleMcpServer: (id: string) => void;
 }
 
 /* ── Icon components ── */
@@ -38,24 +40,6 @@ function PaperclipIcon() {
   );
 }
 
-function GlobeIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-  );
-}
-
 function MicIcon() {
   return (
     <svg
@@ -70,42 +54,6 @@ function MicIcon() {
     >
       <rect x="9" y="2" width="6" height="11" rx="3" />
       <path d="M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8" />
-    </svg>
-  );
-}
-
-function TerminalIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <polyline points="4 17 10 11 4 5" />
-      <line x1="12" y1="19" x2="20" y2="19" />
-    </svg>
-  );
-}
-
-function PlugIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M9 2v6M15 2v6M6 8h12l-1 5a5 5 0 0 1-5 4v0a5 5 0 0 1-5-4L6 8z" />
-      <path d="M12 17v5" />
     </svg>
   );
 }
@@ -184,8 +132,9 @@ export default function InputArea({
   onToggleWebSearch,
   codeInterpreter,
   onToggleCodeInterpreter,
-  mcp,
-  onToggleMcp,
+  mcpServers,
+  enabledMcpServerIds,
+  onToggleMcpServer,
 }: InputAreaProps) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -303,34 +252,16 @@ export default function InputArea({
             onChange={handleFileChange}
           />
 
-          {/* Web search */}
-          <ToolBtn
-            onClick={onToggleWebSearch}
-            title={webSearch ? "Web search on" : "Web search off"}
-            active={webSearch}
-          >
-            <GlobeIcon />
-          </ToolBtn>
-
-          {/* Code interpreter */}
-          <ToolBtn
-            onClick={onToggleCodeInterpreter}
-            title={
-              codeInterpreter ? "Code interpreter on" : "Code interpreter off"
-            }
-            active={codeInterpreter}
-          >
-            <TerminalIcon />
-          </ToolBtn>
-
-          {/* MCP */}
-          <ToolBtn
-            onClick={onToggleMcp}
-            title={mcp ? "MCP tools on" : "MCP tools off"}
-            active={mcp}
-          >
-            <PlugIcon />
-          </ToolBtn>
+          {/* Web search / Code interpreter / MCP servers */}
+          <ToolsMenu
+            webSearch={webSearch}
+            onToggleWebSearch={onToggleWebSearch}
+            codeInterpreter={codeInterpreter}
+            onToggleCodeInterpreter={onToggleCodeInterpreter}
+            mcpServers={mcpServers}
+            enabledMcpServerIds={enabledMcpServerIds}
+            onToggleMcpServer={onToggleMcpServer}
+          />
 
           {/* Mic */}
           <ToolBtn

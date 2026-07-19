@@ -132,9 +132,9 @@ The active provider and model are configured via the ⚙️ Settings button → 
 - **Auto-summarization** - old messages are summarized automatically to keep context efficient
 - **Syntax highlighting** - code blocks highlighted via highlight.js
 - **Agentic ReAct loop** - the model autonomously decides when and how often to call tools; it can chain multiple tool calls in a single turn (e.g. search → read page → run code → answer) up to a configurable step limit (`MAX_AGENT_STEPS`)
-- **Web search** - enable via the 🔍 button; the agent searches via DuckDuckGo and fetches URLs as needed - you control access, the model decides usage
-- **Code interpreter** - enable via the `</>` button; the agent can write and execute code in isolated Docker containers (no network, memory/CPU limits); supported languages: Python, JavaScript, TypeScript (Deno), Bash, Ruby, PHP, Perl, Elixir, Lua, C, C++, Java, Go, Rust, C# (Mono) - Java class must be named `Main`
-- **MCP servers** - enable via the 🔌 button; connect any [MCP](https://modelcontextprotocol.io) server (folder access, GitHub, email, calendar, …) as tools for the agent, see [MCP Servers](#mcp-servers) below
+- **Web search** - enable via the ➕ tools menu; the agent searches via DuckDuckGo and fetches URLs as needed - you control access, the model decides usage
+- **Code interpreter** - enable via the ➕ tools menu; the agent can write and execute code in isolated Docker containers (no network, memory/CPU limits); supported languages: Python, JavaScript, TypeScript (Deno), Bash, Ruby, PHP, Perl, Elixir, Lua, C, C++, Java, Go, Rust, C# (Mono) - Java class must be named `Main`
+- **MCP servers** - enable individual connected servers via the ➕ tools menu; connect any [MCP](https://modelcontextprotocol.io) server (folder access, GitHub, email, calendar, …) as tools for the agent, see [MCP Servers](#mcp-servers) below
 - **Voice input** - microphone button (Chrome / Edge only)
 - **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
@@ -224,7 +224,7 @@ The intermediate steps (searches, code executions) are streamed to the frontend 
 
 ## MCP Servers
 
-The ⚙️ Settings → **MCP Servers** tab lets you connect any [Model Context Protocol](https://modelcontextprotocol.io) server to give the agent new tools - folder access, GitHub, email, calendar, and anything else with an MCP server. Servers run locally as subprocesses (via `npx` or `uvx`) and stay connected for the lifetime of the backend process; discovered tools show up automatically once the 🔌 button is enabled in a chat.
+The ⚙️ Settings → **MCP Servers** tab lets you connect any [Model Context Protocol](https://modelcontextprotocol.io) server to give the agent new tools - folder access, GitHub, email, calendar, and anything else with an MCP server. Servers run locally as subprocesses (via `npx` or `uvx`) and stay connected for the lifetime of the backend process. Once connected, each server can be individually enabled per chat via the ➕ tools menu → **MCP servers** submenu - only the tools of the servers you actually check are sent to the model.
 
 **Requirements:** Node.js/npm (for `npx`-based servers, already included in the Docker image) and/or [`uv`](https://github.com/astral-sh/uv) (installed as a Python dependency, provides `uvx`).
 
