@@ -164,11 +164,7 @@ export default function ToolsMenu({
 
       {open && (
         <div className="absolute bottom-full left-0 mb-2 w-[260px] bg-bg-surface border border-border rounded-[0.75rem] shadow-lg py-1 z-20 overflow-hidden">
-          <button
-            type="button"
-            onClick={onToggleWebSearch}
-            className={itemCls}
-          >
+          <button type="button" onClick={onToggleWebSearch} className={itemCls}>
             <GlobeIcon />
             <span className="flex-1">Web search</span>
             {webSearch && <CheckIcon />}
@@ -203,8 +199,7 @@ export default function ToolsMenu({
             <div className="border-t border-border pt-1 pb-[0.15rem]">
               {mcpServers.length === 0 && (
                 <p className="px-3 py-2 text-[0.75rem] text-txt-dim leading-[1.4]">
-                  No MCP servers configured. Add one in Settings → MCP
-                  Servers.
+                  No MCP servers configured. Add one in Settings → MCP Servers.
                 </p>
               )}
               {mcpServers.map((s) => (
