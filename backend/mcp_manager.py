@@ -162,10 +162,13 @@ class McpManager:
             )
         return status
 
-    def list_tools_cached(self) -> list[dict]:
-        """Tools from all connected servers, prefixed for provider tool schemas."""
+    def list_tools_cached(self, server_ids: list[str] | None = None) -> list[dict]:
+        """Tools from the given connected servers (or all, if server_ids is None),
+        prefixed for provider tool schemas."""
         tools = []
         for server_id, conn in self._conns.items():
+            if server_ids is not None and server_id not in server_ids:
+                continue
             for t in conn.tools:
                 tools.append(
                     {

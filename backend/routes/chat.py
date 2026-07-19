@@ -29,7 +29,7 @@ class ChatBody(BaseModel):
     pair_index: Optional[int] = None
     web_search: bool = False
     code_interpreter: bool = False
-    mcp: bool = False
+    mcp_servers: list[str] = []
 
 
 class RenameBody(BaseModel):
@@ -251,7 +251,7 @@ async def send_message(
                 system_prompt,
                 web_search=body.web_search,
                 code_interpreter=body.code_interpreter,
-                mcp=body.mcp,
+                mcp_servers=body.mcp_servers,
             ):
                 if isinstance(item, dict) and "usage" in item:
                     yield f"event: usage\ndata: {json.dumps(item['usage'])}\n\n"

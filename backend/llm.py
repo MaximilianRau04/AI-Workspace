@@ -97,7 +97,7 @@ def stream_chat(
     system_prompt: str = "",
     web_search: bool = False,
     code_interpreter: bool = False,
-    mcp: bool = False,
+    mcp_servers: list[str] | None = None,
 ) -> Iterator[str | dict]:
     """
     Yield text chunks from the configured LLM.
@@ -107,16 +107,22 @@ def stream_chat(
     May yield {"code_result": {"language": str, "code": str, "stdout": str, "stderr": str, "exit_code": int}}.
     The final item may be {"usage": {"prompt": N, "reply": N, "total": N}}.
     messages format: [{"role": "user"/"model", "parts": ["..."]}]
+    mcp_servers: IDs of enabled MCP servers whose tools should be offered to the model.
     """
     cfg = load_config()
     provider = cfg["provider"]
+    mcp_servers = mcp_servers or []
     if provider == "gemini":
-        yield from _stream_gemini(messages, system_prompt, cfg, web_search, code_interpreter, mcp)
+        yield from _stream_gemini(
+            messages, system_prompt, cfg, web_search, code_interpreter, mcp_servers
+        )
     elif provider == "openai":
-        yield from _stream_openai(messages, system_prompt, cfg, web_search, code_interpreter, mcp)
+        yield from _stream_openai(
+            messages, system_prompt, cfg, web_search, code_interpreter, mcp_servers
+        )
     elif provider == "anthropic":
         yield from _stream_anthropic(
-            messages, system_prompt, cfg, web_search, code_interpreter, mcp
+            messages, system_prompt, cfg, web_search, code_interpreter, mcp_servers
         )
     else:
         raise ValueError(f"Unknown provider: {provider!r}")
@@ -301,7 +307,7 @@ def _json_schema_to_gemini_schema(genai, schema: dict):
     return genai.protos.Schema(**kwargs)
 
 
-def _mcp_fn_decls(genai):
+def _mcp_fn_decls(genai, server_ids: list[str]):
     from mcp_manager import manager as mcp_manager
 
     return [
@@ -310,12 +316,17 @@ def _mcp_fn_decls(genai):
             description=tool["description"],
             parameters=_json_schema_to_gemini_schema(genai, tool["input_schema"]),
         )
-        for tool in mcp_manager.list_tools_cached()
+        for tool in mcp_manager.list_tools_cached(server_ids)
     ]
 
 
 def _stream_gemini(
-    messages, system_prompt, cfg, web_search_enabled=False, code_interpreter=False, mcp=False
+    messages,
+    system_prompt,
+    cfg,
+    web_search_enabled=False,
+    code_interpreter=False,
+    mcp_servers: list[str] | None = None,
 ):
     import google.generativeai as genai
 
@@ -403,8 +414,8 @@ def _stream_gemini(
                 ),
             )
         )
-    if mcp:
-        fn_decls.extend(_mcp_fn_decls(genai))
+    if mcp_servers:
+        fn_decls.extend(_mcp_fn_decls(genai, mcp_servers))
     tools_list = [genai.protos.Tool(function_declarations=fn_decls)] if fn_decls else None
 
     def _make_model(with_thinking):
@@ -540,7 +551,12 @@ def _openai_client(cfg: dict):
 
 
 def _stream_openai(
-    messages, system_prompt, cfg, web_search_enabled=False, code_interpreter=False, mcp=False
+    messages,
+    system_prompt,
+    cfg,
+    web_search_enabled=False,
+    code_interpreter=False,
+    mcp_servers: list[str] | None = None,
 ):
     client = _openai_client(cfg)
     reasoning = cfg.get("reasoning", False)
@@ -555,10 +571,10 @@ def _stream_openai(
     )
 
     mcp_tools: list[dict] = []
-    if mcp:
+    if mcp_servers:
         from mcp_manager import manager as mcp_manager
 
-        mcp_tools = mcp_manager.list_tools_cached()
+        mcp_tools = mcp_manager.list_tools_cached(mcp_servers)
 
     # Ollama/LM Studio: inject tools into the system prompt — most local models lack native tool support
     use_prompt_tools = is_ollama and (web_search_enabled or code_interpreter or mcp_tools)
@@ -794,7 +810,12 @@ def _anthropic_client(cfg: dict):
 
 
 def _stream_anthropic(
-    messages, system_prompt, cfg, web_search_enabled=False, code_interpreter=False, mcp=False
+    messages,
+    system_prompt,
+    cfg,
+    web_search_enabled=False,
+    code_interpreter=False,
+    mcp_servers: list[str] | None = None,
 ):
     client = _anthropic_client(cfg)
     reasoning = cfg.get("reasoning", False)
@@ -869,10 +890,10 @@ def _stream_anthropic(
                 },
             }
         )
-    if mcp:
+    if mcp_servers:
         from mcp_manager import manager as mcp_manager
 
-        for tool in mcp_manager.list_tools_cached():
+        for tool in mcp_manager.list_tools_cached(mcp_servers):
             _ant_tools.append(
                 {
                     "name": tool["name"],
