@@ -33,6 +33,9 @@ jobs:
       - name: Import check
         run: python -c "from app import app; print('App loaded OK')"
 
+      - name: Test
+        run: pytest
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

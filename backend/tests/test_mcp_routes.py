@@ -1,0 +1,84 @@
+"""API-level tests for the /mcp/servers endpoints (backend/routes/mcp.py)."""
+
+
+def test_list_servers_requires_auth(client):
+    resp = client.get("/mcp/servers")
+    assert resp.status_code == 401
+
+
+def test_create_requires_auth(client):
+    resp = client.post("/mcp/servers", json={"name": "X", "command": "npx"})
+    assert resp.status_code == 401
+
+
+def test_create_list_update_delete_flow(authed_client):
+    c = authed_client
+
+    # starts empty
+    assert c.get("/mcp/servers").json()["servers"] == []
+
+    # create
+    resp = c.post(
+        "/mcp/servers",
+        json={
+            "name": "Filesystem",
+            "command": "npx",
+            "args": ["-y", "server-fs"],
+            "env": {"FOO": "bar"},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    server = resp.json()
+    assert server["name"] == "Filesystem"
+    assert server["enabled"] is True
+    server_id = server["id"]
+
+    # list includes it, merged with (mocked, empty) live status
+    listed = c.get("/mcp/servers").json()["servers"]
+    assert len(listed) == 1
+    assert listed[0]["id"] == server_id
+    assert listed[0]["status"] is None
+
+    # partial update — only enabled changes, other fields survive
+    resp = c.patch(f"/mcp/servers/{server_id}", json={"enabled": False})
+    assert resp.status_code == 200, resp.text
+    updated = resp.json()
+    assert updated["enabled"] is False
+    assert updated["name"] == "Filesystem"
+    assert updated["command"] == "npx"
+
+    # full field update (what the Settings "Edit" form sends)
+    resp = c.patch(
+        f"/mcp/servers/{server_id}",
+        json={"name": "Renamed", "command": "uvx", "args": ["x"], "env": {}},
+    )
+    assert resp.status_code == 200, resp.text
+    updated = resp.json()
+    assert updated["name"] == "Renamed"
+    assert updated["command"] == "uvx"
+    assert updated["args"] == ["x"]
+
+    # delete
+    resp = c.delete(f"/mcp/servers/{server_id}")
+    assert resp.status_code == 200
+    assert c.get("/mcp/servers").json()["servers"] == []
+
+
+def test_create_missing_name_returns_400(authed_client):
+    resp = authed_client.post("/mcp/servers", json={"name": "  ", "command": "npx"})
+    assert resp.status_code == 400
+
+
+def test_create_missing_command_returns_400(authed_client):
+    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "  "})
+    assert resp.status_code == 400
+
+
+def test_update_unknown_server_returns_404(authed_client):
+    resp = authed_client.patch("/mcp/servers/does-not-exist", json={"enabled": False})
+    assert resp.status_code == 404
+
+
+def test_delete_unknown_server_returns_404(authed_client):
+    resp = authed_client.delete("/mcp/servers/does-not-exist")
+    assert resp.status_code == 404
