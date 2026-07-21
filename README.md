@@ -28,7 +28,15 @@ Generate a secure `SECRET_KEY`:
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-**3. Start**
+**3. Create empty data files** (first run only)
+
+```bash
+touch chatbot.db model_config.json mcp_servers.json system_prompt.txt
+```
+
+Docker bind-mounts these as files into the container (see `docker-compose.yml`). If a mounted file doesn't exist on the host yet, Docker creates a *directory* at that path instead, which breaks the app on startup — pre-creating them as empty files avoids that.
+
+**4. Start**
 
 ```bash
 docker compose up --build

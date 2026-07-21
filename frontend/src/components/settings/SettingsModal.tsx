@@ -103,6 +103,12 @@ export default function SettingsModal({
   const [newMcpArgs, setNewMcpArgs] = useState("");
   const [newMcpEnv, setNewMcpEnv] = useState("");
   const [mcpSaving, setMcpSaving] = useState(false);
+  const [mcpBusy, setMcpBusy] = useState(false);
+  const [editingMcpId, setEditingMcpId] = useState<string | null>(null);
+  const [editMcpName, setEditMcpName] = useState("");
+  const [editMcpCommand, setEditMcpCommand] = useState("");
+  const [editMcpArgs, setEditMcpArgs] = useState("");
+  const [editMcpEnv, setEditMcpEnv] = useState("");
 
   useEffect(() => {
     setTab(initialTab);
@@ -119,14 +125,13 @@ export default function SettingsModal({
     if (tab === "mcp" && !mcpLoaded) reloadMcpServers();
   }, [tab, mcpLoaded]);
 
-  async function handleAddMcpServer(): Promise<void> {
-    const name = newMcpName.trim();
-    const command = newMcpCommand.trim();
-    if (!name || !command) return;
-    setMcpSaving(true);
-    const args = newMcpArgs.trim() ? newMcpArgs.trim().split(/\s+/) : [];
+  function parseMcpArgs(raw: string): string[] {
+    return raw.trim() ? raw.trim().split(/\s+/) : [];
+  }
+
+  function parseMcpEnv(raw: string): Record<string, string> {
     const env: Record<string, string> = {};
-    for (const line of newMcpEnv.split("\n")) {
+    for (const line of raw.split("\n")) {
       const idx = line.indexOf("=");
       if (idx > 0) {
         const key = line.slice(0, idx).trim();
@@ -134,23 +139,89 @@ export default function SettingsModal({
         if (key) env[key] = value;
       }
     }
-    await addMcpServer({ name, command, args, env });
-    setNewMcpName("");
-    setNewMcpCommand("npx");
-    setNewMcpArgs("");
-    setNewMcpEnv("");
-    setMcpSaving(false);
-    reloadMcpServers();
+    return env;
+  }
+
+  function formatMcpEnv(env: Record<string, string>): string {
+    return Object.entries(env)
+      .map(([k, v]) => `${k}=${v}`)
+      .join("\n");
+  }
+
+  async function handleAddMcpServer(): Promise<void> {
+    const name = newMcpName.trim();
+    const command = newMcpCommand.trim();
+    if (!name || !command) return;
+    setMcpSaving(true);
+    setMcpBusy(true);
+    try {
+      await addMcpServer({
+        name,
+        command,
+        args: parseMcpArgs(newMcpArgs),
+        env: parseMcpEnv(newMcpEnv),
+      });
+      setNewMcpName("");
+      setNewMcpCommand("npx");
+      setNewMcpArgs("");
+      setNewMcpEnv("");
+      reloadMcpServers();
+    } finally {
+      setMcpSaving(false);
+      setMcpBusy(false);
+    }
   }
 
   async function handleToggleMcpServer(server: McpServer): Promise<void> {
-    await updateMcpServer(server.id, { enabled: !server.enabled });
-    reloadMcpServers();
+    setMcpBusy(true);
+    try {
+      await updateMcpServer(server.id, { enabled: !server.enabled });
+      reloadMcpServers();
+    } finally {
+      setMcpBusy(false);
+    }
   }
 
   async function handleDeleteMcpServer(id: string): Promise<void> {
-    await deleteMcpServer(id);
-    reloadMcpServers();
+    setMcpBusy(true);
+    try {
+      await deleteMcpServer(id);
+      reloadMcpServers();
+    } finally {
+      setMcpBusy(false);
+    }
+  }
+
+  function startEditMcpServer(server: McpServer): void {
+    setEditingMcpId(server.id);
+    setEditMcpName(server.name);
+    setEditMcpCommand(server.command);
+    setEditMcpArgs(server.args.join(" "));
+    setEditMcpEnv(formatMcpEnv(server.env));
+  }
+
+  function cancelEditMcpServer(): void {
+    setEditingMcpId(null);
+  }
+
+  async function handleSaveEditMcpServer(): Promise<void> {
+    if (!editingMcpId) return;
+    const name = editMcpName.trim();
+    const command = editMcpCommand.trim();
+    if (!name || !command) return;
+    setMcpBusy(true);
+    try {
+      await updateMcpServer(editingMcpId, {
+        name,
+        command,
+        args: parseMcpArgs(editMcpArgs),
+        env: parseMcpEnv(editMcpEnv),
+      });
+      setEditingMcpId(null);
+      reloadMcpServers();
+    } finally {
+      setMcpBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -451,74 +522,154 @@ export default function SettingsModal({
               <code>npx</code> or <code>uvx</code>.
             </p>
 
+            {mcpBusy && (
+              <p className="text-[0.75rem] text-accent flex items-center gap-2">
+                <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                Reconnecting servers… this can take up to a minute.
+              </p>
+            )}
+
             <div className="flex flex-col gap-2">
               {mcpServers.length === 0 && (
                 <p className="text-[0.8rem] text-txt-dim">
                   No MCP servers configured yet.
                 </p>
               )}
-              {mcpServers.map((s) => (
-                <div
-                  key={s.id}
-                  className="flex flex-col gap-1 bg-bg-base border border-border rounded-[0.6rem] px-3 py-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          s.status?.connected
-                            ? "bg-[#2ecc71]"
-                            : s.status?.error
-                              ? "bg-[#e74c3c]"
-                              : "bg-[#888]"
-                        }`}
-                        title={
-                          s.status?.error ||
-                          (s.status?.connected ? "Connected" : "Disabled")
-                        }
-                      />
-                      <span className="text-[0.85rem] text-txt-primary font-medium truncate">
-                        {s.name}
-                      </span>
-                      <span className="text-[0.72rem] text-txt-dim truncate">
-                        {s.command} {s.args.join(" ")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+              {mcpServers.map((s) =>
+                editingMcpId === s.id ? (
+                  <div
+                    key={s.id}
+                    className="flex flex-col gap-2 bg-bg-base border border-accent rounded-[0.6rem] px-3 py-2"
+                  >
+                    <input
+                      type="text"
+                      value={editMcpName}
+                      onChange={(e) => setEditMcpName(e.target.value)}
+                      placeholder="Name, e.g. Filesystem"
+                      className={inputCls}
+                    />
+                    <div className="flex gap-2">
                       <input
-                        type="checkbox"
-                        checked={s.enabled}
-                        onChange={() => {
-                          void handleToggleMcpServer(s);
-                        }}
-                        className="w-4 h-4 accent-accent cursor-pointer"
-                        title="Enabled"
+                        type="text"
+                        value={editMcpCommand}
+                        onChange={(e) => setEditMcpCommand(e.target.value)}
+                        placeholder="npx"
+                        className={`${inputCls} !w-24 flex-shrink-0`}
                       />
+                      <input
+                        type="text"
+                        value={editMcpArgs}
+                        onChange={(e) => setEditMcpArgs(e.target.value)}
+                        placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
+                        className={`${inputCls} flex-1`}
+                      />
+                    </div>
+                    <textarea
+                      value={editMcpEnv}
+                      onChange={(e) => setEditMcpEnv(e.target.value)}
+                      placeholder={
+                        "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
+                      }
+                      className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                    />
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => {
-                          void handleDeleteMcpServer(s.id);
+                          void handleSaveEditMcpServer();
                         }}
-                        className="text-[0.72rem] text-[#888] hover:text-[#e74c3c] bg-transparent border-none cursor-pointer underline transition-colors"
+                        disabled={
+                          mcpBusy ||
+                          !editMcpName.trim() ||
+                          !editMcpCommand.trim()
+                        }
+                        className="bg-accent hover:bg-accent-hover disabled:opacity-50 border-none rounded-lg text-white px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
                       >
-                        Remove
+                        {mcpBusy ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEditMcpServer}
+                        disabled={mcpBusy}
+                        className="bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
+                      >
+                        Cancel
                       </button>
                     </div>
                   </div>
-                  {s.status?.error && (
-                    <p className="text-[0.72rem] text-[#e74c3c]">
-                      {s.status.error}
-                    </p>
-                  )}
-                  {s.status?.connected && s.status.tool_count > 0 && (
-                    <p className="text-[0.72rem] text-txt-dim">
-                      {s.status.tool_count} tool
-                      {s.status.tool_count === 1 ? "" : "s"}:{" "}
-                      {s.status.tools.map((t) => t.name).join(", ")}
-                    </p>
-                  )}
-                </div>
-              ))}
+                ) : (
+                  <div
+                    key={s.id}
+                    className="flex flex-col gap-1 bg-bg-base border border-border rounded-[0.6rem] px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            s.status?.connected
+                              ? "bg-[#2ecc71]"
+                              : s.status?.error
+                                ? "bg-[#e74c3c]"
+                                : "bg-[#888]"
+                          }`}
+                          title={
+                            s.status?.error ||
+                            (s.status?.connected ? "Connected" : "Disabled")
+                          }
+                        />
+                        <span className="text-[0.85rem] text-txt-primary font-medium truncate">
+                          {s.name}
+                        </span>
+                        <span className="text-[0.72rem] text-txt-dim truncate">
+                          {s.command} {s.args.join(" ")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={s.enabled}
+                          onChange={() => {
+                            void handleToggleMcpServer(s);
+                          }}
+                          disabled={mcpBusy}
+                          className="w-4 h-4 accent-accent cursor-pointer disabled:cursor-not-allowed"
+                          title="Enabled"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => startEditMcpServer(s)}
+                          disabled={mcpBusy}
+                          className="text-[0.72rem] text-[#888] hover:text-txt-primary disabled:opacity-50 bg-transparent border-none cursor-pointer underline transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleDeleteMcpServer(s.id);
+                          }}
+                          disabled={mcpBusy}
+                          className="text-[0.72rem] text-[#888] hover:text-[#e74c3c] disabled:opacity-50 bg-transparent border-none cursor-pointer underline transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    {s.status?.error && (
+                      <p className="text-[0.72rem] text-[#e74c3c]">
+                        {s.status.error}
+                      </p>
+                    )}
+                    {s.status?.connected && s.status.tool_count > 0 && (
+                      <p className="text-[0.72rem] text-txt-dim">
+                        {s.status.tool_count} tool
+                        {s.status.tool_count === 1 ? "" : "s"}:{" "}
+                        {s.status.tools.map((t) => t.name).join(", ")}
+                      </p>
+                    )}
+                  </div>
+                ),
+              )}
             </div>
 
             <div className="flex flex-col gap-2 border-t border-border pt-3">
@@ -536,7 +687,7 @@ export default function SettingsModal({
                   value={newMcpCommand}
                   onChange={(e) => setNewMcpCommand(e.target.value)}
                   placeholder="npx"
-                  className={`${inputCls} w-24 flex-shrink-0`}
+                  className={`${inputCls} !w-24 flex-shrink-0`}
                 />
                 <input
                   type="text"
@@ -560,7 +711,7 @@ export default function SettingsModal({
                   void handleAddMcpServer();
                 }}
                 disabled={
-                  mcpSaving || !newMcpName.trim() || !newMcpCommand.trim()
+                  mcpBusy || !newMcpName.trim() || !newMcpCommand.trim()
                 }
                 className="self-start bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
               >

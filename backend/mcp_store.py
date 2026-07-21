@@ -10,10 +10,13 @@ MCP_CONFIG_FILE = os.path.join(os.path.dirname(__file__), "..", "mcp_servers.jso
 
 
 def load_mcp_servers() -> list[dict]:
-    if not os.path.exists(MCP_CONFIG_FILE):
+    if not os.path.exists(MCP_CONFIG_FILE) or os.path.isdir(MCP_CONFIG_FILE):
         return []
     with open(MCP_CONFIG_FILE, encoding="utf-8") as f:
-        return json.load(f).get("servers", [])
+        raw = f.read().strip()
+    if not raw:
+        return []
+    return json.loads(raw).get("servers", [])
 
 
 def save_mcp_servers(servers: list[dict]) -> None:

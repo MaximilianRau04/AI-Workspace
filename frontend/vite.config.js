@@ -14,6 +14,7 @@ export default defineConfig({
       '/folders':  { target: 'http://localhost:5000', changeOrigin: true },
       '/config':   { target: 'http://localhost:5000', changeOrigin: true },
       '/docs':     { target: 'http://localhost:5000', changeOrigin: true },
+      '/mcp':      { target: 'http://localhost:5000', changeOrigin: true },
       '/tts':      { target: 'http://localhost:5000', changeOrigin: true },
       '/stt':      { target: 'http://localhost:5000', changeOrigin: true },
       '/me':       { target: 'http://localhost:5000', changeOrigin: true },

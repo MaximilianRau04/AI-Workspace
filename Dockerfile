@@ -1,6 +1,9 @@
 # Stage 1: Build frontend
+# WORKDIR is /build/frontend (not /build) because vite.config.js sets
+# outDir: '../dist', which must resolve to /build/dist to match the
+# COPY --from=frontend line below.
 FROM node:20-alpine AS frontend
-WORKDIR /build
+WORKDIR /build/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
