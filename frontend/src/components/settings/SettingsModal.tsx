@@ -14,9 +14,10 @@ import {
   addMcpServer,
   updateMcpServer,
   deleteMcpServer,
+  authorizeMcpServer,
 } from "../../api/mcp";
 import { useApp } from "../../context/AppContext";
-import type { Preset, McpServer, McpTransport } from "../../types";
+import type { Preset, McpServer, McpTransport, McpAuth } from "../../types";
 
 const MODEL_LISTS: Record<string, string[]> = {
   gemini: [
@@ -105,8 +106,10 @@ export default function SettingsModal({
   const [newMcpEnv, setNewMcpEnv] = useState("");
   const [newMcpUrl, setNewMcpUrl] = useState("");
   const [newMcpHeaders, setNewMcpHeaders] = useState("");
+  const [newMcpAuth, setNewMcpAuth] = useState<McpAuth>("none");
   const [mcpSaving, setMcpSaving] = useState(false);
   const [mcpBusy, setMcpBusy] = useState(false);
+  const [mcpAuthorizingId, setMcpAuthorizingId] = useState<string | null>(null);
   const [editingMcpId, setEditingMcpId] = useState<string | null>(null);
   const [editMcpName, setEditMcpName] = useState("");
   const [editMcpTransport, setEditMcpTransport] =
@@ -116,6 +119,7 @@ export default function SettingsModal({
   const [editMcpEnv, setEditMcpEnv] = useState("");
   const [editMcpUrl, setEditMcpUrl] = useState("");
   const [editMcpHeaders, setEditMcpHeaders] = useState("");
+  const [editMcpAuth, setEditMcpAuth] = useState<McpAuth>("none");
 
   useEffect(() => {
     setTab(initialTab);
@@ -131,6 +135,20 @@ export default function SettingsModal({
   useEffect(() => {
     if (tab === "mcp" && !mcpLoaded) reloadMcpServers();
   }, [tab, mcpLoaded]);
+
+  useEffect(() => {
+    if (tab !== "mcp") return;
+    const pending = mcpServers.some(
+      (s) =>
+        s.enabled &&
+        s.auth === "oauth" &&
+        !s.status?.connected &&
+        !s.status?.error,
+    );
+    if (!pending) return;
+    const interval = setInterval(reloadMcpServers, 3000);
+    return () => clearInterval(interval);
+  }, [tab, mcpServers]);
 
   function parseMcpArgs(raw: string): string[] {
     return raw.trim() ? raw.trim().split(/\s+/) : [];
@@ -178,6 +196,7 @@ export default function SettingsModal({
         env: parseKeyValueLines(newMcpEnv),
         url: newMcpUrl.trim(),
         headers: parseKeyValueLines(newMcpHeaders),
+        auth: newMcpTransport === "stdio" ? "none" : newMcpAuth,
       });
       setNewMcpName("");
       setNewMcpTransport("stdio");
@@ -186,6 +205,7 @@ export default function SettingsModal({
       setNewMcpEnv("");
       setNewMcpUrl("");
       setNewMcpHeaders("");
+      setNewMcpAuth("none");
       reloadMcpServers();
     } finally {
       setMcpSaving(false);
@@ -213,6 +233,16 @@ export default function SettingsModal({
     }
   }
 
+  async function handleAuthorizeMcpServer(id: string): Promise<void> {
+    setMcpAuthorizingId(id);
+    try {
+      await authorizeMcpServer(id);
+      reloadMcpServers();
+    } finally {
+      setMcpAuthorizingId(null);
+    }
+  }
+
   function startEditMcpServer(server: McpServer): void {
     setEditingMcpId(server.id);
     setEditMcpName(server.name);
@@ -222,6 +252,7 @@ export default function SettingsModal({
     setEditMcpEnv(formatKeyValueLines(server.env));
     setEditMcpUrl(server.url);
     setEditMcpHeaders(formatKeyValueLines(server.headers));
+    setEditMcpAuth(server.auth);
   }
 
   function cancelEditMcpServer(): void {
@@ -243,6 +274,7 @@ export default function SettingsModal({
         env: parseKeyValueLines(editMcpEnv),
         url: editMcpUrl.trim(),
         headers: parseKeyValueLines(editMcpHeaders),
+        auth: editMcpTransport === "stdio" ? "none" : editMcpAuth,
       });
       setEditingMcpId(null);
       reloadMcpServers();
@@ -631,6 +663,19 @@ export default function SettingsModal({
                           }
                           className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
                         />
+                        <label className="flex items-center gap-2 text-[0.8rem] text-txt-primary cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editMcpAuth === "oauth"}
+                            onChange={(e) =>
+                              setEditMcpAuth(
+                                e.target.checked ? "oauth" : "none",
+                              )
+                            }
+                            className="w-4 h-4 accent-accent cursor-pointer"
+                          />
+                          Sign in via OAuth
+                        </label>
                       </>
                     )}
                     <div className="flex gap-2">
@@ -675,11 +720,17 @@ export default function SettingsModal({
                               ? "bg-[#2ecc71]"
                               : s.status?.error
                                 ? "bg-[#e74c3c]"
-                                : "bg-[#888]"
+                                : s.status?.needs_authorization
+                                  ? "bg-[#e6a23c]"
+                                  : "bg-[#888]"
                           }`}
                           title={
                             s.status?.error ||
-                            (s.status?.connected ? "Connected" : "Disabled")
+                            (s.status?.connected
+                              ? "Connected"
+                              : s.status?.needs_authorization
+                                ? "Needs authorization"
+                                : "Disabled")
                           }
                         />
                         <span className="text-[0.85rem] text-txt-primary font-medium truncate">
@@ -727,6 +778,36 @@ export default function SettingsModal({
                         {s.status.error}
                       </p>
                     )}
+                    {s.enabled &&
+                      s.auth === "oauth" &&
+                      !s.status?.connected && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleAuthorizeMcpServer(s.id);
+                            }}
+                            disabled={mcpAuthorizingId === s.id}
+                            className="self-start bg-accent hover:bg-accent-hover disabled:opacity-50 border-none rounded-lg text-white px-3 py-[0.3rem] cursor-pointer text-[0.72rem] transition-colors"
+                          >
+                            {mcpAuthorizingId === s.id
+                              ? "Starting…"
+                              : s.status?.authorization_url
+                                ? "Sign in again"
+                                : "Sign in"}
+                          </button>
+                          {s.status?.authorization_url && (
+                            <a
+                              href={s.status.authorization_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[0.72rem] text-accent underline"
+                            >
+                              Open sign-in page ↗
+                            </a>
+                          )}
+                        </div>
+                      )}
                     {s.status?.connected && s.status.tool_count > 0 && (
                       <p className="text-[0.72rem] text-txt-dim">
                         {s.status.tool_count} tool
@@ -803,6 +884,17 @@ export default function SettingsModal({
                     }
                     className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
                   />
+                  <label className="flex items-center gap-2 text-[0.8rem] text-txt-primary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newMcpAuth === "oauth"}
+                      onChange={(e) =>
+                        setNewMcpAuth(e.target.checked ? "oauth" : "none")
+                      }
+                      className="w-4 h-4 accent-accent cursor-pointer"
+                    />
+                    Sign in via OAuth (instead of a static header above)
+                  </label>
                 </>
               )}
               <button

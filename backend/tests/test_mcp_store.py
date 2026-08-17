@@ -32,6 +32,42 @@ def test_add_remote_server():
     assert server["transport"] == "http"
     assert server["url"] == "https://example.com/mcp"
     assert server["headers"] == {"Authorization": "Bearer x"}
+    assert server["auth"] == "none"
+    assert server["oauth_client_info"] is None
+    assert server["oauth_tokens"] is None
+
+
+def test_add_oauth_server():
+    server = mcp_store.add_server(
+        "Remote", "http", "", [], {}, "https://example.com/mcp", {}, "oauth"
+    )
+
+    assert server["auth"] == "oauth"
+
+
+def test_get_server():
+    server = mcp_store.add_server("Filesystem", "stdio", "npx", [], {}, "", {})
+
+    assert mcp_store.get_server(server["id"]) == server
+    assert mcp_store.get_server("does-not-exist") is None
+
+
+def test_update_server_persists_oauth_tokens():
+    server = mcp_store.add_server(
+        "Remote", "http", "", [], {}, "https://example.com/mcp", {}, "oauth"
+    )
+
+    updated = mcp_store.update_server(
+        server["id"],
+        {
+            "oauth_client_info": {"client_id": "abc"},
+            "oauth_tokens": {"access_token": "xyz", "token_type": "Bearer"},
+        },
+    )
+
+    assert updated["oauth_client_info"] == {"client_id": "abc"}
+    assert updated["oauth_tokens"] == {"access_token": "xyz", "token_type": "Bearer"}
+    assert mcp_store.get_server(server["id"])["oauth_tokens"]["access_token"] == "xyz"
 
 
 def test_add_multiple_servers_get_distinct_ids():

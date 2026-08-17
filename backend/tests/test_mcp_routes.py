@@ -123,3 +123,93 @@ def test_update_unknown_server_returns_404(authed_client):
 def test_delete_unknown_server_returns_404(authed_client):
     resp = authed_client.delete("/mcp/servers/does-not-exist")
     assert resp.status_code == 404
+
+
+def test_create_oauth_server(authed_client):
+    resp = authed_client.post(
+        "/mcp/servers",
+        json={
+            "name": "Remote",
+            "transport": "http",
+            "url": "https://example.com/mcp",
+            "auth": "oauth",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["auth"] == "oauth"
+
+
+def test_create_oauth_with_stdio_transport_returns_400(authed_client):
+    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "npx", "auth": "oauth"})
+    assert resp.status_code == 400
+
+
+def test_update_invalid_auth_returns_400(authed_client):
+    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
+    server_id = resp.json()["id"]
+
+    resp = authed_client.patch(f"/mcp/servers/{server_id}", json={"auth": "carrier-pigeon"})
+    assert resp.status_code == 400
+
+
+def test_authorize_requires_auth(client):
+    resp = client.post("/mcp/servers/does-not-exist/authorize")
+    assert resp.status_code == 401
+
+
+def test_authorize_unknown_server_returns_404(authed_client):
+    resp = authed_client.post("/mcp/servers/does-not-exist/authorize")
+    assert resp.status_code == 404
+
+
+def test_authorize_non_oauth_server_returns_400(authed_client):
+    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
+    server_id = resp.json()["id"]
+
+    resp = authed_client.post(f"/mcp/servers/{server_id}/authorize")
+    assert resp.status_code == 400
+
+
+def test_authorize_oauth_server(authed_client):
+    resp = authed_client.post(
+        "/mcp/servers",
+        json={
+            "name": "Remote",
+            "transport": "http",
+            "url": "https://example.com/mcp",
+            "auth": "oauth",
+        },
+    )
+    server_id = resp.json()["id"]
+
+    resp = authed_client.post(f"/mcp/servers/{server_id}/authorize")
+    assert resp.status_code == 200, resp.text
+    assert resp.json() == {"ok": True}
+
+
+def test_oauth_callback_missing_params_shows_error_page(client):
+    resp = client.get("/mcp/oauth/callback")
+    assert resp.status_code == 200
+    assert "Missing authorization code" in resp.text
+
+
+def test_oauth_callback_provider_error_shows_error_page(client):
+    resp = client.get("/mcp/oauth/callback", params={"error": "access_denied"})
+    assert resp.status_code == 200
+    assert "access_denied" in resp.text
+
+
+def test_oauth_callback_unknown_state_shows_expired_page(client):
+    resp = client.get("/mcp/oauth/callback", params={"code": "abc", "state": "unknown"})
+    assert resp.status_code == 200
+    assert "no longer valid" in resp.text
+
+
+def test_oauth_callback_resolves_pending_flow(client, monkeypatch):
+    from mcp_manager import manager as mcp_manager_instance
+
+    monkeypatch.setattr(mcp_manager_instance, "resolve_oauth_callback", lambda state, code: True)
+
+    resp = client.get("/mcp/oauth/callback", params={"code": "abc", "state": "xyz"})
+    assert resp.status_code == 200
+    assert "Authorization complete" in resp.text

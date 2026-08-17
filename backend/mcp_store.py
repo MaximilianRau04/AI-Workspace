@@ -8,6 +8,20 @@ import uuid
 
 MCP_CONFIG_FILE = os.path.join(os.path.dirname(__file__), "..", "mcp_servers.json")
 
+_UPDATABLE_FIELDS = (
+    "name",
+    "enabled",
+    "transport",
+    "command",
+    "args",
+    "env",
+    "url",
+    "headers",
+    "auth",
+    "oauth_client_info",
+    "oauth_tokens",
+)
+
 
 def load_mcp_servers() -> list[dict]:
     if not os.path.exists(MCP_CONFIG_FILE) or os.path.isdir(MCP_CONFIG_FILE):
@@ -21,12 +35,22 @@ def load_mcp_servers() -> list[dict]:
         server.setdefault("transport", "stdio")
         server.setdefault("url", "")
         server.setdefault("headers", {})
+        server.setdefault("auth", "none")
+        server.setdefault("oauth_client_info", None)
+        server.setdefault("oauth_tokens", None)
     return servers
 
 
 def save_mcp_servers(servers: list[dict]) -> None:
     with open(MCP_CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump({"servers": servers}, f, indent=2)
+
+
+def get_server(server_id: str) -> dict | None:
+    for server in load_mcp_servers():
+        if server["id"] == server_id:
+            return server
+    return None
 
 
 def add_server(
@@ -37,6 +61,7 @@ def add_server(
     env: dict[str, str],
     url: str,
     headers: dict[str, str],
+    auth: str = "none",
 ) -> dict:
     servers = load_mcp_servers()
     server = {
@@ -49,6 +74,9 @@ def add_server(
         "env": env,
         "url": url,
         "headers": headers,
+        "auth": auth,
+        "oauth_client_info": None,
+        "oauth_tokens": None,
     }
     servers.append(server)
     save_mcp_servers(servers)
@@ -59,23 +87,7 @@ def update_server(server_id: str, updates: dict) -> dict | None:
     servers = load_mcp_servers()
     for server in servers:
         if server["id"] == server_id:
-            server.update(
-                {
-                    k: v
-                    for k, v in updates.items()
-                    if k
-                    in (
-                        "name",
-                        "enabled",
-                        "transport",
-                        "command",
-                        "args",
-                        "env",
-                        "url",
-                        "headers",
-                    )
-                }
-            )
+            server.update({k: v for k, v in updates.items() if k in _UPDATABLE_FIELDS})
             save_mcp_servers(servers)
             return server
     return None

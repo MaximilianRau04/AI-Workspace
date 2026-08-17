@@ -86,9 +86,12 @@ export interface McpServerStatus {
   tool_count: number;
   tools: { name: string; description: string }[];
   error: string | null;
+  needs_authorization: boolean;
+  authorization_url: string | null;
 }
 
 export type McpTransport = "stdio" | "http" | "sse";
+export type McpAuth = "none" | "oauth";
 
 export interface McpServer {
   id: string;
@@ -100,6 +103,7 @@ export interface McpServer {
   env: Record<string, string>;
   url: string;
   headers: Record<string, string>;
+  auth: McpAuth;
   status: McpServerStatus | null;
 }
 

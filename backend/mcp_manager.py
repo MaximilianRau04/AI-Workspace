@@ -11,6 +11,14 @@ run_coroutine_threadsafe() and block on the result.
 Tools are exposed to the rest of the app as "mcp__<server_id>__<tool_name>"
 so they can be mixed into the existing per-provider tool lists in llm.py
 and routed back here from the shared _run_tool() dispatcher.
+
+Remote servers configured with auth="oauth" go through the MCP SDK's OAuth2
++ PKCE + dynamic client registration flow. That flow needs a human to visit
+an authorization URL in a browser and only resumes once our OAuth callback
+route delivers the resulting code, so it is never run as part of the normal
+connect_all() reconnect (which is timeout-bounded and expected to finish
+without user interaction) — only start_oauth_authorization() triggers it,
+from a request that can supply a real redirect_uri.
 """
 
 from __future__ import annotations
@@ -21,13 +29,20 @@ import re
 import threading
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
+from urllib.parse import parse_qs, urlparse
 
 from mcp import ClientSession, StdioServerParameters
+from mcp.client.auth import OAuthClientProvider
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
 from mcp.client.streamable_http import streamablehttp_client
+from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthToken
+
+import mcp_store
 
 _NAME_RE = re.compile(r"^mcp__([0-9a-f]{8})__(.+)$")
+
+OAUTH_CALLBACK_TIMEOUT = 300.0  # seconds to wait for the user to finish the browser consent flow
 
 
 @dataclass
@@ -37,6 +52,31 @@ class _ServerConn:
     tools: list[dict] = field(default_factory=list)
 
 
+class _StoreTokenStorage:
+    """TokenStorage backed by mcp_store, so registration + tokens survive restarts."""
+
+    def __init__(self, server_id: str) -> None:
+        self.server_id = server_id
+
+    async def get_tokens(self) -> OAuthToken | None:
+        server = mcp_store.get_server(self.server_id)
+        raw = server.get("oauth_tokens") if server else None
+        return OAuthToken.model_validate(raw) if raw else None
+
+    async def set_tokens(self, tokens: OAuthToken) -> None:
+        mcp_store.update_server(self.server_id, {"oauth_tokens": tokens.model_dump(mode="json")})
+
+    async def get_client_info(self) -> OAuthClientInformationFull | None:
+        server = mcp_store.get_server(self.server_id)
+        raw = server.get("oauth_client_info") if server else None
+        return OAuthClientInformationFull.model_validate(raw) if raw else None
+
+    async def set_client_info(self, client_info: OAuthClientInformationFull) -> None:
+        mcp_store.update_server(
+            self.server_id, {"oauth_client_info": client_info.model_dump(mode="json")}
+        )
+
+
 class McpManager:
     def __init__(self) -> None:
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -44,6 +84,12 @@ class McpManager:
         self._conns: dict[str, _ServerConn] = {}
         self._errors: dict[str, str] = {}
         self._names: dict[str, str] = {}
+        self._configs: dict[str, dict] = {}
+        # OAuth flows in progress: authorization URL / pending code exchange per server,
+        # plus the state->server_id correlation needed to route the callback request.
+        self._oauth_urls: dict[str, str] = {}
+        self._oauth_pending: dict[str, asyncio.Future] = {}
+        self._oauth_state_to_server: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Background loop plumbing
@@ -86,24 +132,85 @@ class McpManager:
     async def _connect_all(self, servers: list[dict]) -> None:
         for server_id in list(self._conns.keys()):
             await self._disconnect(server_id)
+        enabled_ids = {s["id"] for s in servers if s.get("enabled")}
+        for server_id in list(self._oauth_pending.keys()):
+            if server_id not in enabled_ids:
+                self._cancel_oauth(server_id)
         self._errors = {}
         self._names = {s["id"]: s["name"] for s in servers}
+        self._configs = {s["id"]: s for s in servers}
         for s in servers:
-            if s.get("enabled"):
-                await self._connect_one(s)
+            if not s.get("enabled"):
+                continue
+            if (
+                s.get("transport") != "stdio"
+                and s.get("auth") == "oauth"
+                and not s.get("oauth_tokens")
+            ):
+                # No token yet — needs a human in a browser. Handled separately by
+                # start_oauth_authorization() so it can't stall this reconnect pass.
+                continue
+            await self._connect_one(s)
 
-    async def _connect_one(self, s: dict) -> None:
+    def _build_oauth_provider(self, s: dict, redirect_uri: str | None) -> OAuthClientProvider:
+        server_id = s["id"]
+        metadata = OAuthClientMetadata(
+            redirect_uris=[redirect_uri or "http://localhost/mcp/oauth/callback"],
+            client_name="AI Workspace",
+            grant_types=["authorization_code", "refresh_token"],
+            response_types=["code"],
+        )
+
+        async def redirect_handler(url: str) -> None:
+            state = parse_qs(urlparse(url).query).get("state", [None])[0]
+            self._oauth_urls[server_id] = url
+            if state:
+                self._oauth_state_to_server[state] = server_id
+
+        async def callback_handler() -> tuple[str, str | None]:
+            fut = self._loop.create_future()
+            self._oauth_pending[server_id] = fut
+            try:
+                return await asyncio.wait_for(fut, timeout=OAUTH_CALLBACK_TIMEOUT)
+            finally:
+                self._oauth_pending.pop(server_id, None)
+                self._oauth_urls.pop(server_id, None)
+
+        # Only wire up the interactive handlers when we have a real, request-derived
+        # redirect_uri. Background reconnects pass none: if a stored token can't be
+        # refreshed there, this fails fast with a clear error instead of ever blocking
+        # on a browser flow nobody is watching.
+        interactive = redirect_uri is not None
+        if interactive:
+            for state, sid in list(self._oauth_state_to_server.items()):
+                if sid == server_id:
+                    del self._oauth_state_to_server[state]
+
+        return OAuthClientProvider(
+            server_url=s["url"],
+            client_metadata=metadata,
+            storage=_StoreTokenStorage(server_id),
+            redirect_handler=redirect_handler if interactive else None,
+            callback_handler=callback_handler if interactive else None,
+        )
+
+    async def _connect_one(self, s: dict, redirect_uri: str | None = None) -> None:
         server_id = s["id"]
         stack = AsyncExitStack()
         try:
             transport = s.get("transport", "stdio")
+            auth = (
+                self._build_oauth_provider(s, redirect_uri)
+                if transport != "stdio" and s.get("auth") == "oauth"
+                else None
+            )
             if transport == "http":
                 read, write, _ = await stack.enter_async_context(
-                    streamablehttp_client(s["url"], headers=s.get("headers") or None)
+                    streamablehttp_client(s["url"], headers=s.get("headers") or None, auth=auth)
                 )
             elif transport == "sse":
                 read, write = await stack.enter_async_context(
-                    sse_client(s["url"], headers=s.get("headers") or None)
+                    sse_client(s["url"], headers=s.get("headers") or None, auth=auth)
                 )
             else:
                 env = {**os.environ, **(s.get("env") or {})}
@@ -123,6 +230,7 @@ class McpManager:
                 for t in result.tools
             ]
             self._conns[server_id] = _ServerConn(session=session, stack=stack, tools=tools)
+            self._errors.pop(server_id, None)
         except Exception as exc:
             self._errors[server_id] = str(exc)
             await stack.aclose()
@@ -134,6 +242,15 @@ class McpManager:
                 await conn.stack.aclose()
             except Exception:
                 pass
+
+    def _cancel_oauth(self, server_id: str) -> None:
+        fut = self._oauth_pending.pop(server_id, None)
+        if fut and not fut.done():
+            fut.cancel()
+        self._oauth_urls.pop(server_id, None)
+        for state, sid in list(self._oauth_state_to_server.items()):
+            if sid == server_id:
+                del self._oauth_state_to_server[state]
 
     def shutdown(self) -> None:
         if self._loop is None:
@@ -153,6 +270,43 @@ class McpManager:
             await self._disconnect(server_id)
 
     # ------------------------------------------------------------------
+    # OAuth (remote servers with auth="oauth")
+    # ------------------------------------------------------------------
+
+    def start_oauth_authorization(self, server: dict, redirect_uri: str) -> None:
+        """Kick off (or restart) the interactive OAuth flow for one server.
+
+        Runs as its own task on the MCP loop, independent of connect_all()'s
+        timeout-bounded reconnect pass, since this step waits on a human
+        completing a browser consent screen — which can take arbitrarily long.
+        """
+        server_id = server["id"]
+        loop = self._ensure_loop()
+        self._names[server_id] = server["name"]
+        self._configs[server_id] = server
+        self._errors.pop(server_id, None)
+
+        async def _reauthorize() -> None:
+            await self._disconnect(server_id)
+            await self._connect_one(server, redirect_uri)
+
+        asyncio.run_coroutine_threadsafe(_reauthorize(), loop)
+
+    def resolve_oauth_callback(self, state: str, code: str) -> bool:
+        """Deliver an authorization code from the OAuth callback route to the
+        matching pending connection attempt. Returns False if `state` is unknown
+        (expired, already resolved, or forged)."""
+        server_id = self._oauth_state_to_server.get(state)
+        if server_id is None:
+            return False
+        fut = self._oauth_pending.get(server_id)
+        if fut is None or fut.done():
+            return False
+        assert self._loop is not None
+        self._loop.call_soon_threadsafe(fut.set_result, (code, state))
+        return True
+
+    # ------------------------------------------------------------------
     # Status / tool listing
     # ------------------------------------------------------------------
 
@@ -160,6 +314,10 @@ class McpManager:
         status = []
         for server_id, name in self._names.items():
             conn = self._conns.get(server_id)
+            cfg = self._configs.get(server_id, {})
+            needs_authorization = (
+                conn is None and cfg.get("transport") != "stdio" and cfg.get("auth") == "oauth"
+            )
             status.append(
                 {
                     "server_id": server_id,
@@ -172,6 +330,8 @@ class McpManager:
                         else []
                     ),
                     "error": self._errors.get(server_id),
+                    "needs_authorization": needs_authorization,
+                    "authorization_url": self._oauth_urls.get(server_id),
                 }
             )
         return status

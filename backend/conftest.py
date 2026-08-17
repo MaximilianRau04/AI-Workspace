@@ -32,6 +32,7 @@ def no_mcp_reconnect(monkeypatch):
     """Prevent the API layer from spawning real MCP subprocesses during route tests."""
     monkeypatch.setattr(mcp_manager_instance, "connect_all", lambda servers: None)
     monkeypatch.setattr(mcp_manager_instance, "get_status", lambda: [])
+    monkeypatch.setattr(mcp_manager_instance, "start_oauth_authorization", lambda server, uri: None)
 
 
 @pytest.fixture

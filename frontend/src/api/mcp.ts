@@ -1,4 +1,4 @@
-import type { McpServer, McpTransport } from "../types";
+import type { McpAuth, McpServer, McpTransport } from "../types";
 
 export async function getMcpServers(): Promise<{ servers: McpServer[] }> {
   const res = await fetch("/mcp/servers");
@@ -13,6 +13,7 @@ export async function addMcpServer(entry: {
   env: Record<string, string>;
   url: string;
   headers: Record<string, string>;
+  auth: McpAuth;
 }): Promise<McpServer> {
   const res = await fetch("/mcp/servers", {
     method: "POST",
@@ -33,6 +34,7 @@ export async function updateMcpServer(
     env: Record<string, string>;
     url: string;
     headers: Record<string, string>;
+    auth: McpAuth;
   }>,
 ): Promise<McpServer> {
   const res = await fetch(`/mcp/servers/${id}`, {
@@ -47,5 +49,12 @@ export async function deleteMcpServer(
   id: string,
 ): Promise<Record<string, unknown>> {
   const res = await fetch(`/mcp/servers/${id}`, { method: "DELETE" });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+export async function authorizeMcpServer(
+  id: string,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`/mcp/servers/${id}/authorize`, { method: "POST" });
   return res.json() as Promise<Record<string, unknown>>;
 }
