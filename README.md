@@ -142,7 +142,7 @@ The active provider and model are configured via the ⚙️ Settings button → 
 - **Agentic ReAct loop** - the model autonomously decides when and how often to call tools; it can chain multiple tool calls in a single turn (e.g. search → read page → run code → answer) up to a configurable step limit (`MAX_AGENT_STEPS`)
 - **Web search** - enable via the ➕ tools menu; the agent searches via DuckDuckGo and fetches URLs as needed - you control access, the model decides usage
 - **Code interpreter** - enable via the ➕ tools menu; the agent can write and execute code in isolated Docker containers (no network, memory/CPU limits); supported languages: Python, JavaScript, TypeScript (Deno), Bash, Ruby, PHP, Perl, Elixir, Lua, C, C++, Java, Go, Rust, C# (Mono) - Java class must be named `Main`
-- **MCP servers** - enable individual connected servers via the ➕ tools menu; connect any [MCP](https://modelcontextprotocol.io) server (folder access, GitHub, email, calendar, …) as tools for the agent, see [MCP Servers](#mcp-servers) below
+- **MCP servers** - enable individual connected servers via the ➕ tools menu; connect any [MCP](https://modelcontextprotocol.io) server (folder access, GitHub, email, calendar, …) as tools for the agent over stdio, HTTP, or SSE, with built-in OAuth sign-in for remote servers that need it, see [MCP Servers](#mcp-servers) below
 - **Voice input** - microphone button (Chrome / Edge only)
 - **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
@@ -172,7 +172,7 @@ ChatBot/
 │       ├── chat.py         # /chat (streaming SSE)
 │       ├── config.py       # /config  /config/model  /config/ollama-models
 │       ├── docs.py         # /docs  /docs/upload  /docs/delete
-│       ├── mcp.py          # /mcp/servers - add/edit/delete/list MCP servers
+│       ├── mcp.py          # /mcp/servers - add/edit/delete/list MCP servers; OAuth authorize + callback
 │       ├── sessions.py     # /sessions  /sessions/new  /sessions/<id>
 │       └── voice.py        # /tts  /stt
 ├── frontend/
@@ -232,24 +232,30 @@ The intermediate steps (searches, code executions) are streamed to the frontend 
 
 ## MCP Servers
 
-The ⚙️ Settings → **MCP Servers** tab lets you connect any [Model Context Protocol](https://modelcontextprotocol.io) server to give the agent new tools - folder access, GitHub, email, calendar, and anything else with an MCP server. Servers run locally as subprocesses (via `npx` or `uvx`) and stay connected for the lifetime of the backend process. Once connected, each server can be individually enabled per chat via the ➕ tools menu → **MCP servers** submenu - only the tools of the servers you actually check are sent to the model.
+The ⚙️ Settings → **MCP Servers** tab lets you connect any [Model Context Protocol](https://modelcontextprotocol.io) server to give the agent new tools - folder access, GitHub, email, calendar, and anything else with an MCP server. Once connected, each server can be individually enabled per chat via the ➕ tools menu → **MCP servers** submenu - only the tools of the servers you actually check are sent to the model.
 
-**Requirements:** Node.js/npm (for `npx`-based servers, already included in the Docker image) and/or [`uv`](https://github.com/astral-sh/uv) (installed as a Python dependency, provides `uvx`).
+Each server picks one of three transports in the Add/Edit form:
 
-**Example: folder access** - add a server with:
+- **Local (stdio)** - runs as a local subprocess (via `npx` or `uvx`) and stays connected for the lifetime of the backend process. Requires Node.js/npm (already included in the Docker image) and/or [`uv`](https://github.com/astral-sh/uv) (installed as a Python dependency, provides `uvx`).
+- **Remote (HTTP)** - connects to a server exposed over the MCP Streamable HTTP transport (just a URL).
+- **Remote (SSE)** - connects over the older Server-Sent Events transport, for servers that haven't moved to Streamable HTTP yet.
+
+**Example: folder access (stdio)** - add a server with:
+- Transport: Local (stdio)
 - Command: `npx`
 - Args: `-y @modelcontextprotocol/server-filesystem /path/to/folder`
 
 Any folder passed as an arg becomes readable/writable by the agent. When running via Docker, make sure that folder is also mounted into the container (see `docker-compose.yml`).
 
-**Example: GitHub** - add a server with:
+**Example: GitHub (stdio)** - add a server with:
+- Transport: Local (stdio)
 - Command: `npx`
 - Args: `-y @modelcontextprotocol/server-github`
 - Env: `GITHUB_PERSONAL_ACCESS_TOKEN=<your token>`
 
-Servers with secrets (tokens, API keys) should pass them via the **Env** field rather than baking them into args - they're stored in `mcp_servers.json` (not tracked by git, same as `model_config.json`).
+Servers with static secrets (tokens, API keys) should pass them via the **Env** field (stdio) or **Headers** field (remote) rather than baking them into args - they're stored in `mcp_servers.json` (not tracked by git, same as `model_config.json`).
 
-Email and calendar servers (Gmail, Google Calendar, etc.) typically need an OAuth setup of their own; check the specific server's documentation for how to obtain and pass credentials, then add it the same way.
+**Remote servers with OAuth** - for remote (HTTP/SSE) servers that require interactive sign-in rather than a static token (e.g. Gmail, Google Calendar), check **Sign in via OAuth** instead of setting a header. The backend then runs the full OAuth 2.1 + PKCE + dynamic client registration flow itself: click **Sign in** next to the server in Settings, complete the consent screen it opens, and the backend exchanges and stores the resulting tokens - refreshed automatically on later reconnects, no manual token entry needed.
 
 ## Security
 
@@ -257,5 +263,5 @@ Email and calendar servers (Gmail, Google Calendar, etc.) typically need an OAut
 - The session cookie is signed with `SECRET_KEY` via Starlette's `SessionMiddleware`; use a long random value in production.
 - API keys and `SECRET_KEY` live in `.env` and are excluded from version control.
 - Model config (including any API key entered via the UI) is stored in `model_config.json`, which is also excluded from version control.
-- MCP server config (including any tokens entered in the Env field) is stored in `mcp_servers.json`, also excluded from version control. MCP servers run as local subprocesses with full access to whatever the server implementation exposes - only add servers you trust.
+- MCP server config (including any tokens entered in the Env/Headers field, and any OAuth tokens obtained via the Sign in flow) is stored in `mcp_servers.json`, also excluded from version control. MCP servers run as local subprocesses or remote connections with full access to whatever the server implementation exposes - only add servers you trust.
 - `chatbot.db` contains user data and chat history - never commit it to version control.
