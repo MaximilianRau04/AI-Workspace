@@ -16,7 +16,7 @@ import {
   deleteMcpServer,
 } from "../../api/mcp";
 import { useApp } from "../../context/AppContext";
-import type { Preset, McpServer } from "../../types";
+import type { Preset, McpServer, McpTransport } from "../../types";
 
 const MODEL_LISTS: Record<string, string[]> = {
   gemini: [
@@ -99,16 +99,23 @@ export default function SettingsModal({
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
   const [mcpLoaded, setMcpLoaded] = useState(false);
   const [newMcpName, setNewMcpName] = useState("");
+  const [newMcpTransport, setNewMcpTransport] = useState<McpTransport>("stdio");
   const [newMcpCommand, setNewMcpCommand] = useState("npx");
   const [newMcpArgs, setNewMcpArgs] = useState("");
   const [newMcpEnv, setNewMcpEnv] = useState("");
+  const [newMcpUrl, setNewMcpUrl] = useState("");
+  const [newMcpHeaders, setNewMcpHeaders] = useState("");
   const [mcpSaving, setMcpSaving] = useState(false);
   const [mcpBusy, setMcpBusy] = useState(false);
   const [editingMcpId, setEditingMcpId] = useState<string | null>(null);
   const [editMcpName, setEditMcpName] = useState("");
+  const [editMcpTransport, setEditMcpTransport] =
+    useState<McpTransport>("stdio");
   const [editMcpCommand, setEditMcpCommand] = useState("");
   const [editMcpArgs, setEditMcpArgs] = useState("");
   const [editMcpEnv, setEditMcpEnv] = useState("");
+  const [editMcpUrl, setEditMcpUrl] = useState("");
+  const [editMcpHeaders, setEditMcpHeaders] = useState("");
 
   useEffect(() => {
     setTab(initialTab);
@@ -129,42 +136,56 @@ export default function SettingsModal({
     return raw.trim() ? raw.trim().split(/\s+/) : [];
   }
 
-  function parseMcpEnv(raw: string): Record<string, string> {
-    const env: Record<string, string> = {};
+  function parseKeyValueLines(raw: string): Record<string, string> {
+    const result: Record<string, string> = {};
     for (const line of raw.split("\n")) {
       const idx = line.indexOf("=");
       if (idx > 0) {
         const key = line.slice(0, idx).trim();
         const value = line.slice(idx + 1).trim();
-        if (key) env[key] = value;
+        if (key) result[key] = value;
       }
     }
-    return env;
+    return result;
   }
 
-  function formatMcpEnv(env: Record<string, string>): string {
-    return Object.entries(env)
+  function formatKeyValueLines(values: Record<string, string>): string {
+    return Object.entries(values)
       .map(([k, v]) => `${k}=${v}`)
       .join("\n");
   }
 
+  function isMcpFormValid(
+    transport: McpTransport,
+    command: string,
+    url: string,
+  ): boolean {
+    return transport === "stdio" ? !!command.trim() : !!url.trim();
+  }
+
   async function handleAddMcpServer(): Promise<void> {
     const name = newMcpName.trim();
-    const command = newMcpCommand.trim();
-    if (!name || !command) return;
+    if (!name || !isMcpFormValid(newMcpTransport, newMcpCommand, newMcpUrl))
+      return;
     setMcpSaving(true);
     setMcpBusy(true);
     try {
       await addMcpServer({
         name,
-        command,
+        transport: newMcpTransport,
+        command: newMcpCommand.trim(),
         args: parseMcpArgs(newMcpArgs),
-        env: parseMcpEnv(newMcpEnv),
+        env: parseKeyValueLines(newMcpEnv),
+        url: newMcpUrl.trim(),
+        headers: parseKeyValueLines(newMcpHeaders),
       });
       setNewMcpName("");
+      setNewMcpTransport("stdio");
       setNewMcpCommand("npx");
       setNewMcpArgs("");
       setNewMcpEnv("");
+      setNewMcpUrl("");
+      setNewMcpHeaders("");
       reloadMcpServers();
     } finally {
       setMcpSaving(false);
@@ -195,9 +216,12 @@ export default function SettingsModal({
   function startEditMcpServer(server: McpServer): void {
     setEditingMcpId(server.id);
     setEditMcpName(server.name);
+    setEditMcpTransport(server.transport);
     setEditMcpCommand(server.command);
     setEditMcpArgs(server.args.join(" "));
-    setEditMcpEnv(formatMcpEnv(server.env));
+    setEditMcpEnv(formatKeyValueLines(server.env));
+    setEditMcpUrl(server.url);
+    setEditMcpHeaders(formatKeyValueLines(server.headers));
   }
 
   function cancelEditMcpServer(): void {
@@ -207,15 +231,18 @@ export default function SettingsModal({
   async function handleSaveEditMcpServer(): Promise<void> {
     if (!editingMcpId) return;
     const name = editMcpName.trim();
-    const command = editMcpCommand.trim();
-    if (!name || !command) return;
+    if (!name || !isMcpFormValid(editMcpTransport, editMcpCommand, editMcpUrl))
+      return;
     setMcpBusy(true);
     try {
       await updateMcpServer(editingMcpId, {
         name,
-        command,
+        transport: editMcpTransport,
+        command: editMcpCommand.trim(),
         args: parseMcpArgs(editMcpArgs),
-        env: parseMcpEnv(editMcpEnv),
+        env: parseKeyValueLines(editMcpEnv),
+        url: editMcpUrl.trim(),
+        headers: parseKeyValueLines(editMcpHeaders),
       });
       setEditingMcpId(null);
       reloadMcpServers();
@@ -518,8 +545,9 @@ export default function SettingsModal({
           <div className="flex flex-col gap-4">
             <p className="text-[0.75rem] text-[#555]">
               Connect MCP servers (folder access, GitHub, email, calendar…) to
-              give the model new tools. Servers run locally as subprocesses via{" "}
-              <code>npx</code> or <code>uvx</code>.
+              give the model new tools. Local servers run as subprocesses via{" "}
+              <code>npx</code> or <code>uvx</code>; remote servers connect over
+              HTTP or SSE.
             </p>
 
             {mcpBusy && (
@@ -548,30 +576,63 @@ export default function SettingsModal({
                       placeholder="Name, e.g. Filesystem"
                       className={inputCls}
                     />
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={editMcpCommand}
-                        onChange={(e) => setEditMcpCommand(e.target.value)}
-                        placeholder="npx"
-                        className={`${inputCls} !w-24 flex-shrink-0`}
-                      />
-                      <input
-                        type="text"
-                        value={editMcpArgs}
-                        onChange={(e) => setEditMcpArgs(e.target.value)}
-                        placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
-                        className={`${inputCls} flex-1`}
-                      />
-                    </div>
-                    <textarea
-                      value={editMcpEnv}
-                      onChange={(e) => setEditMcpEnv(e.target.value)}
-                      placeholder={
-                        "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
+                    <select
+                      value={editMcpTransport}
+                      onChange={(e) =>
+                        setEditMcpTransport(e.target.value as McpTransport)
                       }
-                      className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
-                    />
+                      className={inputCls}
+                    >
+                      <option value="stdio">Local (stdio)</option>
+                      <option value="http">Remote (HTTP)</option>
+                      <option value="sse">Remote (SSE, legacy)</option>
+                    </select>
+                    {editMcpTransport === "stdio" ? (
+                      <>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editMcpCommand}
+                            onChange={(e) => setEditMcpCommand(e.target.value)}
+                            placeholder="npx"
+                            className={`${inputCls} !w-24 flex-shrink-0`}
+                          />
+                          <input
+                            type="text"
+                            value={editMcpArgs}
+                            onChange={(e) => setEditMcpArgs(e.target.value)}
+                            placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
+                            className={`${inputCls} flex-1`}
+                          />
+                        </div>
+                        <textarea
+                          value={editMcpEnv}
+                          onChange={(e) => setEditMcpEnv(e.target.value)}
+                          placeholder={
+                            "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
+                          }
+                          className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={editMcpUrl}
+                          onChange={(e) => setEditMcpUrl(e.target.value)}
+                          placeholder="https://example.com/mcp"
+                          className={inputCls}
+                        />
+                        <textarea
+                          value={editMcpHeaders}
+                          onChange={(e) => setEditMcpHeaders(e.target.value)}
+                          placeholder={
+                            "Optional HTTP headers, one per line:\nAuthorization=Bearer …"
+                          }
+                          className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                        />
+                      </>
+                    )}
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -581,7 +642,11 @@ export default function SettingsModal({
                         disabled={
                           mcpBusy ||
                           !editMcpName.trim() ||
-                          !editMcpCommand.trim()
+                          !isMcpFormValid(
+                            editMcpTransport,
+                            editMcpCommand,
+                            editMcpUrl,
+                          )
                         }
                         className="bg-accent hover:bg-accent-hover disabled:opacity-50 border-none rounded-lg text-white px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
                       >
@@ -621,7 +686,9 @@ export default function SettingsModal({
                           {s.name}
                         </span>
                         <span className="text-[0.72rem] text-txt-dim truncate">
-                          {s.command} {s.args.join(" ")}
+                          {s.transport === "stdio"
+                            ? `${s.command} ${s.args.join(" ")}`
+                            : `${s.transport} · ${s.url}`}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -681,37 +748,72 @@ export default function SettingsModal({
                 placeholder="Name, e.g. Filesystem"
                 className={inputCls}
               />
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newMcpCommand}
-                  onChange={(e) => setNewMcpCommand(e.target.value)}
-                  placeholder="npx"
-                  className={`${inputCls} !w-24 flex-shrink-0`}
-                />
-                <input
-                  type="text"
-                  value={newMcpArgs}
-                  onChange={(e) => setNewMcpArgs(e.target.value)}
-                  placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
-                  className={`${inputCls} flex-1`}
-                />
-              </div>
-              <textarea
-                value={newMcpEnv}
-                onChange={(e) => setNewMcpEnv(e.target.value)}
-                placeholder={
-                  "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
+              <select
+                value={newMcpTransport}
+                onChange={(e) =>
+                  setNewMcpTransport(e.target.value as McpTransport)
                 }
-                className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
-              />
+                className={inputCls}
+              >
+                <option value="stdio">Local (stdio)</option>
+                <option value="http">Remote (HTTP)</option>
+                <option value="sse">Remote (SSE, legacy)</option>
+              </select>
+              {newMcpTransport === "stdio" ? (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newMcpCommand}
+                      onChange={(e) => setNewMcpCommand(e.target.value)}
+                      placeholder="npx"
+                      className={`${inputCls} !w-24 flex-shrink-0`}
+                    />
+                    <input
+                      type="text"
+                      value={newMcpArgs}
+                      onChange={(e) => setNewMcpArgs(e.target.value)}
+                      placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
+                      className={`${inputCls} flex-1`}
+                    />
+                  </div>
+                  <textarea
+                    value={newMcpEnv}
+                    onChange={(e) => setNewMcpEnv(e.target.value)}
+                    placeholder={
+                      "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
+                    }
+                    className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                  />
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={newMcpUrl}
+                    onChange={(e) => setNewMcpUrl(e.target.value)}
+                    placeholder="https://example.com/mcp"
+                    className={inputCls}
+                  />
+                  <textarea
+                    value={newMcpHeaders}
+                    onChange={(e) => setNewMcpHeaders(e.target.value)}
+                    placeholder={
+                      "Optional HTTP headers, one per line:\nAuthorization=Bearer …"
+                    }
+                    className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                  />
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => {
                   void handleAddMcpServer();
                 }}
                 disabled={
-                  mcpBusy || !newMcpName.trim() || !newMcpCommand.trim()
+                  mcpBusy ||
+                  !newMcpName.trim() ||
+                  !isMcpFormValid(newMcpTransport, newMcpCommand, newMcpUrl)
                 }
                 className="self-start bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
               >

@@ -74,6 +74,47 @@ def test_create_missing_command_returns_400(authed_client):
     assert resp.status_code == 400
 
 
+def test_create_http_server(authed_client):
+    resp = authed_client.post(
+        "/mcp/servers",
+        json={
+            "name": "Remote",
+            "transport": "http",
+            "url": "https://example.com/mcp",
+            "headers": {"Authorization": "Bearer token"},
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    server = resp.json()
+    assert server["transport"] == "http"
+    assert server["url"] == "https://example.com/mcp"
+    assert server["headers"] == {"Authorization": "Bearer token"}
+    assert server["command"] == ""
+
+
+def test_create_remote_missing_url_returns_400(authed_client):
+    resp = authed_client.post(
+        "/mcp/servers", json={"name": "Remote", "transport": "sse", "url": "  "}
+    )
+    assert resp.status_code == 400
+
+
+def test_create_invalid_transport_falls_back_to_stdio(authed_client):
+    resp = authed_client.post(
+        "/mcp/servers", json={"name": "X", "transport": "carrier-pigeon", "command": "npx"}
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["transport"] == "stdio"
+
+
+def test_update_invalid_transport_returns_400(authed_client):
+    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
+    server_id = resp.json()["id"]
+
+    resp = authed_client.patch(f"/mcp/servers/{server_id}", json={"transport": "carrier-pigeon"})
+    assert resp.status_code == 400
+
+
 def test_update_unknown_server_returns_404(authed_client):
     resp = authed_client.patch("/mcp/servers/does-not-exist", json={"enabled": False})
     assert resp.status_code == 404

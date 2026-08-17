@@ -23,7 +23,9 @@ from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 
 from mcp import ClientSession, StdioServerParameters
+from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamablehttp_client
 
 _NAME_RE = re.compile(r"^mcp__([0-9a-f]{8})__(.+)$")
 
@@ -94,9 +96,21 @@ class McpManager:
         server_id = s["id"]
         stack = AsyncExitStack()
         try:
-            env = {**os.environ, **(s.get("env") or {})}
-            params = StdioServerParameters(command=s["command"], args=s.get("args", []), env=env)
-            read, write = await stack.enter_async_context(stdio_client(params))
+            transport = s.get("transport", "stdio")
+            if transport == "http":
+                read, write, _ = await stack.enter_async_context(
+                    streamablehttp_client(s["url"], headers=s.get("headers") or None)
+                )
+            elif transport == "sse":
+                read, write = await stack.enter_async_context(
+                    sse_client(s["url"], headers=s.get("headers") or None)
+                )
+            else:
+                env = {**os.environ, **(s.get("env") or {})}
+                params = StdioServerParameters(
+                    command=s["command"], args=s.get("args", []), env=env
+                )
+                read, write = await stack.enter_async_context(stdio_client(params))
             session = await stack.enter_async_context(ClientSession(read, write))
             await asyncio.wait_for(session.initialize(), timeout=20)
             result = await asyncio.wait_for(session.list_tools(), timeout=20)

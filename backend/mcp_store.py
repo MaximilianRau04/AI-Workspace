@@ -16,7 +16,12 @@ def load_mcp_servers() -> list[dict]:
         raw = f.read().strip()
     if not raw:
         return []
-    return json.loads(raw).get("servers", [])
+    servers = json.loads(raw).get("servers", [])
+    for server in servers:
+        server.setdefault("transport", "stdio")
+        server.setdefault("url", "")
+        server.setdefault("headers", {})
+    return servers
 
 
 def save_mcp_servers(servers: list[dict]) -> None:
@@ -24,15 +29,26 @@ def save_mcp_servers(servers: list[dict]) -> None:
         json.dump({"servers": servers}, f, indent=2)
 
 
-def add_server(name: str, command: str, args: list[str], env: dict[str, str]) -> dict:
+def add_server(
+    name: str,
+    transport: str,
+    command: str,
+    args: list[str],
+    env: dict[str, str],
+    url: str,
+    headers: dict[str, str],
+) -> dict:
     servers = load_mcp_servers()
     server = {
         "id": uuid.uuid4().hex[:8],
         "name": name,
         "enabled": True,
+        "transport": transport,
         "command": command,
         "args": args,
         "env": env,
+        "url": url,
+        "headers": headers,
     }
     servers.append(server)
     save_mcp_servers(servers)
@@ -47,7 +63,17 @@ def update_server(server_id: str, updates: dict) -> dict | None:
                 {
                     k: v
                     for k, v in updates.items()
-                    if k in ("name", "enabled", "command", "args", "env")
+                    if k
+                    in (
+                        "name",
+                        "enabled",
+                        "transport",
+                        "command",
+                        "args",
+                        "env",
+                        "url",
+                        "headers",
+                    )
                 }
             )
             save_mcp_servers(servers)

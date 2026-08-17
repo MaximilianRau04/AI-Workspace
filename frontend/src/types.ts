@@ -88,13 +88,18 @@ export interface McpServerStatus {
   error: string | null;
 }
 
+export type McpTransport = "stdio" | "http" | "sse";
+
 export interface McpServer {
   id: string;
   name: string;
   enabled: boolean;
+  transport: McpTransport;
   command: string;
   args: string[];
   env: Record<string, string>;
+  url: string;
+  headers: Record<string, string>;
   status: McpServerStatus | null;
 }
 

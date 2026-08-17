@@ -1,4 +1,4 @@
-import type { McpServer } from "../types";
+import type { McpServer, McpTransport } from "../types";
 
 export async function getMcpServers(): Promise<{ servers: McpServer[] }> {
   const res = await fetch("/mcp/servers");
@@ -7,9 +7,12 @@ export async function getMcpServers(): Promise<{ servers: McpServer[] }> {
 
 export async function addMcpServer(entry: {
   name: string;
+  transport: McpTransport;
   command: string;
   args: string[];
   env: Record<string, string>;
+  url: string;
+  headers: Record<string, string>;
 }): Promise<McpServer> {
   const res = await fetch("/mcp/servers", {
     method: "POST",
@@ -24,9 +27,12 @@ export async function updateMcpServer(
   updates: Partial<{
     name: string;
     enabled: boolean;
+    transport: McpTransport;
     command: string;
     args: string[];
     env: Record<string, string>;
+    url: string;
+    headers: Record<string, string>;
   }>,
 ): Promise<McpServer> {
   const res = await fetch(`/mcp/servers/${id}`, {
