@@ -31,18 +31,34 @@ from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 from urllib.parse import parse_qs, urlparse
 
+import anyio
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.auth import OAuthClientProvider
 from mcp.client.sse import sse_client
 from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
-from mcp.shared.auth import OAuthClientInformationFull, OAuthClientMetadata, OAuthToken
+from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
+from mcp.shared.auth import (
+    AuthorizationCodeResult,
+    OAuthClientInformationFull,
+    OAuthClientMetadata,
+    OAuthToken,
+)
 
 import mcp_store
 
 _NAME_RE = re.compile(r"^mcp__([0-9a-f]{8})__(.+)$")
 
 OAUTH_CALLBACK_TIMEOUT = 300.0  # seconds to wait for the user to finish the browser consent flow
+
+
+def _flatten_exception_message(exc: BaseException) -> str:
+    """First leaf message out of a (possibly nested) exception group, else str(exc)."""
+    if isinstance(exc, BaseExceptionGroup):
+        for sub in exc.exceptions:
+            msg = _flatten_exception_message(sub)
+            if msg:
+                return msg
+    return str(exc) or type(exc).__name__
 
 
 @dataclass
@@ -167,7 +183,7 @@ class McpManager:
             if state:
                 self._oauth_state_to_server[state] = server_id
 
-        async def callback_handler() -> tuple[str, str | None]:
+        async def callback_handler() -> AuthorizationCodeResult:
             fut = self._loop.create_future()
             self._oauth_pending[server_id] = fut
             try:
@@ -205,8 +221,10 @@ class McpManager:
                 else None
             )
             if transport == "http":
-                read, write, _ = await stack.enter_async_context(
-                    streamablehttp_client(s["url"], headers=s.get("headers") or None, auth=auth)
+                http_client = create_mcp_http_client(headers=s.get("headers") or None, auth=auth)
+                await stack.enter_async_context(http_client)
+                read, write = await stack.enter_async_context(
+                    streamable_http_client(s["url"], http_client=http_client)
                 )
             elif transport == "sse":
                 read, write = await stack.enter_async_context(
@@ -219,8 +237,12 @@ class McpManager:
                 )
                 read, write = await stack.enter_async_context(stdio_client(params))
             session = await stack.enter_async_context(ClientSession(read, write))
-            await asyncio.wait_for(session.initialize(), timeout=20)
-            result = await asyncio.wait_for(session.list_tools(), timeout=20)
+            # anyio.fail_after(), not asyncio.wait_for(): wait_for runs the awaited
+            # coroutine in a separate asyncio Task, which doesn't mix well with the
+            # streamable-HTTP transport's own anyio TaskGroup.
+            with anyio.fail_after(20):
+                await session.initialize()
+                result = await session.list_tools()
             tools = [
                 {
                     "name": t.name,
@@ -231,9 +253,21 @@ class McpManager:
             ]
             self._conns[server_id] = _ServerConn(session=session, stack=stack, tools=tools)
             self._errors.pop(server_id, None)
-        except Exception as exc:
-            self._errors[server_id] = str(exc)
-            await stack.aclose()
+        except (Exception, asyncio.CancelledError) as exc:
+            # A background task inside the transport's TaskGroup (e.g. streamable-HTTP's
+            # request task) can fail and surface here as a raw, message-less
+            # CancelledError instead of the underlying error, since it isn't triggered
+            # by our own fail_after deadline. Treat it the same as any other failed
+            # connection attempt instead of letting it escape and take down the caller
+            # (connect_all()'s loop, or a background OAuth task) — and prefer whatever
+            # aclose() raises while unwinding that same TaskGroup, since that's usually
+            # where the actual underlying error (e.g. a connection failure) surfaces.
+            message = _flatten_exception_message(exc)
+            try:
+                await stack.aclose()
+            except Exception as cleanup_exc:
+                message = _flatten_exception_message(cleanup_exc)
+            self._errors[server_id] = message
 
     async def _disconnect(self, server_id: str) -> None:
         conn = self._conns.pop(server_id, None)
@@ -303,7 +337,9 @@ class McpManager:
         if fut is None or fut.done():
             return False
         assert self._loop is not None
-        self._loop.call_soon_threadsafe(fut.set_result, (code, state))
+        self._loop.call_soon_threadsafe(
+            fut.set_result, AuthorizationCodeResult(code=code, state=state)
+        )
         return True
 
     # ------------------------------------------------------------------
