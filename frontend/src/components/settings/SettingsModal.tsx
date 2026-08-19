@@ -397,9 +397,9 @@ export default function SettingsModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-bg-surface border border-border rounded-[1rem] p-6 w-[90%] max-w-[560px] flex flex-col gap-4">
+      <div className="bg-bg-surface border border-border rounded-[1rem] p-6 w-[90%] max-w-[560px] h-[min(640px,85vh)] flex flex-col gap-4">
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-border pb-3">
+        <div className="flex gap-1 border-b border-border pb-3 flex-shrink-0">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -415,554 +415,558 @@ export default function SettingsModal({
           ))}
         </div>
 
-        {/* System Prompt tab */}
-        {tab === "prompt" && (
-          <div className="flex flex-col gap-3">
-            <textarea
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="Describe the bot's behavior, tone, language, restrictions…"
-              className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.9rem] leading-[1.5] px-3 py-3 resize-y min-h-[180px] outline-none focus:border-accent transition-colors"
-            />
-          </div>
-        )}
-
-        {/* Profile tab */}
-        {tab === "profile" && (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-[0.35rem]">
-              <label className={labelCls}>About you</label>
-              <p className="text-[0.75rem] text-[#555]">
-                Tell the AI who you are - profession, interests, preferred
-                language, technical level… It will use this in every
-                conversation.
-              </p>
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+          {/* System Prompt tab */}
+          {tab === "prompt" && (
+            <div className="flex flex-col gap-3">
               <textarea
-                value={profile}
-                onChange={(e) => setProfile(e.target.value)}
-                placeholder="e.g. I'm a Python developer working on machine learning projects. I prefer concise answers and code examples over long explanations."
-                className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.9rem] leading-[1.5] px-3 py-3 resize-y min-h-[140px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder="Describe the bot's behavior, tone, language, restrictions…"
+                className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.9rem] leading-[1.5] px-3 py-3 resize-y min-h-[180px] outline-none focus:border-accent transition-colors"
               />
             </div>
+          )}
 
-            {memory && (
+          {/* Profile tab */}
+          {tab === "profile" && (
+            <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-[0.35rem]">
-                <div className="flex items-center justify-between">
-                  <label className={labelCls}>Learned memory</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void clearMemory().then(() => setMemory(""));
-                    }}
-                    className="text-[0.72rem] text-[#666] hover:text-txt-primary bg-transparent border-none cursor-pointer underline transition-colors"
-                  >
-                    Clear
-                  </button>
-                </div>
+                <label className={labelCls}>About you</label>
                 <p className="text-[0.75rem] text-[#555]">
-                  Facts the AI has picked up from your conversations. Updated
-                  automatically every 5 turns.
+                  Tell the AI who you are - profession, interests, preferred
+                  language, technical level… It will use this in every
+                  conversation.
                 </p>
-                <div className="bg-bg-base border border-border rounded-[0.6rem] text-txt-muted text-[0.85rem] leading-[1.5] px-3 py-3 whitespace-pre-wrap">
-                  {memory}
-                </div>
+                <textarea
+                  value={profile}
+                  onChange={(e) => setProfile(e.target.value)}
+                  placeholder="e.g. I'm a Python developer working on machine learning projects. I prefer concise answers and code examples over long explanations."
+                  className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.9rem] leading-[1.5] px-3 py-3 resize-y min-h-[140px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                />
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Model tab */}
-        {tab === "model" && (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-[0.35rem]">
-              <label className={labelCls}>Provider</label>
-              <select
-                value={provider}
-                onChange={(e) => handleProviderChange(e.target.value)}
-                className={inputCls}
-              >
-                <option value="gemini">Google Gemini</option>
-                <option value="openai">
-                  OpenAI / Compatible (Ollama, LM Studio…)
-                </option>
-                <option value="anthropic">Anthropic Claude</option>
-              </select>
+              {memory && (
+                <div className="flex flex-col gap-[0.35rem]">
+                  <div className="flex items-center justify-between">
+                    <label className={labelCls}>Learned memory</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void clearMemory().then(() => setMemory(""));
+                      }}
+                      className="text-[0.72rem] text-[#666] hover:text-txt-primary bg-transparent border-none cursor-pointer underline transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <p className="text-[0.75rem] text-[#555]">
+                    Facts the AI has picked up from your conversations. Updated
+                    automatically every 5 turns.
+                  </p>
+                  <div className="bg-bg-base border border-border rounded-[0.6rem] text-txt-muted text-[0.85rem] leading-[1.5] px-3 py-3 whitespace-pre-wrap">
+                    {memory}
+                  </div>
+                </div>
+              )}
             </div>
+          )}
 
-            <div className="flex flex-col gap-[0.35rem]">
-              <label className={labelCls}>Model</label>
-              <input
-                type="text"
-                list="model-sugg"
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
-                placeholder="e.g. gemini-2.5-flash"
-                autoComplete="off"
-                className={inputCls}
-              />
-              <datalist id="model-sugg">
-                {suggestions.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
-            </div>
+          {/* Model tab */}
+          {tab === "model" && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-[0.35rem]">
+                <label className={labelCls}>Provider</label>
+                <select
+                  value={provider}
+                  onChange={(e) => handleProviderChange(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="gemini">Google Gemini</option>
+                  <option value="openai">
+                    OpenAI / Compatible (Ollama, LM Studio…)
+                  </option>
+                  <option value="anthropic">Anthropic Claude</option>
+                </select>
+              </div>
 
-            <div className="flex flex-col gap-[0.35rem]">
-              <label className={labelCls}>
-                API Key{" "}
-                <span className="font-normal text-[#555] text-[0.75rem]">
-                  (leave empty to use environment variable)
-                </span>
-              </label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-…"
-                autoComplete="new-password"
-                className={inputCls}
-              />
-            </div>
+              <div className="flex flex-col gap-[0.35rem]">
+                <label className={labelCls}>Model</label>
+                <input
+                  type="text"
+                  list="model-sugg"
+                  value={modelName}
+                  onChange={(e) => setModelName(e.target.value)}
+                  placeholder="e.g. gemini-2.5-flash"
+                  autoComplete="off"
+                  className={inputCls}
+                />
+                <datalist id="model-sugg">
+                  {suggestions.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              </div>
 
-            {provider === "openai" && (
               <div className="flex flex-col gap-[0.35rem]">
                 <label className={labelCls}>
-                  Base URL{" "}
+                  API Key{" "}
                   <span className="font-normal text-[#555] text-[0.75rem]">
-                    (for Ollama: http://localhost:11434/v1)
+                    (leave empty to use environment variable)
                   </span>
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={baseUrl}
-                    onChange={(e) => setBaseUrl(e.target.value)}
-                    placeholder="http://localhost:11434/v1"
-                    className={`${inputCls} flex-1`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void detectOllama();
-                    }}
-                    className="bg-bg-muted border border-border rounded-lg text-txt-muted cursor-pointer text-[0.8rem] px-3 whitespace-nowrap hover:bg-bg-hover hover:text-txt-heading transition-all"
-                  >
-                    {ollamaStatus || "Detect models"}
-                  </button>
-                </div>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-…"
+                  autoComplete="new-password"
+                  className={inputCls}
+                />
               </div>
-            )}
 
-            <div className="flex flex-row items-center justify-between gap-3">
-              <label className={`${labelCls} flex-1`}>
-                Reasoning{" "}
-                <span className="font-normal text-[#555] text-[0.75rem]">
-                  (extended thinking for claude-3-7-sonnet &amp; gemini-2.5;
-                  tag-parsing for deepseek-r1/qwq; chain-of-thought for all
-                  others)
-                </span>
-              </label>
-              <input
-                type="checkbox"
-                checked={reasoning}
-                onChange={(e) => setReasoning(e.target.checked)}
-                className="w-4 h-4 flex-shrink-0 accent-accent cursor-pointer"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* MCP Servers tab */}
-        {tab === "mcp" && (
-          <div className="flex flex-col gap-4">
-            <p className="text-[0.75rem] text-[#555]">
-              Connect MCP servers (folder access, GitHub, email, calendar…) to
-              give the model new tools. Local servers run as subprocesses via{" "}
-              <code>npx</code> or <code>uvx</code>; remote servers connect over
-              HTTP or SSE.
-            </p>
-
-            {mcpBusy && (
-              <p className="text-[0.75rem] text-accent flex items-center gap-2">
-                <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                Reconnecting servers… this can take up to a minute.
-              </p>
-            )}
-
-            <div className="flex flex-col gap-2">
-              {mcpServers.length === 0 && (
-                <p className="text-[0.8rem] text-txt-dim">
-                  No MCP servers configured yet.
-                </p>
-              )}
-              {mcpServers.map((s) =>
-                editingMcpId === s.id ? (
-                  <div
-                    key={s.id}
-                    className="flex flex-col gap-2 bg-bg-base border border-accent rounded-[0.6rem] px-3 py-2"
-                  >
-                    <input
-                      type="text"
-                      value={editMcpName}
-                      onChange={(e) => setEditMcpName(e.target.value)}
-                      placeholder="Name, e.g. Filesystem"
-                      className={inputCls}
-                    />
-                    <select
-                      value={editMcpTransport}
-                      onChange={(e) =>
-                        setEditMcpTransport(e.target.value as McpTransport)
-                      }
-                      className={inputCls}
-                    >
-                      <option value="stdio">Local (stdio)</option>
-                      <option value="http">Remote (HTTP)</option>
-                      <option value="sse">Remote (SSE, legacy)</option>
-                    </select>
-                    {editMcpTransport === "stdio" ? (
-                      <>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={editMcpCommand}
-                            onChange={(e) => setEditMcpCommand(e.target.value)}
-                            placeholder="npx"
-                            className={`${inputCls} !w-24 flex-shrink-0`}
-                          />
-                          <input
-                            type="text"
-                            value={editMcpArgs}
-                            onChange={(e) => setEditMcpArgs(e.target.value)}
-                            placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
-                            className={`${inputCls} flex-1`}
-                          />
-                        </div>
-                        <textarea
-                          value={editMcpEnv}
-                          onChange={(e) => setEditMcpEnv(e.target.value)}
-                          placeholder={
-                            "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
-                          }
-                          className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <input
-                          type="text"
-                          value={editMcpUrl}
-                          onChange={(e) => setEditMcpUrl(e.target.value)}
-                          placeholder="https://example.com/mcp"
-                          className={inputCls}
-                        />
-                        <textarea
-                          value={editMcpHeaders}
-                          onChange={(e) => setEditMcpHeaders(e.target.value)}
-                          placeholder={
-                            "Optional HTTP headers, one per line:\nAuthorization=Bearer …"
-                          }
-                          className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
-                        />
-                        <label className="flex items-center gap-2 text-[0.8rem] text-txt-primary cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={editMcpAuth === "oauth"}
-                            onChange={(e) =>
-                              setEditMcpAuth(
-                                e.target.checked ? "oauth" : "none",
-                              )
-                            }
-                            className="w-4 h-4 accent-accent cursor-pointer"
-                          />
-                          Sign in via OAuth
-                        </label>
-                      </>
-                    )}
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void handleSaveEditMcpServer();
-                        }}
-                        disabled={
-                          mcpBusy ||
-                          !editMcpName.trim() ||
-                          !isMcpFormValid(
-                            editMcpTransport,
-                            editMcpCommand,
-                            editMcpUrl,
-                          )
-                        }
-                        className="bg-accent hover:bg-accent-hover disabled:opacity-50 border-none rounded-lg text-white px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
-                      >
-                        {mcpBusy ? "Saving…" : "Save"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEditMcpServer}
-                        disabled={mcpBusy}
-                        className="bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    key={s.id}
-                    className="flex flex-col gap-1 bg-bg-base border border-border rounded-[0.6rem] px-3 py-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            s.status?.connected
-                              ? "bg-[#2ecc71]"
-                              : s.status?.error
-                                ? "bg-[#e74c3c]"
-                                : s.status?.needs_authorization
-                                  ? "bg-[#e6a23c]"
-                                  : "bg-[#888]"
-                          }`}
-                          title={
-                            s.status?.error ||
-                            (s.status?.connected
-                              ? "Connected"
-                              : s.status?.needs_authorization
-                                ? "Needs authorization"
-                                : "Disabled")
-                          }
-                        />
-                        <span className="text-[0.85rem] text-txt-primary font-medium truncate">
-                          {s.name}
-                        </span>
-                        <span className="text-[0.72rem] text-txt-dim truncate">
-                          {s.transport === "stdio"
-                            ? `${s.command} ${s.args.join(" ")}`
-                            : `${s.transport} · ${s.url}`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={s.enabled}
-                          onChange={() => {
-                            void handleToggleMcpServer(s);
-                          }}
-                          disabled={mcpBusy}
-                          className="w-4 h-4 accent-accent cursor-pointer disabled:cursor-not-allowed"
-                          title="Enabled"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => startEditMcpServer(s)}
-                          disabled={mcpBusy}
-                          className="text-[0.72rem] text-[#888] hover:text-txt-primary disabled:opacity-50 bg-transparent border-none cursor-pointer underline transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleDeleteMcpServer(s.id);
-                          }}
-                          disabled={mcpBusy}
-                          className="text-[0.72rem] text-[#888] hover:text-[#e74c3c] disabled:opacity-50 bg-transparent border-none cursor-pointer underline transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                    {s.status?.error && (
-                      <p className="text-[0.72rem] text-[#e74c3c]">
-                        {s.status.error}
-                      </p>
-                    )}
-                    {s.enabled &&
-                      s.auth === "oauth" &&
-                      !s.status?.connected && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              void handleAuthorizeMcpServer(s.id);
-                            }}
-                            disabled={mcpAuthorizingId === s.id}
-                            className="self-start bg-accent hover:bg-accent-hover disabled:opacity-50 border-none rounded-lg text-white px-3 py-[0.3rem] cursor-pointer text-[0.72rem] transition-colors"
-                          >
-                            {mcpAuthorizingId === s.id
-                              ? "Starting…"
-                              : s.status?.authorization_url
-                                ? "Sign in again"
-                                : "Sign in"}
-                          </button>
-                          {s.status?.authorization_url && (
-                            <a
-                              href={s.status.authorization_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[0.72rem] text-accent underline"
-                            >
-                              Open sign-in page ↗
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    {s.status?.connected && s.status.tool_count > 0 && (
-                      <p className="text-[0.72rem] text-txt-dim">
-                        {s.status.tool_count} tool
-                        {s.status.tool_count === 1 ? "" : "s"}:{" "}
-                        {s.status.tools.map((t) => t.name).join(", ")}
-                      </p>
-                    )}
-                  </div>
-                ),
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2 border-t border-border pt-3">
-              <label className={labelCls}>Add server</label>
-              <input
-                type="text"
-                value={newMcpName}
-                onChange={(e) => setNewMcpName(e.target.value)}
-                placeholder="Name, e.g. Filesystem"
-                className={inputCls}
-              />
-              <select
-                value={newMcpTransport}
-                onChange={(e) =>
-                  setNewMcpTransport(e.target.value as McpTransport)
-                }
-                className={inputCls}
-              >
-                <option value="stdio">Local (stdio)</option>
-                <option value="http">Remote (HTTP)</option>
-                <option value="sse">Remote (SSE, legacy)</option>
-              </select>
-              {newMcpTransport === "stdio" ? (
-                <>
+              {provider === "openai" && (
+                <div className="flex flex-col gap-[0.35rem]">
+                  <label className={labelCls}>
+                    Base URL{" "}
+                    <span className="font-normal text-[#555] text-[0.75rem]">
+                      (for Ollama: http://localhost:11434/v1)
+                    </span>
+                  </label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      value={newMcpCommand}
-                      onChange={(e) => setNewMcpCommand(e.target.value)}
-                      placeholder="npx"
-                      className={`${inputCls} !w-24 flex-shrink-0`}
-                    />
-                    <input
-                      type="text"
-                      value={newMcpArgs}
-                      onChange={(e) => setNewMcpArgs(e.target.value)}
-                      placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
+                      value={baseUrl}
+                      onChange={(e) => setBaseUrl(e.target.value)}
+                      placeholder="http://localhost:11434/v1"
                       className={`${inputCls} flex-1`}
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void detectOllama();
+                      }}
+                      className="bg-bg-muted border border-border rounded-lg text-txt-muted cursor-pointer text-[0.8rem] px-3 whitespace-nowrap hover:bg-bg-hover hover:text-txt-heading transition-all"
+                    >
+                      {ollamaStatus || "Detect models"}
+                    </button>
                   </div>
-                  <textarea
-                    value={newMcpEnv}
-                    onChange={(e) => setNewMcpEnv(e.target.value)}
-                    placeholder={
-                      "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
-                    }
-                    className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
-                  />
-                </>
-              ) : (
-                <>
-                  <input
-                    type="text"
-                    value={newMcpUrl}
-                    onChange={(e) => setNewMcpUrl(e.target.value)}
-                    placeholder="https://example.com/mcp"
-                    className={inputCls}
-                  />
-                  <textarea
-                    value={newMcpHeaders}
-                    onChange={(e) => setNewMcpHeaders(e.target.value)}
-                    placeholder={
-                      "Optional HTTP headers, one per line:\nAuthorization=Bearer …"
-                    }
-                    className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
-                  />
-                  <label className="flex items-center gap-2 text-[0.8rem] text-txt-primary cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={newMcpAuth === "oauth"}
-                      onChange={(e) =>
-                        setNewMcpAuth(e.target.checked ? "oauth" : "none")
-                      }
-                      className="w-4 h-4 accent-accent cursor-pointer"
-                    />
-                    Sign in via OAuth (instead of a static header above)
-                  </label>
-                </>
+                </div>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  void handleAddMcpServer();
-                }}
-                disabled={
-                  mcpBusy ||
-                  !newMcpName.trim() ||
-                  !isMcpFormValid(newMcpTransport, newMcpCommand, newMcpUrl)
-                }
-                className="self-start bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
-              >
-                {mcpSaving ? "Adding…" : "Add server"}
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* Voice tab */}
-        {tab === "voice" && (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-[0.35rem]">
-              <label className={labelCls}>Speech-to-Text backend</label>
-              <select
-                value={sttBackend}
-                onChange={(e) => setSttBackend(e.target.value)}
-                className={inputCls}
-              >
-                <option value="google">
-                  Google (online, no install required)
-                </option>
-                <option value="whisper">
-                  Whisper (local, privacy-friendly)
-                </option>
-              </select>
-              {sttBackend === "whisper" && (
-                <p className="text-[0.75rem] text-[#888] mt-1">
-                  Requires <code>openai-whisper</code> and <code>ffmpeg</code>{" "}
-                  installed on the server.
+              <div className="flex flex-row items-center justify-between gap-3">
+                <label className={`${labelCls} flex-1`}>
+                  Reasoning{" "}
+                  <span className="font-normal text-[#555] text-[0.75rem]">
+                    (extended thinking for claude-3-7-sonnet &amp; gemini-2.5;
+                    tag-parsing for deepseek-r1/qwq; chain-of-thought for all
+                    others)
+                  </span>
+                </label>
+                <input
+                  type="checkbox"
+                  checked={reasoning}
+                  onChange={(e) => setReasoning(e.target.checked)}
+                  className="w-4 h-4 flex-shrink-0 accent-accent cursor-pointer"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* MCP Servers tab */}
+          {tab === "mcp" && (
+            <div className="flex flex-col gap-4">
+              <p className="text-[0.75rem] text-[#555]">
+                Connect MCP servers (folder access, GitHub, email, calendar…) to
+                give the model new tools. Local servers run as subprocesses via{" "}
+                <code>npx</code> or <code>uvx</code>; remote servers connect
+                over HTTP or SSE.
+              </p>
+
+              {mcpBusy && (
+                <p className="text-[0.75rem] text-accent flex items-center gap-2">
+                  <span className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                  Reconnecting servers… this can take up to a minute.
                 </p>
               )}
-            </div>
-          </div>
-        )}
 
-        {/* UI tab */}
-        {tab === "ui" && (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-row items-center justify-between">
-              <label className={labelCls}>Streaming speed</label>
-              <select
-                value={streamDelay}
-                onChange={(e) => setStreamDelay(e.target.value)}
-                className="bg-bg-base border border-border rounded-lg text-txt-primary font-[inherit] text-[0.875rem] px-3 py-[0.55rem] outline-none focus:border-accent transition-colors"
-              >
-                <option value="0">Instant</option>
-                <option value="4">Fast</option>
-                <option value="8">Normal</option>
-                <option value="20">Slow</option>
-              </select>
+              <div className="flex flex-col gap-2">
+                {mcpServers.length === 0 && (
+                  <p className="text-[0.8rem] text-txt-dim">
+                    No MCP servers configured yet.
+                  </p>
+                )}
+                {mcpServers.map((s) =>
+                  editingMcpId === s.id ? (
+                    <div
+                      key={s.id}
+                      className="flex flex-col gap-2 bg-bg-base border border-accent rounded-[0.6rem] px-3 py-2"
+                    >
+                      <input
+                        type="text"
+                        value={editMcpName}
+                        onChange={(e) => setEditMcpName(e.target.value)}
+                        placeholder="Name, e.g. Filesystem"
+                        className={inputCls}
+                      />
+                      <select
+                        value={editMcpTransport}
+                        onChange={(e) =>
+                          setEditMcpTransport(e.target.value as McpTransport)
+                        }
+                        className={inputCls}
+                      >
+                        <option value="stdio">Local (stdio)</option>
+                        <option value="http">Remote (HTTP)</option>
+                        <option value="sse">Remote (SSE, legacy)</option>
+                      </select>
+                      {editMcpTransport === "stdio" ? (
+                        <>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editMcpCommand}
+                              onChange={(e) =>
+                                setEditMcpCommand(e.target.value)
+                              }
+                              placeholder="npx"
+                              className={`${inputCls} !w-24 flex-shrink-0`}
+                            />
+                            <input
+                              type="text"
+                              value={editMcpArgs}
+                              onChange={(e) => setEditMcpArgs(e.target.value)}
+                              placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
+                              className={`${inputCls} flex-1`}
+                            />
+                          </div>
+                          <textarea
+                            value={editMcpEnv}
+                            onChange={(e) => setEditMcpEnv(e.target.value)}
+                            placeholder={
+                              "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
+                            }
+                            className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            type="text"
+                            value={editMcpUrl}
+                            onChange={(e) => setEditMcpUrl(e.target.value)}
+                            placeholder="https://example.com/mcp"
+                            className={inputCls}
+                          />
+                          <textarea
+                            value={editMcpHeaders}
+                            onChange={(e) => setEditMcpHeaders(e.target.value)}
+                            placeholder={
+                              "Optional HTTP headers, one per line:\nAuthorization=Bearer …"
+                            }
+                            className="bg-bg-surface border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                          />
+                          <label className="flex items-center gap-2 text-[0.8rem] text-txt-primary cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editMcpAuth === "oauth"}
+                              onChange={(e) =>
+                                setEditMcpAuth(
+                                  e.target.checked ? "oauth" : "none",
+                                )
+                              }
+                              className="w-4 h-4 accent-accent cursor-pointer"
+                            />
+                            Sign in via OAuth
+                          </label>
+                        </>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleSaveEditMcpServer();
+                          }}
+                          disabled={
+                            mcpBusy ||
+                            !editMcpName.trim() ||
+                            !isMcpFormValid(
+                              editMcpTransport,
+                              editMcpCommand,
+                              editMcpUrl,
+                            )
+                          }
+                          className="bg-accent hover:bg-accent-hover disabled:opacity-50 border-none rounded-lg text-white px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
+                        >
+                          {mcpBusy ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditMcpServer}
+                          disabled={mcpBusy}
+                          className="bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      key={s.id}
+                      className="flex flex-col gap-1 bg-bg-base border border-border rounded-[0.6rem] px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                              s.status?.connected
+                                ? "bg-[#2ecc71]"
+                                : s.status?.error
+                                  ? "bg-[#e74c3c]"
+                                  : s.status?.needs_authorization
+                                    ? "bg-[#e6a23c]"
+                                    : "bg-[#888]"
+                            }`}
+                            title={
+                              s.status?.error ||
+                              (s.status?.connected
+                                ? "Connected"
+                                : s.status?.needs_authorization
+                                  ? "Needs authorization"
+                                  : "Disabled")
+                            }
+                          />
+                          <span className="text-[0.85rem] text-txt-primary font-medium truncate">
+                            {s.name}
+                          </span>
+                          <span className="text-[0.72rem] text-txt-dim truncate">
+                            {s.transport === "stdio"
+                              ? `${s.command} ${s.args.join(" ")}`
+                              : `${s.transport} · ${s.url}`}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={s.enabled}
+                            onChange={() => {
+                              void handleToggleMcpServer(s);
+                            }}
+                            disabled={mcpBusy}
+                            className="w-4 h-4 accent-accent cursor-pointer disabled:cursor-not-allowed"
+                            title="Enabled"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => startEditMcpServer(s)}
+                            disabled={mcpBusy}
+                            className="text-[0.72rem] text-[#888] hover:text-txt-primary disabled:opacity-50 bg-transparent border-none cursor-pointer underline transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleDeleteMcpServer(s.id);
+                            }}
+                            disabled={mcpBusy}
+                            className="text-[0.72rem] text-[#888] hover:text-[#e74c3c] disabled:opacity-50 bg-transparent border-none cursor-pointer underline transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                      {s.status?.error && (
+                        <p className="text-[0.72rem] text-[#e74c3c]">
+                          {s.status.error}
+                        </p>
+                      )}
+                      {s.enabled &&
+                        s.auth === "oauth" &&
+                        !s.status?.connected && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void handleAuthorizeMcpServer(s.id);
+                              }}
+                              disabled={mcpAuthorizingId === s.id}
+                              className="self-start bg-accent hover:bg-accent-hover disabled:opacity-50 border-none rounded-lg text-white px-3 py-[0.3rem] cursor-pointer text-[0.72rem] transition-colors"
+                            >
+                              {mcpAuthorizingId === s.id
+                                ? "Starting…"
+                                : s.status?.authorization_url
+                                  ? "Sign in again"
+                                  : "Sign in"}
+                            </button>
+                            {s.status?.authorization_url && (
+                              <a
+                                href={s.status.authorization_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[0.72rem] text-accent underline"
+                              >
+                                Open sign-in page ↗
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      {s.status?.connected && s.status.tool_count > 0 && (
+                        <p className="text-[0.72rem] text-txt-dim">
+                          {s.status.tool_count} tool
+                          {s.status.tool_count === 1 ? "" : "s"}:{" "}
+                          {s.status.tools.map((t) => t.name).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  ),
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-border pt-3">
+                <label className={labelCls}>Add server</label>
+                <input
+                  type="text"
+                  value={newMcpName}
+                  onChange={(e) => setNewMcpName(e.target.value)}
+                  placeholder="Name, e.g. Filesystem"
+                  className={inputCls}
+                />
+                <select
+                  value={newMcpTransport}
+                  onChange={(e) =>
+                    setNewMcpTransport(e.target.value as McpTransport)
+                  }
+                  className={inputCls}
+                >
+                  <option value="stdio">Local (stdio)</option>
+                  <option value="http">Remote (HTTP)</option>
+                  <option value="sse">Remote (SSE, legacy)</option>
+                </select>
+                {newMcpTransport === "stdio" ? (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newMcpCommand}
+                        onChange={(e) => setNewMcpCommand(e.target.value)}
+                        placeholder="npx"
+                        className={`${inputCls} !w-24 flex-shrink-0`}
+                      />
+                      <input
+                        type="text"
+                        value={newMcpArgs}
+                        onChange={(e) => setNewMcpArgs(e.target.value)}
+                        placeholder="-y @modelcontextprotocol/server-filesystem /path/to/folder"
+                        className={`${inputCls} flex-1`}
+                      />
+                    </div>
+                    <textarea
+                      value={newMcpEnv}
+                      onChange={(e) => setNewMcpEnv(e.target.value)}
+                      placeholder={
+                        "Optional environment variables, one per line:\nGITHUB_PERSONAL_ACCESS_TOKEN=ghp_…"
+                      }
+                      className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={newMcpUrl}
+                      onChange={(e) => setNewMcpUrl(e.target.value)}
+                      placeholder="https://example.com/mcp"
+                      className={inputCls}
+                    />
+                    <textarea
+                      value={newMcpHeaders}
+                      onChange={(e) => setNewMcpHeaders(e.target.value)}
+                      placeholder={
+                        "Optional HTTP headers, one per line:\nAuthorization=Bearer …"
+                      }
+                      className="bg-bg-base border border-border rounded-[0.6rem] text-txt-primary font-[inherit] text-[0.85rem] leading-[1.5] px-3 py-2 resize-y min-h-[60px] outline-none focus:border-accent transition-colors placeholder:text-[#444] placeholder:font-light"
+                    />
+                    <label className="flex items-center gap-2 text-[0.8rem] text-txt-primary cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newMcpAuth === "oauth"}
+                        onChange={(e) =>
+                          setNewMcpAuth(e.target.checked ? "oauth" : "none")
+                        }
+                        className="w-4 h-4 accent-accent cursor-pointer"
+                      />
+                      Sign in via OAuth (instead of a static header above)
+                    </label>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleAddMcpServer();
+                  }}
+                  disabled={
+                    mcpBusy ||
+                    !newMcpName.trim() ||
+                    !isMcpFormValid(newMcpTransport, newMcpCommand, newMcpUrl)
+                  }
+                  className="self-start bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.4rem] cursor-pointer text-[0.8rem] transition-colors"
+                >
+                  {mcpSaving ? "Adding…" : "Add server"}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Voice tab */}
+          {tab === "voice" && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-[0.35rem]">
+                <label className={labelCls}>Speech-to-Text backend</label>
+                <select
+                  value={sttBackend}
+                  onChange={(e) => setSttBackend(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="google">
+                    Google (online, no install required)
+                  </option>
+                  <option value="whisper">
+                    Whisper (local, privacy-friendly)
+                  </option>
+                </select>
+                {sttBackend === "whisper" && (
+                  <p className="text-[0.75rem] text-[#888] mt-1">
+                    Requires <code>openai-whisper</code> and <code>ffmpeg</code>{" "}
+                    installed on the server.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* UI tab */}
+          {tab === "ui" && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-row items-center justify-between">
+                <label className={labelCls}>Streaming speed</label>
+                <select
+                  value={streamDelay}
+                  onChange={(e) => setStreamDelay(e.target.value)}
+                  className="bg-bg-base border border-border rounded-lg text-txt-primary font-[inherit] text-[0.875rem] px-3 py-[0.55rem] outline-none focus:border-accent transition-colors"
+                >
+                  <option value="0">Instant</option>
+                  <option value="4">Fast</option>
+                  <option value="8">Normal</option>
+                  <option value="20">Slow</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 flex-shrink-0">
           <button
             onClick={onClose}
             className="bg-bg-muted hover:bg-bg-hover border-none rounded-lg text-txt-primary px-4 py-2 cursor-pointer text-[0.9rem] transition-colors"
