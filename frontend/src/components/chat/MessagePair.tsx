@@ -28,6 +28,27 @@ function AttachmentChip({ filename }: AttachmentChipProps) {
   );
 }
 
+// ── Image attachments inside user message ─────────────────────────────────────
+interface ImageAttachmentsProps {
+  images: string[];
+}
+
+function ImageAttachments({ images }: ImageAttachmentsProps) {
+  if (!images.length) return null;
+  return (
+    <div className="self-end flex flex-wrap justify-end gap-[0.4rem] max-w-[280px]">
+      {images.map((src, i) => (
+        <img
+          key={i}
+          src={src}
+          alt=""
+          className="w-20 h-20 object-cover rounded-[0.7rem] border border-border"
+        />
+      ))}
+    </div>
+  );
+}
+
 // ── Action button ─────────────────────────────────────────────────────────────
 interface ActionBtnProps {
   icon: React.ReactNode;
@@ -331,6 +352,7 @@ interface MessagePairProps {
   pairIndex: number;
   userText: string;
   attachedFile: string | null;
+  images: string[];
   botText: string;
   isStreaming: boolean;
   interrupted: boolean;
@@ -349,6 +371,7 @@ export default function MessagePair({
   pairIndex,
   userText,
   attachedFile,
+  images,
   botText,
   isStreaming,
   interrupted,
@@ -380,6 +403,7 @@ export default function MessagePair({
       {/* User message */}
       <div className="flex flex-col items-end gap-[0.25rem] group mb-4">
         {attachedFile && <AttachmentChip filename={attachedFile} />}
+        <ImageAttachments images={images} />
 
         {editing ? (
           <div className="w-full">

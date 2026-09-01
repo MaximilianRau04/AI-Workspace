@@ -6,6 +6,7 @@ export interface User {
 export interface MessagePart {
   role: "user" | "model";
   parts: string[];
+  images?: string[];
 }
 
 export interface Folder {
@@ -111,6 +112,7 @@ export interface ChatPair {
   pairIndex: number;
   userText: string;
   attachedFile: string | null;
+  images: string[];
   botText: string;
   isStreaming: boolean;
   interrupted: boolean;

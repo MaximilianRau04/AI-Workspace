@@ -67,6 +67,7 @@ export default function ChatArea({
               pairIndex={pair.pairIndex}
               userText={pair.userText}
               attachedFile={pair.attachedFile}
+              images={pair.images}
               botText={pair.botText}
               isStreaming={pair.isStreaming}
               interrupted={pair.interrupted}

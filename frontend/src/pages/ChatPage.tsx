@@ -16,6 +16,28 @@ import SettingsModal from "../components/settings/SettingsModal";
 import DocsModal from "../components/documents/DocsModal";
 import type { ChatPair, TokenUsage, StreamError, McpServer } from "../types";
 
+interface PendingImage {
+  name: string;
+  dataUrl: string;
+}
+
+const MAX_IMAGES = 6;
+const ALLOWED_IMAGE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+];
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 function loadStoredMcpServerIds(): string[] {
   try {
     const raw = localStorage.getItem("mcpServerIds");
@@ -47,6 +69,7 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [tokenUsage, setTokenUsage] = useState<TokenUsage | null>(null);
   const [pendingFile, setPendingFile] = useState<string | null>(null);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [errorMessages, setErrorMessages] = useState<StreamError[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState("model");
@@ -125,6 +148,7 @@ export default function ChatPage() {
           pairIndex: pairCounterRef.current++,
           userText: userMsg?.parts?.[0] || "",
           attachedFile: null,
+          images: userMsg?.images || [],
           botText: botMsg?.parts?.[0] || "",
           isStreaming: false,
           interrupted: false,
@@ -168,6 +192,9 @@ export default function ChatPage() {
       const fileForSend = pendingFile;
       if (fileForSend) setPendingFile(null);
 
+      const imagesForSend = pendingImages.map((img) => img.dataUrl);
+      if (imagesForSend.length) setPendingImages([]);
+
       const newPairIdx = pairCounterRef.current;
       pairCounterRef.current = newPairIdx + 1;
 
@@ -175,6 +202,7 @@ export default function ChatPage() {
         pairIndex: newPairIdx,
         userText: text,
         attachedFile: fileForSend,
+        images: imagesForSend,
         botText: "",
         isStreaming: true,
         interrupted: false,
@@ -199,6 +227,7 @@ export default function ChatPage() {
         chatId,
         text,
         fileForSend,
+        imagesForSend,
         isEdit ? editingIndex : null,
         {
           onChunk: (_char, fullText) => {
@@ -291,6 +320,7 @@ export default function ChatPage() {
     [
       currentSessionId,
       pendingFile,
+      pendingImages,
       stream,
       navigate,
       refreshSessions,
@@ -344,10 +374,8 @@ export default function ChatPage() {
     navigate("/");
   }
 
-  // ── File attach ───────────────────────────────────────────────────────────────
-  async function handleAttachFile(file: File): Promise<void> {
-    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-    if (!ALLOWED_EXTS.includes(ext)) return;
+  // ── File attach (documents + images share one button) ──────────────────────────
+  async function handleAttachDoc(file: File): Promise<void> {
     await uploadDoc(file);
     setPendingFile(file.name);
   }
@@ -357,6 +385,32 @@ export default function ChatPage() {
       await deleteDoc(pendingFile);
     }
     setPendingFile(null);
+  }
+
+  async function handleAttachFiles(files: FileList): Promise<void> {
+    const all = Array.from(files);
+    const images = all
+      .filter((f) => ALLOWED_IMAGE_TYPES.includes(f.type))
+      .slice(0, Math.max(0, MAX_IMAGES - pendingImages.length));
+    const doc = all.find((f) => {
+      const ext = f.name.slice(f.name.lastIndexOf(".")).toLowerCase();
+      return ALLOWED_EXTS.includes(ext);
+    });
+
+    if (images.length) {
+      const loaded = await Promise.all(
+        images.map(async (file) => ({
+          name: file.name,
+          dataUrl: await readFileAsDataUrl(file),
+        })),
+      );
+      setPendingImages((prev) => [...prev, ...loaded]);
+    }
+    if (doc) await handleAttachDoc(doc);
+  }
+
+  function handleRemoveImage(index: number): void {
+    setPendingImages((prev) => prev.filter((_, i) => i !== index));
   }
 
   // ── Drag & drop ───────────────────────────────────────────────────────────────
@@ -379,8 +433,8 @@ export default function ChatPage() {
     e.preventDefault();
     dragCounterRef.current = 0;
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) await handleAttachFile(file);
+    if (e.dataTransfer.files?.length)
+      await handleAttachFiles(e.dataTransfer.files);
   }
 
   // ── Settings open ─────────────────────────────────────────────────────────────
@@ -474,9 +528,11 @@ export default function ChatPage() {
             onRemoveFile={() => {
               void handleRemoveFile();
             }}
-            onAttachFile={(file) => {
-              void handleAttachFile(file);
+            pendingImages={pendingImages}
+            onAttachFiles={(files) => {
+              void handleAttachFiles(files);
             }}
+            onRemoveImage={handleRemoveImage}
             isRecording={isRecording}
             onToggleRecording={(fill) =>
               toggleRecording(

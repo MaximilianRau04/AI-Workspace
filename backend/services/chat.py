@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 
@@ -23,7 +24,10 @@ def _orm_to_schema(sess: ChatSession) -> ChatSessionSchema:
         summary=sess.summary or "",
         created_at=sess.created_at,
         updated_at=sess.updated_at,
-        messages=[MessageSchema(role=m.role, parts=[m.content]) for m in sess.messages],
+        messages=[
+            MessageSchema(role=m.role, parts=[m.content], images=json.loads(m.images or "[]"))
+            for m in sess.messages
+        ],
     )
 
 
@@ -100,7 +104,15 @@ def save_session(session: ChatSessionSchema, user_id: str) -> None:
             db.flush()
         db.query(Message).filter(Message.session_id == session.id).delete()
         for i, msg in enumerate(session.messages):
-            db.add(Message(session_id=session.id, role=msg.role, content=msg.parts[0], position=i))
+            db.add(
+                Message(
+                    session_id=session.id,
+                    role=msg.role,
+                    content=msg.parts[0],
+                    images=json.dumps(msg.images),
+                    position=i,
+                )
+            )
 
 
 def delete_session(session_id: str, user_id: str) -> None:
@@ -127,7 +139,10 @@ def rename_session(session_id: str, user_id: str, title: str) -> None:
 
 
 def build_chat_messages(
-    messages: list[MessageSchema], summary: str, user_message: str
+    messages: list[MessageSchema],
+    summary: str,
+    user_message: str,
+    images: list[str] | None = None,
 ) -> list[dict]:
     hist: list = []
     if summary:
@@ -135,8 +150,8 @@ def build_chat_messages(
             {"role": "user", "parts": [f"Summary of our previous conversation:\n{summary}"]}
         )
         hist.append({"role": "model", "parts": ["Understood. I'll keep that context in mind."]})
-    hist.extend({"role": m.role, "parts": m.parts} for m in messages)
-    hist.append({"role": "user", "parts": [user_message]})
+    hist.extend({"role": m.role, "parts": m.parts, "images": m.images} for m in messages)
+    hist.append({"role": "user", "parts": [user_message], "images": images or []})
     return hist
 
 

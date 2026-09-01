@@ -1,9 +1,10 @@
 import json
+import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from starlette.concurrency import iterate_in_threadpool
 
 import llm
@@ -23,13 +24,28 @@ router = APIRouter(tags=["chats"])
 # ---------------------------------------------------------------------------
 
 
+MAX_IMAGES_PER_MESSAGE = 6
+ALLOWED_IMAGE_MIME_RE = re.compile(r"^data:image/(png|jpe?g|gif|webp);base64,")
+
+
 class ChatBody(BaseModel):
     message: str = ""
     attached_file: Optional[str] = None
+    images: list[str] = []
     pair_index: Optional[int] = None
     web_search: bool = False
     code_interpreter: bool = False
     mcp_servers: list[str] = []
+
+    @field_validator("images")
+    @classmethod
+    def _validate_images(cls, v: list[str]) -> list[str]:
+        if len(v) > MAX_IMAGES_PER_MESSAGE:
+            raise ValueError(f"Too many images (max {MAX_IMAGES_PER_MESSAGE})")
+        for data_url in v:
+            if not ALLOWED_IMAGE_MIME_RE.match(data_url):
+                raise ValueError("Invalid image data URL")
+        return v
 
 
 class RenameBody(BaseModel):
@@ -230,7 +246,9 @@ async def send_message(
         )
         combined = "\n\n".join(filter(None, [folder_context, context]))
         augmented = f"{combined}\n\nUser: {user_message}" if combined else user_message
-        messages = chat_service.build_chat_messages(sess.messages, sess.summary, augmented)
+        messages = chat_service.build_chat_messages(
+            sess.messages, sess.summary, augmented, body.images
+        )
 
         from routes.config import get_user_data, load_system_prompt
 
@@ -271,7 +289,9 @@ async def send_message(
             yield 'data: "[DONE]"\n\n'
             return
 
-        sess.messages.append(MessageSchema(role="user", parts=[user_message]))
+        sess.messages.append(
+            MessageSchema(role="user", parts=[user_message], images=body.images)
+        )
         sess.messages.append(MessageSchema(role="model", parts=[full_reply]))
 
         if chat_service.needs_summarization(sess.messages):

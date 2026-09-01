@@ -10,6 +10,7 @@ and as the final item may yield a {"usage": {...}} dict (Gemini only).
 
 from __future__ import annotations
 
+import base64
 import itertools
 import json
 import os
@@ -163,14 +164,47 @@ def list_ollama_models(base_url: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+def _split_data_url(data_url: str) -> tuple[str, str]:
+    """'data:image/png;base64,AAAA...' -> ('image/png', 'AAAA...')"""
+    header, _, data = data_url.partition(",")
+    m = re.match(r"data:([^;]+);base64", header)
+    return (m.group(1) if m else "image/png"), data
+
+
 def _to_openai_messages(messages: list[dict]) -> list[dict]:
-    return [
-        {
-            "role": "assistant" if m["role"] in ("model", "assistant") else m["role"],
-            "content": m["parts"][0],
-        }
-        for m in messages
-    ]
+    result = []
+    for m in messages:
+        role = "assistant" if m["role"] in ("model", "assistant") else m["role"]
+        text = m["parts"][0]
+        images = m.get("images") or []
+        if images:
+            content: list | str = [{"type": "text", "text": text}] if text else []
+            content += [{"type": "image_url", "image_url": {"url": url}} for url in images]
+        else:
+            content = text
+        result.append({"role": role, "content": content})
+    return result
+
+
+def _to_anthropic_messages(messages: list[dict]) -> list[dict]:
+    result = []
+    for m in messages:
+        role = "assistant" if m["role"] in ("model", "assistant") else m["role"]
+        text = m["parts"][0]
+        images = m.get("images") or []
+        if images:
+            content: list = []
+            for url in images:
+                mime, data = _split_data_url(url)
+                content.append(
+                    {"type": "image", "source": {"type": "base64", "media_type": mime, "data": data}}
+                )
+            if text:
+                content.append({"type": "text", "text": text})
+        else:
+            content = text
+        result.append({"role": role, "content": content})
+    return result
 
 
 def _cot_addendum() -> str:
@@ -307,6 +341,17 @@ def _json_schema_to_gemini_schema(genai, schema: dict):
     return genai.protos.Schema(**kwargs)
 
 
+def _gemini_parts(m: dict) -> list:
+    parts: list = []
+    text = m["parts"][0]
+    if text:
+        parts.append(text)
+    for data_url in m.get("images") or []:
+        mime, data = _split_data_url(data_url)
+        parts.append({"mime_type": mime, "data": base64.b64decode(data)})
+    return parts or [""]
+
+
 def _mcp_fn_decls(genai, server_ids: list[str]):
     from mcp_manager import manager as mcp_manager
 
@@ -335,8 +380,7 @@ def _stream_gemini(
     if not messages or messages[-1]["role"] != "user":
         raise ValueError("Last message must be from the user.")
 
-    history = [{"role": m["role"], "parts": m["parts"]} for m in messages[:-1]]
-    user_msg = messages[-1]["parts"][0]
+    history = [{"role": m["role"], "parts": _gemini_parts(m)} for m in messages[:-1]]
     reasoning = cfg.get("reasoning", False)
     model_name = cfg["model"]
 
@@ -436,7 +480,7 @@ def _stream_gemini(
     model, use_native = _make_model(use_native)
     chat = model.start_chat(history=history)
 
-    current_input = user_msg
+    current_input = _gemini_parts(messages[-1])
     last_resp = None
 
     for step in range(MAX_AGENT_STEPS):
@@ -832,7 +876,7 @@ def _stream_anthropic(
     kwargs: dict = {
         "model": model,
         "max_tokens": 16000 if use_native else 8096,
-        "messages": _to_openai_messages(messages),
+        "messages": _to_anthropic_messages(messages),
     }
     if actual_system:
         kwargs["system"] = actual_system

@@ -2,13 +2,20 @@ import { useRef, useState, useEffect } from "react";
 import type { McpServer, TokenUsage } from "../../types";
 import ToolsMenu from "./ToolsMenu";
 
+interface PendingImage {
+  name: string;
+  dataUrl: string;
+}
+
 interface InputAreaProps {
   onSend: (text: string) => void;
   onStop: () => void;
   isStreaming: boolean;
   pendingFile: string | null;
   onRemoveFile: () => void;
-  onAttachFile: (file: File) => void;
+  pendingImages: PendingImage[];
+  onAttachFiles: (files: FileList) => void;
+  onRemoveImage: (index: number) => void;
   isRecording: boolean;
   onToggleRecording: (fill?: (text: string) => void) => void;
   tokenUsage: TokenUsage | null;
@@ -124,7 +131,9 @@ export default function InputArea({
   isStreaming,
   pendingFile,
   onRemoveFile,
-  onAttachFile,
+  pendingImages,
+  onAttachFiles,
+  onRemoveImage,
   isRecording,
   onToggleRecording,
   tokenUsage,
@@ -169,8 +178,7 @@ export default function InputArea({
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) onAttachFile(file);
+    if (e.target.files?.length) onAttachFiles(e.target.files);
     e.target.value = "";
   }
 
@@ -187,6 +195,41 @@ export default function InputArea({
 
   return (
     <div className="w-[calc(100%-3rem)] max-w-[760px] mx-auto mb-5 flex-shrink-0">
+      {/* Image thumbnails */}
+      {pendingImages.length > 0 && (
+        <div className="flex items-center gap-2 pb-[0.4rem] flex-wrap">
+          {pendingImages.map((img, i) => (
+            <div
+              key={i}
+              className="relative w-14 h-14 rounded-[0.6rem] overflow-hidden border border-border flex-shrink-0 group"
+            >
+              <img
+                src={img.dataUrl}
+                alt={img.name}
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={() => onRemoveImage(i)}
+                title="Remove"
+                className="absolute top-[2px] right-[2px] w-[18px] h-[18px] rounded-full bg-black/60 hover:bg-black/80 border-none text-white flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="10"
+                  height="10"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                >
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Attachment chip */}
       {pendingFile && (
         <div className="flex items-center gap-2 pb-[0.4rem]">
@@ -240,14 +283,15 @@ export default function InputArea({
           {/* Attach */}
           <ToolBtn
             onClick={() => fileInputRef.current?.click()}
-            title="Attach document"
+            title="Attach file"
           >
             <PaperclipIcon />
           </ToolBtn>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".txt,.md,.pdf"
+            accept=".txt,.md,.pdf,image/png,image/jpeg,image/gif,image/webp"
+            multiple
             className="hidden"
             onChange={handleFileChange}
           />

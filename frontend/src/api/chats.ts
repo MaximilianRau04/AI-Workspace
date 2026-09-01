@@ -60,6 +60,7 @@ export function streamMessage(
   chatId: string,
   message: string,
   attachedFile: string | null,
+  images: string[],
   pairIndex: number | null | undefined,
   signal: AbortSignal,
   webSearch: boolean = false,
@@ -69,6 +70,7 @@ export function streamMessage(
   const body: Record<string, unknown> = {
     message,
     attached_file: attachedFile ?? null,
+    images,
     web_search: webSearch,
     code_interpreter: codeInterpreter,
     mcp_servers: mcpServers,

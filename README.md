@@ -146,6 +146,7 @@ The active provider and model are configured via the ⚙️ Settings button → 
 - **Voice input** - microphone button (Chrome / Edge only)
 - **Voice output** - toggle via 🔇 button (powered by [edge-tts](https://github.com/rany2/edge-tts))
 - **Document RAG** - upload `.txt`, `.md`, or `.pdf` files; the bot retrieves relevant passages automatically (requires Gemini API key for embeddings)
+- **Image input** - attach up to 6 images (PNG/JPEG/GIF/WebP) per message via the 🖼️ button; sent to the model's native vision API (Gemini, OpenAI, Anthropic) and kept in the conversation history for follow-up questions
 - **Configurable system prompt** - via the ⚙️ settings button
 - **Token usage indicator** - ring graph next to the input bar (Gemini only)
 - **Light / dark theme** toggle

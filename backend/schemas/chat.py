@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict
 class MessageSchema(BaseModel):
     role: str
     parts: list[str]
+    images: list[str] = []
 
 
 class SessionListItem(BaseModel):

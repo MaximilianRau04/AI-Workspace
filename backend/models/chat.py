@@ -38,6 +38,7 @@ class Message(Base):
     )
     role: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    images: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     session: Mapped[ChatSession] = relationship(back_populates="messages")
