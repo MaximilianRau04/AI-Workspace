@@ -222,7 +222,7 @@ export default function InputArea({
       )}
 
       {/* Input pill */}
-      <div className="flex flex-col bg-bg-surface border border-border rounded-[1.1rem] transition-all input-glow shadow-sm overflow-hidden">
+      <div className="flex flex-col bg-bg-surface border border-border rounded-[1.1rem] transition-all input-glow shadow-sm">
         {/* Textarea */}
         <textarea
           ref={textareaRef}
