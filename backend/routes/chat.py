@@ -289,9 +289,7 @@ async def send_message(
             yield 'data: "[DONE]"\n\n'
             return
 
-        sess.messages.append(
-            MessageSchema(role="user", parts=[user_message], images=body.images)
-        )
+        sess.messages.append(MessageSchema(role="user", parts=[user_message], images=body.images))
         sess.messages.append(MessageSchema(role="model", parts=[full_reply]))
 
         if chat_service.needs_summarization(sess.messages):

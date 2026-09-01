@@ -197,7 +197,10 @@ def _to_anthropic_messages(messages: list[dict]) -> list[dict]:
             for url in images:
                 mime, data = _split_data_url(url)
                 content.append(
-                    {"type": "image", "source": {"type": "base64", "media_type": mime, "data": data}}
+                    {
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": mime, "data": data},
+                    }
                 )
             if text:
                 content.append({"type": "text", "text": text})
