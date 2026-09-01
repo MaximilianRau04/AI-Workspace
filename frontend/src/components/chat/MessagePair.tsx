@@ -62,7 +62,7 @@ function ActionBtn({ icon, title, active, onClick }: ActionBtnProps) {
     <button
       onClick={onClick}
       title={title}
-      className={`bg-transparent border-none cursor-pointer text-[1.5rem] px-[0.55rem] py-[0.45rem] rounded-[0.4rem] leading-none transition-all flex items-center hover:bg-bg-hover ${
+      className={`bg-transparent border-none cursor-pointer px-[0.55rem] py-[0.45rem] rounded-[0.4rem] leading-none transition-all flex items-center justify-center hover:bg-bg-hover ${
         active
           ? "text-accent hover:text-accent"
           : "text-txt-dim hover:text-txt-muted"
@@ -72,6 +72,66 @@ function ActionBtn({ icon, title, active, onClick }: ActionBtnProps) {
     </button>
   );
 }
+
+// ── Icon components (Lucide-style, matches the rest of the app) ───────────────
+function RetryIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width="16"
+      height="16"
+    >
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width="16"
+      height="16"
+    >
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width="16"
+      height="16"
+    >
+      <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
+const CHECK_SVG_HTML =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" ' +
+  'stroke-linecap="round" stroke-linejoin="round" width="15" height="15">' +
+  '<path d="M20 6 9 17l-5-5"/></svg>';
 
 // ── Speaker icon (matches the icon previously used for the global TTS toggle) ─
 function SpeakerIcon() {
@@ -99,10 +159,10 @@ async function copyToClipboard(
 ): Promise<void> {
   try {
     await navigator.clipboard.writeText(getText());
-    const orig = btn.textContent;
-    btn.textContent = "✓";
+    const orig = btn.innerHTML;
+    btn.innerHTML = CHECK_SVG_HTML;
     setTimeout(() => {
-      btn.textContent = orig;
+      btn.innerHTML = orig;
     }, 1500);
   } catch {
     /* silent */
@@ -419,15 +479,23 @@ export default function MessagePair({
               {userText}
             </div>
             <div className="flex flex-row gap-[0.15rem] opacity-0 group-hover:opacity-100 transition-opacity">
-              <ActionBtn icon="↻" title="Try again" onClick={handleRetry} />
               <ActionBtn
-                icon="⧉"
+                icon={<RetryIcon />}
+                title="Try again"
+                onClick={handleRetry}
+              />
+              <ActionBtn
+                icon={<CopyIcon />}
                 title="Copy"
                 onClick={(e) => {
                   void copyToClipboard(() => userText, e.currentTarget);
                 }}
               />
-              <ActionBtn icon="✏" title="Edit" onClick={handleEdit} />
+              <ActionBtn
+                icon={<EditIcon />}
+                title="Edit"
+                onClick={handleEdit}
+              />
             </div>
           </>
         )}
@@ -470,7 +538,7 @@ export default function MessagePair({
               className={`flex flex-row gap-[0.15rem] transition-opacity mt-[0.25rem] ${speaking ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
             >
               <ActionBtn
-                icon="⧉"
+                icon={<CopyIcon />}
                 title="Copy"
                 onClick={(e) => {
                   void copyToClipboard(() => botText, e.currentTarget);
