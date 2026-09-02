@@ -726,6 +726,7 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
     setCurrentSessionId,
     refreshSessions,
     sidebarOpen,
+    config,
   } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -915,19 +916,27 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-border gap-2">
           <div className="flex items-center gap-[0.55rem] min-w-0">
-            <div className="w-7 h-7 rounded-full bg-bg-muted dark:bg-[#222] border border-border flex items-center justify-center flex-shrink-0 text-txt-dim">
-              <svg
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                width="16"
-                height="16"
-              >
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
-              </svg>
+            <div className="w-7 h-7 rounded-full bg-bg-muted dark:bg-[#222] border border-border flex items-center justify-center flex-shrink-0 text-txt-dim overflow-hidden">
+              {config?.avatar ? (
+                <img
+                  src={config.avatar}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  width="16"
+                  height="16"
+                >
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
+                </svg>
+              )}
             </div>
             <span className="text-[0.8rem] text-txt-dim whitespace-nowrap overflow-hidden text-ellipsis">
-              {user?.username || ""}
+              {config?.display_name || user?.username || ""}
             </span>
           </div>
           <button

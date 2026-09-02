@@ -8,6 +8,10 @@ import {
   saveProfile,
   clearMemory,
   getOllamaModels,
+  getTtsVoices,
+  saveDisplayName,
+  saveAvatar,
+  deleteAvatar,
 } from "../../api/config";
 import {
   getMcpServers,
@@ -29,7 +33,36 @@ import type {
   McpTransport,
   McpAuth,
   Prompt,
+  TtsVoice,
 } from "../../types";
+
+function resizeImageToDataUrl(file: File, size: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas not supported"));
+          return;
+        }
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2;
+        const sy = (img.height - side) / 2;
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = () => reject(new Error("Could not load image"));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 const MODEL_LISTS: Record<string, string[]> = {
   gemini: [
@@ -90,7 +123,7 @@ export default function SettingsModal({
   initialTab = "model",
   onClose,
 }: SettingsModalProps) {
-  const { config, setConfig } = useApp();
+  const { config, setConfig, theme, setTheme } = useApp();
 
   const [tab, setTab] = useState(initialTab);
   const [systemPrompt, setSystemPrompt] = useState("");
@@ -141,6 +174,15 @@ export default function SettingsModal({
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [editPromptName, setEditPromptName] = useState("");
   const [editPromptContent, setEditPromptContent] = useState("");
+
+  const [displayName, setDisplayName] = useState("");
+  const [avatar, setAvatar] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [ttsVoices, setTtsVoices] = useState<TtsVoice[]>([]);
+  const [ttsVoicesLoaded, setTtsVoicesLoaded] = useState(false);
+  const [ttsLocale, setTtsLocale] = useState("de-DE");
+  const [ttsVoice, setTtsVoice] = useState("de-DE-ConradNeural");
+  const [ttsRate, setTtsRate] = useState("+0%");
 
   useEffect(() => {
     setTab(initialTab);
@@ -378,9 +420,49 @@ export default function SettingsModal({
       setReasoning(m.reasoning || false);
       setSuggestions(MODEL_LISTS[m.provider || "gemini"] || []);
       setSttBackend(data.stt_backend || "google");
+      setDisplayName(data.display_name || "");
+      setAvatar(data.avatar || "");
+      const voice = data.tts_voice || "de-DE-ConradNeural";
+      setTtsVoice(voice);
+      setTtsLocale(voice.split("-").slice(0, 2).join("-"));
+      setTtsRate(data.tts_rate || "+0%");
     });
     setStreamDelay(localStorage.getItem("streamDelay") ?? "8");
   }, []);
+
+  function reloadTtsVoices(): void {
+    getTtsVoices().then((data) => {
+      setTtsVoices(data.voices || []);
+      setTtsVoicesLoaded(true);
+    });
+  }
+
+  useEffect(() => {
+    if (tab === "voice" && !ttsVoicesLoaded) reloadTtsVoices();
+  }, [tab, ttsVoicesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleAvatarFile(file: File): Promise<void> {
+    setAvatarBusy(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 128);
+      await saveAvatar(dataUrl);
+      setAvatar(dataUrl);
+      setConfig((c) => (c ? { ...c, avatar: dataUrl } : c));
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function handleRemoveAvatar(): Promise<void> {
+    setAvatarBusy(true);
+    try {
+      await deleteAvatar();
+      setAvatar("");
+      setConfig((c) => (c ? { ...c, avatar: "" } : c));
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
 
   function handleProviderChange(p: string): void {
     setProvider(p);
@@ -413,20 +495,29 @@ export default function SettingsModal({
 
     await saveSystemPrompt(systemPrompt);
     await saveProfile(profile);
-    await saveVoiceConfig(sttBackend);
+    await saveDisplayName(displayName);
+    await saveVoiceConfig(sttBackend, ttsVoice, ttsRate);
+
+    const currentPresets: Preset[] = config?.model?.presets || [];
+    const existingPreset = currentPresets.find(
+      (p) => p.provider === provider && p.model === modelName.trim(),
+    );
+    // The API key input is always blank on open (it's never echoed back for
+    // security) — an empty value here means "unchanged", not "clear it".
+    const resolvedApiKey =
+      apiKey.trim() || existingPreset?.api_key || config?.model?.api_key || "";
 
     const entry: Preset = {
       id: `${provider}::${modelName.trim()}`,
       provider,
       model: modelName.trim(),
-      api_key: apiKey.trim(),
+      api_key: resolvedApiKey,
       base_url: baseUrl.trim(),
       reasoning,
     };
 
     await saveModel(entry);
 
-    const currentPresets: Preset[] = config?.model?.presets || [];
     const idx = currentPresets.findIndex(
       (p) => p.provider === entry.provider && p.model === entry.model,
     );
@@ -446,8 +537,11 @@ export default function SettingsModal({
             ...c,
             system_prompt: systemPrompt,
             profile,
+            display_name: displayName,
             model: { ...c.model, ...entry, presets: newPresets },
             stt_backend: sttBackend,
+            tts_voice: ttsVoice,
+            tts_rate: ttsRate,
           }
         : c,
     );
@@ -636,6 +730,71 @@ export default function SettingsModal({
             {/* Profile tab */}
             {tab === "profile" && (
               <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative w-16 h-16 rounded-full bg-bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden text-txt-dim">
+                    {avatar ? (
+                      <img
+                        src={avatar}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        width="30"
+                        height="30"
+                      >
+                        <circle cx="12" cy="8" r="4" />
+                        <path d="M4 20c0-3.9 3.6-7 8-7s8 3.1 8 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className={labelCls}>Avatar</label>
+                    <div className="flex items-center gap-2">
+                      <label className="bg-bg-muted hover:bg-bg-hover disabled:opacity-50 border border-border rounded-lg text-txt-primary px-3 py-[0.35rem] cursor-pointer text-[0.8rem] transition-colors">
+                        {avatarBusy ? "Uploading…" : "Upload"}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/gif,image/webp"
+                          disabled={avatarBusy}
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) void handleAvatarFile(file);
+                          }}
+                        />
+                      </label>
+                      {avatar && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void handleRemoveAvatar();
+                          }}
+                          disabled={avatarBusy}
+                          className="text-[0.72rem] text-[#888] hover:text-[#e74c3c] disabled:opacity-50 bg-transparent border-none cursor-pointer underline transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-[0.35rem]">
+                  <label className={labelCls}>What should I call you?</label>
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="e.g. Maxi"
+                    maxLength={80}
+                    className={inputCls}
+                  />
+                </div>
+
                 <div className="flex flex-col gap-[0.35rem]">
                   <label className={labelCls}>About you</label>
                   <p className="text-[0.75rem] text-[#555]">
@@ -1128,7 +1287,92 @@ export default function SettingsModal({
             {/* Voice & UI tab */}
             {tab === "voice" && (
               <div className="flex flex-col gap-5">
-                <div className="flex flex-col gap-[0.35rem]">
+                <div className="flex flex-row items-center justify-between">
+                  <label className={labelCls}>Appearance</label>
+                  <div className="flex items-center gap-1 bg-bg-base border border-border rounded-lg p-[0.15rem]">
+                    {(
+                      [
+                        { id: "system", label: "System" },
+                        { id: "light", label: "Light" },
+                        { id: "dark", label: "Dark" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setTheme(opt.id)}
+                        className={`px-3 py-[0.35rem] rounded-[0.35rem] text-[0.8rem] cursor-pointer border-none transition-colors ${
+                          theme === opt.id
+                            ? "bg-accent text-white"
+                            : "bg-transparent text-txt-dim hover:text-txt-primary"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-[0.35rem] border-t border-border pt-4">
+                  <label className={labelCls}>Voice output (TTS)</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={ttsLocale}
+                      onChange={(e) => {
+                        const locale = e.target.value;
+                        setTtsLocale(locale);
+                        const firstForLocale = ttsVoices.find(
+                          (v) => v.locale === locale,
+                        );
+                        if (firstForLocale)
+                          setTtsVoice(firstForLocale.short_name);
+                      }}
+                      className={`${inputCls} flex-1`}
+                    >
+                      {Array.from(
+                        new Map(
+                          ttsVoices.map((v) => [v.locale, v.locale_name]),
+                        ).entries(),
+                      ).map(([locale, localeName]) => (
+                        <option key={locale} value={locale}>
+                          {localeName}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={ttsVoice}
+                      onChange={(e) => setTtsVoice(e.target.value)}
+                      className={`${inputCls} flex-1`}
+                    >
+                      {ttsVoices
+                        .filter((v) => v.locale === ttsLocale)
+                        .map((v) => (
+                          <option key={v.short_name} value={v.short_name}>
+                            {v.short_name
+                              .split("-")
+                              .pop()
+                              ?.replace("Neural", "")}{" "}
+                            ({v.gender})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-row items-center justify-between mt-1">
+                    <span className="text-[0.75rem] text-[#888]">Speed</span>
+                    <select
+                      value={ttsRate}
+                      onChange={(e) => setTtsRate(e.target.value)}
+                      className="bg-bg-base border border-border rounded-lg text-txt-primary font-[inherit] text-[0.875rem] px-3 py-[0.55rem] outline-none focus:border-accent transition-colors"
+                    >
+                      <option value="-25%">Slow</option>
+                      <option value="+0%">Normal</option>
+                      <option value="+25%">Fast</option>
+                      <option value="+50%">Very fast</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-[0.35rem] border-t border-border pt-4">
                   <label className={labelCls}>Speech-to-Text backend</label>
                   <select
                     value={sttBackend}

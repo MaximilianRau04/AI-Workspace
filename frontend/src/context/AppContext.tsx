@@ -26,6 +26,7 @@ interface AppContextValue {
   config: Config | null;
   setConfig: React.Dispatch<React.SetStateAction<Config | null>>;
   theme: string;
+  setTheme: React.Dispatch<React.SetStateAction<string>>;
   toggleTheme: () => void;
   sidebarOpen: boolean;
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -45,19 +46,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<string>(
     () => localStorage.getItem("theme") || "dark",
   );
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(
     () => localStorage.getItem("sidebar") === "open",
   );
 
+  // Track OS theme changes (only matters while theme === "system")
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   // Apply theme to <html>
   useEffect(() => {
-    if (theme === "light") {
-      document.documentElement.classList.remove("dark");
-    } else {
-      document.documentElement.classList.add("dark");
-    }
+    const isDark = theme === "system" ? systemPrefersDark : theme !== "light";
+    document.documentElement.classList.toggle("dark", isDark);
     localStorage.setItem("theme", theme);
-  }, [theme]);
+  }, [theme, systemPrefersDark]);
 
   // Persist sidebar state
   useEffect(() => {
@@ -121,6 +130,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     config,
     setConfig,
     theme,
+    setTheme,
     toggleTheme,
     sidebarOpen,
     setSidebarOpen,

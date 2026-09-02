@@ -59,8 +59,19 @@ export interface Config {
   system_prompt: string;
   profile: string;
   memory: string;
+  display_name: string;
+  avatar: string;
   model: ModelConfig;
   stt_backend: string;
+  tts_voice: string;
+  tts_rate: string;
+}
+
+export interface TtsVoice {
+  short_name: string;
+  locale: string;
+  locale_name: string;
+  gender: string;
 }
 
 export interface TokenUsage {

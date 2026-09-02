@@ -1,4 +1,4 @@
-import type { Config, Preset } from "../types";
+import type { Config, Preset, TtsVoice } from "../types";
 
 export async function getConfig(): Promise<Config> {
   const res = await fetch("/config");
@@ -44,12 +44,50 @@ export async function savePresets(
 
 export async function saveVoiceConfig(
   sttBackend: string,
+  ttsVoice?: string,
+  ttsRate?: string,
 ): Promise<Record<string, unknown>> {
   const res = await fetch("/config/voice", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ stt_backend: sttBackend }),
+    body: JSON.stringify({
+      stt_backend: sttBackend,
+      tts_voice: ttsVoice,
+      tts_rate: ttsRate,
+    }),
   });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+export async function getTtsVoices(): Promise<{ voices: TtsVoice[] }> {
+  const res = await fetch("/tts-voices");
+  return res.json() as Promise<{ voices: TtsVoice[] }>;
+}
+
+export async function saveDisplayName(
+  displayName: string,
+): Promise<Record<string, unknown>> {
+  const res = await fetch("/config/display-name", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ display_name: displayName }),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+export async function saveAvatar(
+  avatar: string,
+): Promise<Record<string, unknown>> {
+  const res = await fetch("/config/avatar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ avatar }),
+  });
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+export async function deleteAvatar(): Promise<Record<string, unknown>> {
+  const res = await fetch("/config/avatar", { method: "DELETE" });
   return res.json() as Promise<Record<string, unknown>>;
 }
 
