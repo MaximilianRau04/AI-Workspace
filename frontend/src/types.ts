@@ -27,6 +27,14 @@ export interface ChatDetail {
   id: string;
   title: string;
   messages: MessagePart[];
+  prompt_id: string | null;
+}
+
+export interface Prompt {
+  id: string;
+  name: string;
+  content: string;
+  created_at: string;
 }
 
 export interface ModelConfig {

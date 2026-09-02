@@ -66,6 +66,7 @@ export function streamMessage(
   webSearch: boolean = false,
   codeInterpreter: boolean = false,
   mcpServers: string[] = [],
+  promptId: string | null = null,
 ): Promise<Response> {
   const body: Record<string, unknown> = {
     message,
@@ -74,6 +75,7 @@ export function streamMessage(
     web_search: webSearch,
     code_interpreter: codeInterpreter,
     mcp_servers: mcpServers,
+    prompt_id: promptId,
   };
   if (pairIndex !== null && pairIndex !== undefined)
     body.pair_index = pairIndex;

@@ -41,6 +41,7 @@ export function useStream(): {
     webSearch?: boolean,
     codeInterpreter?: boolean,
     mcpServers?: string[],
+    promptId?: string | null,
   ) => Promise<void>;
   abort: () => void;
 } {
@@ -64,6 +65,7 @@ export function useStream(): {
       webSearch: boolean = false,
       codeInterpreter: boolean = false,
       mcpServers: string[] = [],
+      promptId: string | null = null,
     ): Promise<void> => {
       const {
         onChunk,
@@ -100,6 +102,7 @@ export function useStream(): {
           webSearch,
           codeInterpreter,
           mcpServers,
+          promptId,
         );
 
         const reader = res.body!.getReader();

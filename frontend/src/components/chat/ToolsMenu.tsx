@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { McpServer } from "../../types";
+import type { McpServer, Prompt } from "../../types";
 
 interface ToolsMenuProps {
   webSearch: boolean;
@@ -9,6 +9,9 @@ interface ToolsMenuProps {
   mcpServers: McpServer[];
   enabledMcpServerIds: string[];
   onToggleMcpServer: (id: string) => void;
+  prompts: Prompt[];
+  selectedPromptId: string | null;
+  onSelectPrompt: (id: string | null) => void;
 }
 
 function PlusIcon() {
@@ -82,6 +85,23 @@ function PlugIcon() {
   );
 }
 
+function SparkleIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8" />
+    </svg>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg
@@ -128,9 +148,13 @@ export default function ToolsMenu({
   mcpServers,
   enabledMcpServerIds,
   onToggleMcpServer,
+  prompts,
+  selectedPromptId,
+  onSelectPrompt,
 }: ToolsMenuProps) {
   const [open, setOpen] = useState(false);
   const [mcpExpanded, setMcpExpanded] = useState(false);
+  const [promptExpanded, setPromptExpanded] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -139,14 +163,20 @@ export default function ToolsMenu({
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
         setOpen(false);
         setMcpExpanded(false);
+        setPromptExpanded(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
+  const selectedPrompt = prompts.find((p) => p.id === selectedPromptId);
+
   const anyActive =
-    webSearch || codeInterpreter || enabledMcpServerIds.length > 0;
+    webSearch ||
+    codeInterpreter ||
+    enabledMcpServerIds.length > 0 ||
+    !!selectedPromptId;
 
   return (
     <div className="relative flex-shrink-0" ref={rootRef}>
@@ -179,6 +209,50 @@ export default function ToolsMenu({
             <span className="flex-1">Code interpreter</span>
             {codeInterpreter && <CheckIcon />}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setPromptExpanded((v) => !v)}
+            className={itemCls}
+          >
+            <SparkleIcon />
+            <span className="flex-1">Prompt</span>
+            {selectedPrompt && (
+              <span className="text-[0.7rem] text-txt-dim truncate max-w-[80px]">
+                {selectedPrompt.name}
+              </span>
+            )}
+            <ChevronIcon expanded={promptExpanded} />
+          </button>
+
+          {promptExpanded && (
+            <div className="border-t border-border pt-1 pb-[0.15rem]">
+              <button
+                type="button"
+                onClick={() => onSelectPrompt(null)}
+                className={`${itemCls} pl-8`}
+              >
+                <span className="flex-1 truncate">Default</span>
+                {!selectedPromptId && <CheckIcon />}
+              </button>
+              {prompts.length === 0 && (
+                <p className="px-3 py-2 pl-8 text-[0.75rem] text-txt-dim leading-[1.4]">
+                  No saved prompts yet. Add one in Settings → Prompts.
+                </p>
+              )}
+              {prompts.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onSelectPrompt(p.id)}
+                  className={`${itemCls} pl-8`}
+                >
+                  <span className="flex-1 truncate">{p.name}</span>
+                  {selectedPromptId === p.id && <CheckIcon />}
+                </button>
+              ))}
+            </div>
+          )}
 
           <button
             type="button"

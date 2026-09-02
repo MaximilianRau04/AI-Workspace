@@ -7,6 +7,7 @@ import { getChat, createChat } from "../api/chats";
 import { uploadDoc, deleteDoc } from "../api/docs";
 import { logout } from "../api/auth";
 import { getMcpServers } from "../api/mcp";
+import { getPrompts } from "../api/prompts";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
 import ChatArea from "../components/chat/ChatArea";
@@ -14,7 +15,13 @@ import InputArea from "../components/chat/InputArea";
 import HomeHero from "../components/chat/HomeHero";
 import SettingsModal from "../components/settings/SettingsModal";
 import DocsModal from "../components/documents/DocsModal";
-import type { ChatPair, TokenUsage, StreamError, McpServer } from "../types";
+import type {
+  ChatPair,
+  TokenUsage,
+  StreamError,
+  McpServer,
+  Prompt,
+} from "../types";
 
 interface PendingImage {
   name: string;
@@ -86,6 +93,8 @@ export default function ChatPage() {
   const [mcpServerIds, setMcpServerIds] = useState<string[]>(
     loadStoredMcpServerIds,
   );
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
 
   const pairCounterRef = useRef<number>(0);
   const streamingPairRef = useRef<number | null>(null);
@@ -116,6 +125,15 @@ export default function ChatPage() {
     if (user) reloadMcpServers();
   }, [user, reloadMcpServers]);
 
+  // ── Prompt library ───────────────────────────────────────────────────────────
+  const reloadPrompts = useCallback(() => {
+    getPrompts().then((data) => setPrompts(data.prompts || []));
+  }, []);
+
+  useEffect(() => {
+    if (user) reloadPrompts();
+  }, [user, reloadPrompts]);
+
   // ── Load session from URL ───────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
@@ -130,6 +148,7 @@ export default function ChatPage() {
       setCurrentSessionId(null);
       setPairs([]);
       pairCounterRef.current = 0;
+      setSelectedPromptId(null);
     }
   }, [sessionId, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -139,6 +158,7 @@ export default function ChatPage() {
     pairCounterRef.current = 0;
     try {
       const data = await getChat(id);
+      setSelectedPromptId(data.prompt_id ?? null);
       const messages = data.messages || [];
       const newPairs: ChatPair[] = [];
       for (let i = 0; i < messages.length; i += 2) {
@@ -312,6 +332,7 @@ export default function ChatPage() {
         webSearch,
         codeInterpreter,
         mcpServerIds,
+        selectedPromptId,
       );
 
       setIsStreaming(false);
@@ -321,6 +342,7 @@ export default function ChatPage() {
       currentSessionId,
       pendingFile,
       pendingImages,
+      selectedPromptId,
       stream,
       navigate,
       refreshSessions,
@@ -371,6 +393,7 @@ export default function ChatPage() {
     setPairs([]);
     setErrorMessages([]);
     pairCounterRef.current = 0;
+    setSelectedPromptId(null);
     navigate("/");
   }
 
@@ -570,6 +593,9 @@ export default function ChatPage() {
                 return next;
               });
             }}
+            prompts={prompts}
+            selectedPromptId={selectedPromptId}
+            onSelectPrompt={setSelectedPromptId}
           />
         </div>
       </div>
@@ -590,6 +616,7 @@ export default function ChatPage() {
           onClose={() => {
             setSettingsOpen(false);
             reloadMcpServers();
+            reloadPrompts();
           }}
         />
       )}

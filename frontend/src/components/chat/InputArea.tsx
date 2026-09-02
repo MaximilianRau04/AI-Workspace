@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import type { McpServer, TokenUsage } from "../../types";
+import type { McpServer, Prompt, TokenUsage } from "../../types";
 import ToolsMenu from "./ToolsMenu";
 
 interface PendingImage {
@@ -26,6 +26,9 @@ interface InputAreaProps {
   mcpServers: McpServer[];
   enabledMcpServerIds: string[];
   onToggleMcpServer: (id: string) => void;
+  prompts: Prompt[];
+  selectedPromptId: string | null;
+  onSelectPrompt: (id: string | null) => void;
 }
 
 /* ── Icon components ── */
@@ -144,6 +147,9 @@ export default function InputArea({
   mcpServers,
   enabledMcpServerIds,
   onToggleMcpServer,
+  prompts,
+  selectedPromptId,
+  onSelectPrompt,
 }: InputAreaProps) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -305,6 +311,9 @@ export default function InputArea({
             mcpServers={mcpServers}
             enabledMcpServerIds={enabledMcpServerIds}
             onToggleMcpServer={onToggleMcpServer}
+            prompts={prompts}
+            selectedPromptId={selectedPromptId}
+            onSelectPrompt={onSelectPrompt}
           />
 
           {/* Mic */}
