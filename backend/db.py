@@ -36,6 +36,8 @@ def _migrate_columns() -> None:
     migrations = [
         ("users", "profile", "TEXT DEFAULT ''"),
         ("users", "memory", "TEXT DEFAULT ''"),
+        ("users", "display_name", "TEXT DEFAULT ''"),
+        ("users", "avatar", "TEXT DEFAULT ''"),
         ("sessions", "pinned", "INTEGER DEFAULT 0"),
         ("sessions", "folder_id", "TEXT"),
         ("sessions", "prompt_id", "TEXT"),

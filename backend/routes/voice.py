@@ -13,9 +13,8 @@ from utils import login_required
 
 router = APIRouter(tags=["voice"])
 
-TTS_VOICE = "de-DE-ConradNeural"
-
 _whisper_model = None
+_voices_cache: list[dict] | None = None
 
 
 def _get_whisper_model():
@@ -52,13 +51,35 @@ async def tts(body: TTSBody, current_user: dict = Depends(login_required)):
     text = re.sub(r"[#*`_>~\[\]|]", "", text)
     text = re.sub(r"\s+", " ", text).strip()
 
+    cfg = llm.load_config()
+    voice = cfg.get("tts_voice") or "de-DE-ConradNeural"
+    rate = cfg.get("tts_rate") or "+0%"
+
     buf = io.BytesIO()
-    communicate = edge_tts.Communicate(text, TTS_VOICE)
+    communicate = edge_tts.Communicate(text, voice, rate=rate)
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
             buf.write(chunk["data"])
 
     return Response(content=buf.getvalue(), media_type="audio/mpeg")
+
+
+@router.get("/tts-voices")
+async def tts_voices(current_user: dict = Depends(login_required)):
+    global _voices_cache
+    if _voices_cache is None:
+        raw = await edge_tts.list_voices()
+        _voices_cache = [
+            {
+                "short_name": v["ShortName"],
+                "locale": v["Locale"],
+                "locale_name": v["LocaleName"],
+                "gender": v["Gender"],
+            }
+            for v in raw
+        ]
+        _voices_cache.sort(key=lambda v: (v["locale_name"], v["short_name"]))
+    return {"voices": _voices_cache}
 
 
 @router.post("/stt")

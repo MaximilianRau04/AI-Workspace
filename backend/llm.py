@@ -27,6 +27,8 @@ DEFAULTS: dict = {
     "reasoning": False,
     "presets": [],
     "stt_backend": "google",
+    "tts_voice": "de-DE-ConradNeural",
+    "tts_rate": "+0%",
 }
 
 MAX_AGENT_STEPS = 10

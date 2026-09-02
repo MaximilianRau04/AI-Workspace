@@ -271,6 +271,10 @@ async def send_message(
 
         user_data = get_user_data(user_id)
         extra_parts = []
+        if user_data["display_name"]:
+            extra_parts.append(
+                f"The user's name is {user_data['display_name']} — address them by it."
+            )
         if user_data["profile"]:
             extra_parts.append(f"User profile:\n{user_data['profile']}")
         if user_data["memory"]:

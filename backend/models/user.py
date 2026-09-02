@@ -14,6 +14,8 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     profile: Mapped[str] = mapped_column(Text, default="", server_default="")
     memory: Mapped[str] = mapped_column(Text, default="", server_default="")
+    display_name: Mapped[str] = mapped_column(Text, default="", server_default="")
+    avatar: Mapped[str] = mapped_column(Text, default="", server_default="")
 
     sessions: Mapped[list[ChatSession]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
