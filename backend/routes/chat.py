@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -241,6 +242,7 @@ async def send_message(
     def sync_generate():
         is_first = len(sess.messages) == 0
         full_reply = ""
+        usage_data: dict | None = None
 
         context = rag.retrieve(user_message, user_id, filename=body.attached_file)
         folder_context = (
@@ -292,6 +294,7 @@ async def send_message(
                 mcp_servers=body.mcp_servers,
             ):
                 if isinstance(item, dict) and "usage" in item:
+                    usage_data = item["usage"]
                     yield f"event: usage\ndata: {json.dumps(item['usage'])}\n\n"
                 elif isinstance(item, dict) and "thinking" in item:
                     yield f"event: thinking\ndata: {json.dumps(item['thinking'])}\n\n"
@@ -311,6 +314,24 @@ async def send_message(
 
         sess.messages.append(MessageSchema(role="user", parts=[user_message], images=body.images))
         sess.messages.append(MessageSchema(role="model", parts=[full_reply]))
+
+        if usage_data:
+            from models.usage import UsageRecord
+
+            model_cfg = llm.load_config()
+            with get_session() as db:
+                db.add(
+                    UsageRecord(
+                        user_id=user_id,
+                        session_id=sess.id,
+                        provider=model_cfg.get("provider", ""),
+                        model=model_cfg.get("model", ""),
+                        prompt_tokens=usage_data.get("prompt", 0),
+                        reply_tokens=usage_data.get("reply", 0),
+                        total_tokens=usage_data.get("total", 0),
+                        created_at=datetime.utcnow().isoformat(),
+                    )
+                )
 
         if chat_service.needs_summarization(sess.messages):
             sess.messages, sess.summary = chat_service.summarize_messages(sess.messages)

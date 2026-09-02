@@ -11,7 +11,7 @@ import db
 import mcp_store
 import rag
 from mcp_manager import manager as mcp_manager
-from routes import auth, chat, config, docs, folders, mcp, prompts, voice
+from routes import auth, chat, config, docs, folders, mcp, prompts, usage, voice
 
 load_dotenv()
 
@@ -46,6 +46,7 @@ app.include_router(docs.router)
 app.include_router(folders.router)
 app.include_router(mcp.router)
 app.include_router(prompts.router)
+app.include_router(usage.router)
 app.include_router(voice.router)
 
 

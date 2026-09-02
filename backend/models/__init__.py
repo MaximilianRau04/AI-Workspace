@@ -3,6 +3,16 @@ from models.chat import ChatSession, Message
 from models.document import Document
 from models.folder import Folder
 from models.prompt import Prompt
+from models.usage import UsageRecord
 from models.user import User
 
-__all__ = ["Base", "User", "ChatSession", "Message", "Document", "Folder", "Prompt"]
+__all__ = [
+    "Base",
+    "User",
+    "ChatSession",
+    "Message",
+    "Document",
+    "Folder",
+    "Prompt",
+    "UsageRecord",
+]

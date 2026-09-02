@@ -29,6 +29,9 @@ DEFAULTS: dict = {
     "stt_backend": "google",
     "tts_voice": "de-DE-ConradNeural",
     "tts_rate": "+0%",
+    # Keyed "provider::model" -> {"input": $/1M input tokens, "output": $/1M output tokens}.
+    # Left empty by default — filled in by the user in Settings, since prices vary and change.
+    "pricing": {},
 }
 
 MAX_AGENT_STEPS = 10
@@ -487,6 +490,8 @@ def _stream_gemini(
 
     current_input = _gemini_parts(messages[-1])
     last_resp = None
+    total_prompt_tokens = 0
+    total_reply_tokens = 0
 
     for step in range(MAX_AGENT_STEPS):
         if step == 0:
@@ -542,6 +547,13 @@ def _stream_gemini(
             else:
                 yield from _chunks()
 
+        try:
+            u = resp.usage_metadata
+            total_prompt_tokens += u.prompt_token_count or 0
+            total_reply_tokens += u.candidates_token_count or 0
+        except Exception:
+            pass
+
         if fn_call is None:
             break
 
@@ -556,18 +568,14 @@ def _stream_gemini(
             )
         )
 
-    if last_resp is not None:
-        try:
-            u = last_resp.usage_metadata
-            yield {
-                "usage": {
-                    "prompt": u.prompt_token_count or 0,
-                    "reply": u.candidates_token_count or 0,
-                    "total": u.total_token_count or 0,
-                }
+    if last_resp is not None and (total_prompt_tokens or total_reply_tokens):
+        yield {
+            "usage": {
+                "prompt": total_prompt_tokens,
+                "reply": total_reply_tokens,
+                "total": total_prompt_tokens + total_reply_tokens,
             }
-        except Exception:
-            pass
+        }
 
 
 def _generate_gemini(prompt, cfg):
@@ -649,6 +657,9 @@ def _stream_openai(
 
     oai_messages.extend(_to_openai_messages(messages))
 
+    total_prompt_tokens = 0
+    total_reply_tokens = 0
+
     # Prompt-based path for Ollama (agent loop)
     if use_prompt_tools:
         current_messages = oai_messages
@@ -656,6 +667,9 @@ def _stream_openai(
             completion = client.chat.completions.create(
                 model=model, messages=current_messages, stream=False
             )
+            if completion.usage:
+                total_prompt_tokens += completion.usage.prompt_tokens or 0
+                total_reply_tokens += completion.usage.completion_tokens or 0
             first_text = completion.choices[0].message.content or ""
             tool_call = _parse_prompt_tool_call(first_text)
             if not tool_call:
@@ -677,6 +691,14 @@ def _stream_openai(
                     "content": f"Tool '{tool_call.get('name')}' returned:\n{result_text}\n\nNow continue or provide your final answer.",
                 },
             ]
+        if total_prompt_tokens or total_reply_tokens:
+            yield {
+                "usage": {
+                    "prompt": total_prompt_tokens,
+                    "reply": total_reply_tokens,
+                    "total": total_prompt_tokens + total_reply_tokens,
+                }
+            }
         return
 
     # Native tool-calling path (OpenAI cloud + reasoning models) with agent loop
@@ -765,12 +787,18 @@ def _stream_openai(
         create_kwargs: dict = {"model": model, "messages": current_messages, "stream": True}
         if tools_param:
             create_kwargs["tools"] = tools_param
+        if not is_ollama:
+            create_kwargs["stream_options"] = {"include_usage": True}
 
         stream = client.chat.completions.create(**create_kwargs)
         tool_calls_buf: dict[int, dict] = {}
+        step_usage: dict = {}
 
         def _text_gen():
             for chunk in stream:
+                if getattr(chunk, "usage", None):
+                    step_usage["prompt"] = chunk.usage.prompt_tokens or 0
+                    step_usage["reply"] = chunk.usage.completion_tokens or 0
                 if not chunk.choices:
                     continue
                 choice = chunk.choices[0]
@@ -799,6 +827,9 @@ def _stream_openai(
             yield from _parse_think_tags(_text_gen())
         else:
             yield from _text_gen()
+
+        total_prompt_tokens += step_usage.get("prompt", 0)
+        total_reply_tokens += step_usage.get("reply", 0)
 
         if not tool_calls_buf:
             break
@@ -830,6 +861,15 @@ def _stream_openai(
             {"role": "assistant", "content": None, "tool_calls": assistant_tool_calls},
             *result_messages,
         ]
+
+    if total_prompt_tokens or total_reply_tokens:
+        yield {
+            "usage": {
+                "prompt": total_prompt_tokens,
+                "reply": total_reply_tokens,
+                "total": total_prompt_tokens + total_reply_tokens,
+            }
+        }
 
 
 def _generate_openai(prompt, cfg):
@@ -954,6 +994,8 @@ def _stream_anthropic(
         kwargs["tools"] = _ant_tools
 
     current_messages = list(kwargs["messages"])
+    total_prompt_tokens = 0
+    total_reply_tokens = 0
 
     for step in range(MAX_AGENT_STEPS):
         loop_kwargs = {**kwargs, "messages": current_messages}
@@ -1008,6 +1050,10 @@ def _stream_anthropic(
                         tool_use_blocks.append(current_tool)
                         current_tool = None
 
+            final_msg = stream.get_final_message()
+            total_prompt_tokens += final_msg.usage.input_tokens or 0
+            total_reply_tokens += final_msg.usage.output_tokens or 0
+
         if not tool_use_blocks:
             break
 
@@ -1030,6 +1076,15 @@ def _stream_anthropic(
             {"role": "assistant", "content": assistant_content},
             {"role": "user", "content": user_content},
         ]
+
+    if total_prompt_tokens or total_reply_tokens:
+        yield {
+            "usage": {
+                "prompt": total_prompt_tokens,
+                "reply": total_reply_tokens,
+                "total": total_prompt_tokens + total_reply_tokens,
+            }
+        }
 
 
 def _generate_anthropic(prompt, cfg):
