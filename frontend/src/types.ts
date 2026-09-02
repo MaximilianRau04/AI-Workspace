@@ -67,6 +67,36 @@ export interface Config {
   tts_rate: string;
 }
 
+export interface UsageTotals {
+  prompt: number;
+  reply: number;
+  total: number;
+}
+
+export interface UsageByModel {
+  provider: string;
+  model: string;
+  prompt: number;
+  reply: number;
+  total: number;
+  requests: number;
+  cost_usd: number;
+}
+
+export interface UsageSummary {
+  today: UsageTotals;
+  last_7d: UsageTotals;
+  last_30d: UsageTotals;
+  all_time: UsageTotals;
+  all_time_cost_usd: number;
+  by_model: UsageByModel[];
+}
+
+export interface PriceRate {
+  input: number;
+  output: number;
+}
+
 export interface TtsVoice {
   short_name: string;
   locale: string;
