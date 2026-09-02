@@ -36,6 +36,7 @@ class ChatBody(BaseModel):
     web_search: bool = False
     code_interpreter: bool = False
     mcp_servers: list[str] = []
+    prompt_id: Optional[str] = None
 
     @field_validator("images")
     @classmethod
@@ -94,6 +95,7 @@ async def get_chat(chat_id: str, current_user: dict = Depends(login_required)):
         "id": sess.id,
         "title": sess.title or "",
         "messages": [m.model_dump() for m in sess.messages],
+        "prompt_id": sess.prompt_id,
     }
 
 
@@ -234,6 +236,8 @@ async def send_message(
     if body.pair_index is not None:
         sess.messages = sess.messages[: body.pair_index * 2]
 
+    sess.prompt_id = body.prompt_id
+
     def sync_generate():
         is_first = len(sess.messages) == 0
         full_reply = ""
@@ -253,6 +257,18 @@ async def send_message(
         from routes.config import get_user_data, load_system_prompt
 
         system_prompt = load_system_prompt()
+        if sess.prompt_id:
+            from models.prompt import Prompt
+
+            with get_session() as db:
+                prompt_row = (
+                    db.query(Prompt)
+                    .filter(Prompt.id == sess.prompt_id, Prompt.user_id == user_id)
+                    .first()
+                )
+                if prompt_row:
+                    system_prompt = prompt_row.content
+
         user_data = get_user_data(user_id)
         extra_parts = []
         if user_data["profile"]:

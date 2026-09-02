@@ -17,6 +17,9 @@ class ChatSession(Base):
     folder_id: Mapped[str | None] = mapped_column(
         ForeignKey("folders.id", ondelete="SET NULL"), nullable=True
     )
+    prompt_id: Mapped[str | None] = mapped_column(
+        ForeignKey("prompts.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[str] = mapped_column(String, nullable=False)
     updated_at: Mapped[str] = mapped_column(String, nullable=False)
 

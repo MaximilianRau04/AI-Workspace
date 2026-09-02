@@ -22,6 +22,7 @@ def _orm_to_schema(sess: ChatSession) -> ChatSessionSchema:
         user_id=sess.user_id,
         title=sess.title or "",
         summary=sess.summary or "",
+        prompt_id=sess.prompt_id,
         created_at=sess.created_at,
         updated_at=sess.updated_at,
         messages=[
@@ -90,6 +91,7 @@ def save_session(session: ChatSessionSchema, user_id: str) -> None:
         if sess:
             sess.title = session.title
             sess.summary = session.summary
+            sess.prompt_id = session.prompt_id
             sess.updated_at = now
         else:
             sess = ChatSession(
@@ -97,6 +99,7 @@ def save_session(session: ChatSessionSchema, user_id: str) -> None:
                 user_id=user_id,
                 title=session.title,
                 summary=session.summary,
+                prompt_id=session.prompt_id,
                 created_at=session.created_at,
                 updated_at=now,
             )

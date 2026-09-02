@@ -21,3 +21,6 @@ class User(Base):
     documents: Mapped[list[Document]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )
+    prompts: Mapped[list["Prompt"]] = relationship(  # noqa: F821
+        back_populates="user", cascade="all, delete-orphan"
+    )

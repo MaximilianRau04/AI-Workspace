@@ -22,5 +22,6 @@ class ChatSessionSchema(BaseModel):
     title: str = ""
     summary: str = ""
     messages: list[MessageSchema] = []
+    prompt_id: str | None = None
     created_at: str
     updated_at: str
