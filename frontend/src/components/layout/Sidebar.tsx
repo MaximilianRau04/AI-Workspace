@@ -7,6 +7,7 @@ import {
   pinChat,
   renameChat,
 } from "../../api/chats";
+import { logout } from "../../api/auth";
 import type { Folder, Session } from "../../types";
 
 function formatDate(isoStr: string): string {
@@ -732,8 +733,24 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
   const location = useLocation();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   const onFoldersPage = location.pathname.startsWith("/folders");
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(e.target as Node)
+      ) {
+        setAccountMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [accountMenuOpen]);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -750,6 +767,11 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
     if (id === currentSessionId) return;
     setCurrentSessionId(id);
     navigate(`/c/${id}`);
+  }
+
+  async function handleLogout(): Promise<void> {
+    await logout();
+    window.location.href = "/login";
   }
 
   async function handleDeleted(id: string): Promise<void> {
@@ -914,8 +936,66 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border gap-2">
-          <div className="flex items-center gap-[0.55rem] min-w-0">
+        <div
+          className="relative px-4 py-3 border-t border-border"
+          ref={accountMenuRef}
+        >
+          {accountMenuOpen && (
+            <div className="absolute bottom-full left-4 right-4 mb-2 bg-bg-surface border border-border rounded-[0.75rem] shadow-lg py-1 z-20 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  onOpenSettings("model");
+                }}
+                className="w-full flex items-center gap-[0.6rem] px-3 py-[0.5rem] text-[0.85rem] text-txt-primary bg-transparent border-none cursor-pointer hover:bg-bg-muted transition-colors text-left"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  width="16"
+                  height="16"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+                Settings
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  void handleLogout();
+                }}
+                className="w-full flex items-center gap-[0.6rem] px-3 py-[0.5rem] text-[0.85rem] text-txt-primary bg-transparent border-none cursor-pointer hover:bg-[#2a1010] hover:text-[#e74c3c] transition-colors text-left"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  width="16"
+                  height="16"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                Log out
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setAccountMenuOpen((v) => !v)}
+            className="w-full flex items-center gap-[0.55rem] min-w-0 bg-transparent border-none cursor-pointer px-1 py-1 -mx-1 rounded-[0.5rem] hover:bg-bg-muted transition-colors text-left"
+          >
             <div className="w-7 h-7 rounded-full bg-bg-muted dark:bg-[#222] border border-border flex items-center justify-center flex-shrink-0 text-txt-dim overflow-hidden">
               {config?.avatar ? (
                 <img
@@ -938,25 +1018,6 @@ export default function Sidebar({ onOpenSettings, onNewChat }: SidebarProps) {
             <span className="text-[0.8rem] text-txt-dim whitespace-nowrap overflow-hidden text-ellipsis">
               {config?.display_name || user?.username || ""}
             </span>
-          </div>
-          <button
-            onClick={() => onOpenSettings("model")}
-            title="Settings"
-            className="bg-transparent border-none text-[#999] cursor-pointer text-[1.1rem] leading-none px-[0.3rem] py-[0.2rem] rounded-[0.4rem] transition-all hover:text-txt-primary hover:bg-bg-muted flex items-center flex-shrink-0"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              width="17"
-              height="17"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
           </button>
         </div>
       </aside>

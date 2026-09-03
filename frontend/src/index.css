@@ -166,23 +166,6 @@ html:not(.dark) .skeleton-line {
   animation: mic-pulse 1s ease-in-out infinite;
 }
 
-/* ── Theme spin ── */
-@keyframes theme-spin {
-  0% {
-    transform: scale(1) rotate(0deg);
-  }
-  40% {
-    transform: scale(1.35) rotate(200deg);
-  }
-  100% {
-    transform: scale(1) rotate(360deg);
-  }
-}
-
-.theme-spinning {
-  animation: theme-spin 0.45s ease;
-}
-
 /* ── Token arc transition ── */
 .token-arc {
   transition: stroke-dasharray 0.5s ease;
@@ -292,6 +275,9 @@ html:not(.dark) .code-copy-btn {
 html:not(.dark) .code-copy-btn:hover {
   background: #c0c0d4;
   color: #111;
+}
+.code-preview-btn {
+  right: 2.35rem;
 }
 
 /* ── Thinking block ── */

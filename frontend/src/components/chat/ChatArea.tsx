@@ -32,6 +32,7 @@ interface ChatAreaProps {
   errorMessages: StreamError[];
   onSpeak: (id: number, text: string) => void;
   speakingId: number | null;
+  onPreviewArtifact: (code: string, language: string) => void;
 }
 
 export default function ChatArea({
@@ -42,6 +43,7 @@ export default function ChatArea({
   errorMessages,
   onSpeak,
   speakingId,
+  onPreviewArtifact,
 }: ChatAreaProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -80,6 +82,7 @@ export default function ChatArea({
               onEdit={onEdit}
               onSpeak={onSpeak}
               speaking={speakingId === pair.pairIndex}
+              onPreviewArtifact={onPreviewArtifact}
             />
           ))}
           {errorMessages?.map((err, i) => (

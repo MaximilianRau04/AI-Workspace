@@ -5,7 +5,6 @@ import { useStream } from "../hooks/useStream";
 import { useVoice } from "../hooks/useVoice";
 import { getChat, createChat } from "../api/chats";
 import { uploadDoc, deleteDoc } from "../api/docs";
-import { logout } from "../api/auth";
 import { getMcpServers } from "../api/mcp";
 import { getPrompts } from "../api/prompts";
 import Sidebar from "../components/layout/Sidebar";
@@ -13,6 +12,7 @@ import Header from "../components/layout/Header";
 import ChatArea from "../components/chat/ChatArea";
 import InputArea from "../components/chat/InputArea";
 import HomeHero from "../components/chat/HomeHero";
+import ArtifactPanel from "../components/chat/ArtifactPanel";
 import SettingsModal from "../components/settings/SettingsModal";
 import DocsModal from "../components/documents/DocsModal";
 import type {
@@ -66,8 +66,6 @@ export default function ChatPage() {
     setCurrentSessionId,
     refreshSessions,
     sidebarOpen,
-    theme,
-    toggleTheme,
   } = useApp();
 
   // ── UI state ────────────────────────────────────────────────────────────────
@@ -82,7 +80,6 @@ export default function ChatPage() {
   const [settingsTab, setSettingsTab] = useState("model");
   const [docsOpen, setDocsOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [themeSpinning, setThemeSpinning] = useState(false);
   const [webSearch, setWebSearch] = useState<boolean>(
     () => localStorage.getItem("webSearch") === "true",
   );
@@ -95,6 +92,10 @@ export default function ChatPage() {
   );
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null);
+  const [activeArtifact, setActiveArtifact] = useState<{
+    code: string;
+    language: string;
+  } | null>(null);
 
   const pairCounterRef = useRef<number>(0);
   const streamingPairRef = useRef<number | null>(null);
@@ -149,6 +150,7 @@ export default function ChatPage() {
       setPairs([]);
       pairCounterRef.current = 0;
       setSelectedPromptId(null);
+      setActiveArtifact(null);
     }
   }, [sessionId, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -156,6 +158,7 @@ export default function ChatPage() {
     setLoading(true);
     setPairs([]);
     pairCounterRef.current = 0;
+    setActiveArtifact(null);
     try {
       const data = await getChat(id);
       setSelectedPromptId(data.prompt_id ?? null);
@@ -394,6 +397,7 @@ export default function ChatPage() {
     setErrorMessages([]);
     pairCounterRef.current = 0;
     setSelectedPromptId(null);
+    setActiveArtifact(null);
     navigate("/");
   }
 
@@ -466,18 +470,6 @@ export default function ChatPage() {
     setSettingsOpen(true);
   }
 
-  // ── Logout ────────────────────────────────────────────────────────────────────
-  async function handleLogout(): Promise<void> {
-    await logout();
-    window.location.href = "/login";
-  }
-
-  // ── Theme ─────────────────────────────────────────────────────────────────────
-  function handleThemeToggle(): void {
-    toggleTheme();
-    setThemeSpinning(true);
-  }
-
   if (user === undefined) return null;
 
   return (
@@ -492,27 +484,6 @@ export default function ChatPage() {
     >
       {/* Sidebar */}
       <Sidebar onOpenSettings={openSettings} onNewChat={handleNewChat} />
-
-      {/* Top-right fixed controls */}
-      <div className="fixed right-0 top-[0.7rem] z-[51] flex items-stretch">
-        <button
-          onClick={() => {
-            void handleLogout();
-          }}
-          title="Log out"
-          className="bg-bg-surface border border-[#2a2a2a] border-r-0 rounded-l-[0.45rem] text-[#888] text-[1.05rem] leading-none px-[0.6rem] py-[0.45rem] cursor-pointer transition-all hover:text-[#e74c3c] hover:bg-[#2a1010]"
-        >
-          ⏻
-        </button>
-        <button
-          onClick={handleThemeToggle}
-          title="Toggle theme"
-          onAnimationEnd={() => setThemeSpinning(false)}
-          className={`bg-bg-surface border border-[#2a2a2a] rounded-r-[0.45rem] text-[#aaa] text-[1.05rem] leading-none px-[0.6rem] py-[0.45rem] cursor-pointer transition-all hover:text-txt-primary ${themeSpinning ? "theme-spinning" : ""}`}
-        >
-          {theme === "light" ? "🌙" : "☀️"}
-        </button>
-      </div>
 
       {/* Main content */}
       <div
@@ -538,6 +509,9 @@ export default function ChatPage() {
               errorMessages={errorMessages}
               onSpeak={speak}
               speakingId={speakingId}
+              onPreviewArtifact={(code, language) =>
+                setActiveArtifact({ code, language })
+              }
             />
           )}
 
@@ -599,6 +573,15 @@ export default function ChatPage() {
           />
         </div>
       </div>
+
+      {/* Artifact panel */}
+      {activeArtifact && (
+        <ArtifactPanel
+          code={activeArtifact.code}
+          language={activeArtifact.language}
+          onClose={() => setActiveArtifact(null)}
+        />
+      )}
 
       {/* Drop overlay */}
       {dragOver && (

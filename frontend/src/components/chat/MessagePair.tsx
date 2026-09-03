@@ -345,6 +345,7 @@ interface BotBubbleProps {
   thinkingStreaming: boolean;
   thinkingElapsed: number;
   codeResults: CodeResult[];
+  onPreviewArtifact: (code: string, language: string) => void;
 }
 
 function BotBubble({
@@ -354,6 +355,7 @@ function BotBubble({
   thinkingStreaming,
   thinkingElapsed,
   codeResults,
+  onPreviewArtifact,
 }: BotBubbleProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevTextRef = useRef<string>("");
@@ -368,7 +370,7 @@ function BotBubble({
     if (!isStreaming) {
       if (renderTimerRef.current) clearTimeout(renderTimerRef.current);
       containerRef.current.innerHTML = renderMarkdown(text);
-      decorateCodeBlocks(containerRef.current);
+      decorateCodeBlocks(containerRef.current, onPreviewArtifact);
       return;
     }
 
@@ -425,6 +427,7 @@ interface MessagePairProps {
   onEdit: (pairIndex: number, newText: string) => void;
   onSpeak: (id: number, text: string) => void;
   speaking: boolean;
+  onPreviewArtifact: (code: string, language: string) => void;
 }
 
 export default function MessagePair({
@@ -444,6 +447,7 @@ export default function MessagePair({
   onEdit,
   onSpeak,
   speaking,
+  onPreviewArtifact,
 }: MessagePairProps) {
   const [editing, setEditing] = useState(false);
 
@@ -524,6 +528,7 @@ export default function MessagePair({
               thinkingStreaming={thinkingStreaming}
               thinkingElapsed={thinkingElapsed}
               codeResults={codeResults}
+              onPreviewArtifact={onPreviewArtifact}
             />
           )}
           {!isStreaming && interrupted && (
