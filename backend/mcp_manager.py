@@ -247,7 +247,7 @@ class McpManager:
                 {
                     "name": t.name,
                     "description": t.description or "",
-                    "input_schema": t.inputSchema or {"type": "object", "properties": {}},
+                    "input_schema": t.input_schema or {"type": "object", "properties": {}},
                 }
                 for t in result.tools
             ]
@@ -410,7 +410,7 @@ class McpManager:
         result = await conn.session.call_tool(tool_name, args)
         parts = [block.text for block in result.content if getattr(block, "text", None)]
         text = "\n".join(parts) if parts else "(no output)"
-        if getattr(result, "isError", False):
+        if getattr(result, "is_error", False):
             return f"Tool error: {text}"
         return text
 

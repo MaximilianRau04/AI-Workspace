@@ -275,7 +275,8 @@ async def send_message(
         extra_parts = []
         if user_data["display_name"]:
             extra_parts.append(
-                f"The user's name is {user_data['display_name']} — address them by it."
+                f"The user's name is {user_data['display_name']}. Use it sparingly and only "
+                "where it feels natural (e.g. a greeting) — don't force it into every reply."
             )
         if user_data["profile"]:
             extra_parts.append(f"User profile:\n{user_data['profile']}")

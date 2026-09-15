@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   getConfig,
   saveSystemPrompt,
@@ -26,6 +26,8 @@ import {
   updatePrompt,
   deletePrompt,
 } from "../../api/prompts";
+import { MCP_PRESETS, type McpPreset } from "../../data/mcpPresets";
+import { BrandIcon } from "./BrandIcon";
 import { getUsageSummary, getPricing, savePricing } from "../../api/usage";
 import { useApp } from "../../context/AppContext";
 import type {
@@ -157,6 +159,8 @@ export default function SettingsModal({
   const [newMcpAuth, setNewMcpAuth] = useState<McpAuth>("none");
   const [mcpSaving, setMcpSaving] = useState(false);
   const [mcpBusy, setMcpBusy] = useState(false);
+  const [presetNote, setPresetNote] = useState<string | null>(null);
+  const [presetAdding, setPresetAdding] = useState<string | null>(null);
   const [mcpAuthorizingId, setMcpAuthorizingId] = useState<string | null>(null);
   const [editingMcpId, setEditingMcpId] = useState<string | null>(null);
   const [editMcpName, setEditMcpName] = useState("");
@@ -196,6 +200,16 @@ export default function SettingsModal({
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const backdropMouseDownRef = useRef(false);
 
   function reloadMcpServers(): void {
     getMcpServers().then((data) => {
@@ -278,11 +292,48 @@ export default function SettingsModal({
       setNewMcpUrl("");
       setNewMcpHeaders("");
       setNewMcpAuth("none");
+      setPresetNote(null);
       reloadMcpServers();
     } finally {
       setMcpSaving(false);
       setMcpBusy(false);
     }
+  }
+
+  async function handleUsePreset(preset: McpPreset): Promise<void> {
+    if (preset.autoAdd) {
+      setPresetAdding(preset.id);
+      setMcpBusy(true);
+      try {
+        await addMcpServer({
+          name: preset.name,
+          transport: preset.transport,
+          command: preset.command || "",
+          args: preset.args || [],
+          env: preset.env || {},
+          url: preset.url || "",
+          headers: preset.headers || {},
+          auth: preset.auth || "none",
+        });
+        reloadMcpServers();
+      } finally {
+        setPresetAdding(null);
+        setMcpBusy(false);
+      }
+      return;
+    }
+    setNewMcpName(preset.name);
+    setNewMcpTransport(preset.transport);
+    setNewMcpCommand(preset.command || "npx");
+    setNewMcpArgs((preset.args || []).join(" "));
+    setNewMcpEnv(formatKeyValueLines(preset.env || {}));
+    setNewMcpUrl(preset.url || "");
+    setNewMcpHeaders(formatKeyValueLines(preset.headers || {}));
+    setNewMcpAuth(preset.auth || "none");
+    setPresetNote(preset.note || null);
+    document
+      .getElementById("mcp-add-server-form")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function handleToggleMcpServer(server: McpServer): Promise<void> {
@@ -548,7 +599,7 @@ export default function SettingsModal({
       (p) => p.provider === provider && p.model === modelName.trim(),
     );
     // The API key input is always blank on open (it's never echoed back for
-    // security) — an empty value here means "unchanged", not "clear it".
+    // security), so an empty value here means "unchanged", not "clear it".
     const resolvedApiKey =
       apiKey.trim() || existingPreset?.api_key || config?.model?.api_key || "";
 
@@ -615,8 +666,12 @@ export default function SettingsModal({
   return (
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
+      onMouseDown={(e) => {
+        backdropMouseDownRef.current = e.target === e.currentTarget;
+      }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (backdropMouseDownRef.current && e.target === e.currentTarget)
+          onClose();
       }}
     >
       <div className="bg-bg-surface border border-border rounded-[1rem] p-6 w-[90%] max-w-[560px] h-[min(640px,85vh)] flex flex-col gap-4">
@@ -642,6 +697,13 @@ export default function SettingsModal({
             {/* System Prompt tab */}
             {tab === "prompt" && (
               <div className="flex flex-col gap-3">
+                <p className="text-[0.75rem] text-[#555]">
+                  Baseline instructions that apply to every conversation: tone,
+                  language, role, or restrictions. Sent automatically with every
+                  new chat, so you don't need to repeat it in each message. For
+                  multiple variants (e.g. "Code Reviewer", "Translator") use the
+                  Prompt Library instead, which you can pick per chat.
+                </p>
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
@@ -776,6 +838,11 @@ export default function SettingsModal({
             {/* Profile tab */}
             {tab === "profile" && (
               <div className="flex flex-col gap-4">
+                <p className="text-[0.75rem] text-[#555]">
+                  How the assistant sees and addresses you. Everything below is
+                  included in every conversation, so it doesn't need to be
+                  re-explained each time you start a new chat.
+                </p>
                 <div className="flex items-center gap-4">
                   <div className="relative w-16 h-16 rounded-full bg-bg-muted border border-border flex items-center justify-center flex-shrink-0 overflow-hidden text-txt-dim">
                     {avatar ? (
@@ -885,6 +952,12 @@ export default function SettingsModal({
             {/* Model tab */}
             {tab === "model" && (
               <div className="flex flex-col gap-3">
+                <p className="text-[0.75rem] text-[#555]">
+                  Choose the AI provider and model used for new messages. The
+                  API key is stored securely and never shown again. Leave it
+                  blank to keep using the already-saved key, or a server-side
+                  environment variable if one is set.
+                </p>
                 <div className="flex flex-col gap-[0.35rem]">
                   <label className={labelCls}>Provider</label>
                   <select
@@ -992,6 +1065,38 @@ export default function SettingsModal({
                   via <code>npx</code> or <code>uvx</code>; remote servers
                   connect over HTTP or SSE.
                 </p>
+
+                <div className="flex flex-col gap-2">
+                  <label className={labelCls}>Quick add</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {MCP_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => {
+                          void handleUsePreset(preset);
+                        }}
+                        disabled={mcpBusy}
+                        title={preset.note || preset.description}
+                        className="flex flex-col items-start gap-0.5 bg-bg-base hover:bg-bg-hover disabled:opacity-50 border border-border rounded-[0.6rem] px-3 py-2 text-left cursor-pointer transition-colors"
+                      >
+                        <span className="text-[0.85rem] text-txt-primary font-medium flex items-center gap-1.5">
+                          <BrandIcon
+                            name={preset.icon}
+                            className="w-4 h-4 flex-shrink-0 text-txt-muted"
+                          />
+                          {preset.name}
+                          {presetAdding === preset.id && (
+                            <span className="w-2.5 h-2.5 border-2 border-accent border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                          )}
+                        </span>
+                        <span className="text-[0.68rem] text-txt-dim leading-snug">
+                          {preset.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {mcpBusy && (
                   <p className="text-[0.75rem] text-accent flex items-center gap-2">
@@ -1142,19 +1247,21 @@ export default function SettingsModal({
                               title={
                                 s.status?.error ||
                                 (s.status?.connected
-                                  ? "Connected"
+                                  ? `Connected · ${s.status.tool_count} tool${s.status.tool_count === 1 ? "" : "s"}`
                                   : s.status?.needs_authorization
                                     ? "Needs authorization"
                                     : "Disabled")
                               }
                             />
-                            <span className="text-[0.85rem] text-txt-primary font-medium truncate">
+                            <span
+                              className="text-[0.85rem] text-txt-primary font-medium truncate"
+                              title={
+                                s.transport === "stdio"
+                                  ? `${s.command} ${s.args.join(" ")}`
+                                  : `${s.transport} · ${s.url}`
+                              }
+                            >
                               {s.name}
-                            </span>
-                            <span className="text-[0.72rem] text-txt-dim truncate">
-                              {s.transport === "stdio"
-                                ? `${s.command} ${s.args.join(" ")}`
-                                : `${s.transport} · ${s.url}`}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1223,20 +1330,21 @@ export default function SettingsModal({
                               )}
                             </div>
                           )}
-                        {s.status?.connected && s.status.tool_count > 0 && (
-                          <p className="text-[0.72rem] text-txt-dim">
-                            {s.status.tool_count} tool
-                            {s.status.tool_count === 1 ? "" : "s"}:{" "}
-                            {s.status.tools.map((t) => t.name).join(", ")}
-                          </p>
-                        )}
                       </div>
                     ),
                   )}
                 </div>
 
-                <div className="flex flex-col gap-2 border-t border-border pt-3">
+                <div
+                  id="mcp-add-server-form"
+                  className="flex flex-col gap-2 border-t border-border pt-3"
+                >
                   <label className={labelCls}>Add server</label>
+                  {presetNote && (
+                    <p className="text-[0.72rem] text-accent bg-accent/10 border border-accent/30 rounded-md px-2.5 py-1.5">
+                      {presetNote}
+                    </p>
+                  )}
                   <input
                     type="text"
                     value={newMcpName}
@@ -1333,6 +1441,10 @@ export default function SettingsModal({
             {/* Voice & UI tab */}
             {tab === "voice" && (
               <div className="flex flex-col gap-5">
+                <p className="text-[0.75rem] text-[#555]">
+                  Personal display and interaction preferences: theme, streaming
+                  speed, and voice input/output.
+                </p>
                 <div className="flex flex-row items-center justify-between">
                   <label className={labelCls}>Appearance</label>
                   <div className="flex items-center gap-1 bg-bg-base border border-border rounded-lg p-[0.15rem]">
@@ -1461,7 +1573,7 @@ export default function SettingsModal({
               <div className="flex flex-col gap-4">
                 <p className="text-[0.75rem] text-[#555]">
                   Token usage is tracked automatically per message. Cost is only
-                  an estimate — enter your provider's current $/1M token price
+                  an estimate: enter your provider's current $/1M token price
                   below per model; it's never fetched automatically and may go
                   stale.
                 </p>
