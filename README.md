@@ -1,5 +1,7 @@
 A self-hosted AI workspace supporting multiple LLM providers (Gemini, OpenAI, Anthropic, Ollama) with streaming responses, an agentic ReAct loop for autonomous tool use, reasoning/thinking blocks, voice input & output, document upload, code interpreter, and per-user chat history.
 
+![AI Workspace chat view](docs/screenshots/chat.webp)
+
 ## Running with Docker (recommended)
 
 **Requirements:** Docker + Docker Compose
@@ -232,6 +234,8 @@ The toggle buttons in the input bar control **which tools the model has access t
 The intermediate steps (searches, code executions) are streamed to the frontend in real time so you can follow what the agent is doing.
 
 ## MCP Servers
+
+<img src="docs/screenshots/mcp-settings.webp" alt="MCP server settings" width="420" />
 
 The ⚙️ Settings → **MCP Servers** tab lets you connect any [Model Context Protocol](https://modelcontextprotocol.io) server to give the agent new tools - folder access, GitHub, email, calendar, and anything else with an MCP server. Once connected, each server can be individually enabled per chat via the ➕ tools menu → **MCP servers** submenu - only the tools of the servers you actually check are sent to the model.
 
