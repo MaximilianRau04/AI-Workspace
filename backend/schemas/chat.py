@@ -5,6 +5,8 @@ class MessageSchema(BaseModel):
     role: str
     parts: list[str]
     images: list[str] = []
+    # [{"name", "args", "result"}] for the tools the model called while writing this reply
+    tool_calls: list[dict] = []
 
 
 class SessionListItem(BaseModel):

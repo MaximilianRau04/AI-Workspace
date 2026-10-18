@@ -95,7 +95,7 @@ async def get_chat(chat_id: str, current_user: dict = Depends(login_required)):
     return {
         "id": sess.id,
         "title": sess.title or "",
-        "messages": [m.model_dump() for m in sess.messages],
+        "messages": [m.model_dump(exclude={"tool_calls"}) for m in sess.messages],
         "prompt_id": sess.prompt_id,
     }
 
@@ -243,6 +243,7 @@ async def send_message(
         is_first = len(sess.messages) == 0
         full_reply = ""
         usage_data: dict | None = None
+        tool_traces: list[dict] = []
 
         context = rag.retrieve(user_message, user_id, filename=body.attached_file)
         folder_context = (
@@ -277,6 +278,8 @@ async def send_message(
             extra_parts.append(f"User profile:\n{user_data['profile']}")
         if user_data["memory"]:
             extra_parts.append(f"Things I've learned about this user:\n{user_data['memory']}")
+        if chat_service.has_tool_history(sess.messages):
+            extra_parts.append(chat_service.TOOL_HISTORY_NOTE)
         if extra_parts:
             suffix = "\n\n".join(extra_parts)
             system_prompt = f"{system_prompt}\n\n---\n\n{suffix}" if system_prompt else suffix
@@ -300,6 +303,8 @@ async def send_message(
                     yield f"event: executing\ndata: {json.dumps(item['executing'])}\n\n"
                 elif isinstance(item, dict) and "code_result" in item:
                     yield f"event: code_result\ndata: {json.dumps(item['code_result'])}\n\n"
+                elif isinstance(item, dict) and "tool_trace" in item:
+                    tool_traces.append(item["tool_trace"])
                 else:
                     full_reply += item
                     yield f"data: {json.dumps(item)}\n\n"
@@ -309,7 +314,9 @@ async def send_message(
             return
 
         sess.messages.append(MessageSchema(role="user", parts=[user_message], images=body.images))
-        sess.messages.append(MessageSchema(role="model", parts=[full_reply]))
+        sess.messages.append(
+            MessageSchema(role="model", parts=[full_reply], tool_calls=tool_traces)
+        )
 
         if usage_data:
             from models.usage import UsageRecord
@@ -330,7 +337,9 @@ async def send_message(
                 )
 
         if chat_service.needs_summarization(sess.messages):
-            sess.messages, sess.summary = chat_service.summarize_messages(sess.messages)
+            sess.messages, sess.summary = chat_service.summarize_messages(
+                sess.messages, sess.summary
+            )
 
         if is_first and full_reply:
             try:

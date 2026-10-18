@@ -43,6 +43,7 @@ def _migrate_columns() -> None:
         ("sessions", "prompt_id", "TEXT"),
         ("documents", "folder_id", "TEXT"),
         ("messages", "images", "TEXT DEFAULT '[]'"),
+        ("messages", "tool_calls", "TEXT DEFAULT '[]'"),
     ]
     with engine.connect() as conn:
         for table, col, col_def in migrations:

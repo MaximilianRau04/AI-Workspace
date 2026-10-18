@@ -26,7 +26,12 @@ def _orm_to_schema(sess: ChatSession) -> ChatSessionSchema:
         created_at=sess.created_at,
         updated_at=sess.updated_at,
         messages=[
-            MessageSchema(role=m.role, parts=[m.content], images=json.loads(m.images or "[]"))
+            MessageSchema(
+                role=m.role,
+                parts=[m.content],
+                images=json.loads(m.images or "[]"),
+                tool_calls=json.loads(m.tool_calls or "[]"),
+            )
             for m in sess.messages
         ],
     )
@@ -113,6 +118,7 @@ def save_session(session: ChatSessionSchema, user_id: str) -> None:
                     role=msg.role,
                     content=msg.parts[0],
                     images=json.dumps(msg.images),
+                    tool_calls=json.dumps(msg.tool_calls, ensure_ascii=False),
                     position=i,
                 )
             )
@@ -141,6 +147,25 @@ def rename_session(session_id: str, user_id: str, title: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+TOOL_HISTORY_TURNS = 3  # only the last N assistant replies carry their tool results
+
+TOOL_HISTORY_NOTE = (
+    "Some of your earlier replies start with a <tool_history> block. It holds the raw "
+    "results of the tools you called for that reply, kept so you can refer back to them. "
+    "The user never saw it. Do not write a <tool_history> block yourself."
+)
+
+
+def _format_tool_history(tool_calls: list[dict]) -> str:
+    lines = ["<tool_history>"]
+    for tc in tool_calls:
+        lines.append(f"{tc['name']}({json.dumps(tc.get('args', {}), ensure_ascii=False)}):")
+        lines.append(tc.get("result", ""))
+        lines.append("")
+    lines.append("</tool_history>")
+    return "\n".join(lines)
+
+
 def build_chat_messages(
     messages: list[MessageSchema],
     summary: str,
@@ -153,16 +178,36 @@ def build_chat_messages(
             {"role": "user", "parts": [f"Summary of our previous conversation:\n{summary}"]}
         )
         hist.append({"role": "model", "parts": ["Understood. I'll keep that context in mind."]})
-    hist.extend({"role": m.role, "parts": m.parts, "images": m.images} for m in messages)
+
+    model_positions = [i for i, m in enumerate(messages) if m.role == "model"]
+    with_tools = set(model_positions[-TOOL_HISTORY_TURNS:])
+    for i, m in enumerate(messages):
+        parts = m.parts
+        if i in with_tools and m.tool_calls:
+            parts = [f"{_format_tool_history(m.tool_calls)}\n\n{m.parts[0]}"]
+        hist.append({"role": m.role, "parts": parts, "images": m.images})
+
     hist.append({"role": "user", "parts": [user_message], "images": images or []})
     return hist
+
+
+def has_tool_history(messages: list[MessageSchema]) -> bool:
+    model_msgs = [m for m in messages if m.role == "model"]
+    return any(m.tool_calls for m in model_msgs[-TOOL_HISTORY_TURNS:])
 
 
 def needs_summarization(messages: list[MessageSchema]) -> bool:
     return len(messages) > MAX_MESSAGES
 
 
-def summarize_messages(messages: list[MessageSchema]) -> tuple[list[MessageSchema], str]:
+def summarize_messages(
+    messages: list[MessageSchema], previous_summary: str = ""
+) -> tuple[list[MessageSchema], str]:
+    """Fold the older messages into the running summary and keep only the recent ones.
+
+    The previous summary goes into the prompt, so earlier context survives repeated
+    summarization instead of being overwritten each time.
+    """
     import llm
 
     to_summarize = messages[:-KEEP_AFTER_SUMMARY]
@@ -170,12 +215,22 @@ def summarize_messages(messages: list[MessageSchema]) -> tuple[list[MessageSchem
     conversation_text = "\n".join(
         f"{'User' if m.role == 'user' else 'Assistant'}: {m.parts[0]}" for m in to_summarize
     )
-    prompt = (
-        "Summarize the following conversation concisely in 3-5 sentences. "
-        "Focus on key topics, decisions, and context that would be useful to remember.\n\n"
-        f"{conversation_text}"
-    )
-    return keep, llm.generate_text(prompt)
+    if previous_summary:
+        prompt = (
+            "Below is the running summary of a conversation, followed by newer messages. "
+            "Write an updated summary that merges both. Keep facts, decisions, open questions "
+            "and context from the old summary unless the newer messages replace them. "
+            "Keep it under 250 words. Return only the summary.\n\n"
+            f"Running summary:\n{previous_summary}\n\n"
+            f"Newer messages:\n{conversation_text}"
+        )
+    else:
+        prompt = (
+            "Summarize the following conversation concisely in 3-5 sentences. "
+            "Focus on key topics, decisions, and context that would be useful to remember.\n\n"
+            f"{conversation_text}"
+        )
+    return keep, llm.generate_text(prompt).strip()
 
 
 MEMORY_EXTRACTION_INTERVAL = 5  # extract every N user turns

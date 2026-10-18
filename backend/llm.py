@@ -5,7 +5,8 @@ Internally uses Gemini-format messages throughout:
   [{"role": "user"/"model", "parts": ["content"]}, ...]
 
 stream_chat() yields str chunks, {"thinking": str} for reasoning content,
-and as the final item may yield a {"usage": {...}} dict (Gemini only).
+tool events ({"searching"}, {"executing"}, {"code_result"}, {"tool_trace"}),
+and as the final item may yield a {"usage": {...}} dict.
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ DEFAULTS: dict = {
 }
 
 MAX_AGENT_STEPS = 10
+TOOL_TRACE_MAX_CHARS = 2000  # per tool result kept in the chat history
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +271,21 @@ def _parse_think_tags(text_iter: Iterator[str]) -> Iterator[str | dict]:
 
 
 def _run_tool(name: str, args: dict) -> tuple[list[dict], str]:
-    """Execute a tool call. Returns (events_to_yield, result_text)."""
+    """Execute a tool call. Returns (events_to_yield, result_text).
+
+    The events end with a {"tool_trace": ...} item so the caller can store the call
+    and a truncated result in the chat history.
+    """
+    events, result_text = _dispatch_tool(name, args)
+    # Gemini args can hold proto containers; round-trip so the trace is plain JSON
+    trace_args = json.loads(json.dumps(args, default=str))
+    trace = {"name": name, "args": trace_args, "result": result_text}
+    if len(result_text) > TOOL_TRACE_MAX_CHARS:
+        trace["result"] = result_text[:TOOL_TRACE_MAX_CHARS] + "\n[result truncated]"
+    return [*events, {"tool_trace": trace}], result_text
+
+
+def _dispatch_tool(name: str, args: dict) -> tuple[list[dict], str]:
     from tools import execute_code, fetch_url, format_code_result, format_results, web_search
 
     if name.startswith("mcp__"):
