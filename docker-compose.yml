@@ -16,7 +16,9 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - SECRET_KEY=${SECRET_KEY:-}
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-false}
-      # IPs of reverse proxies whose X-Forwarded-For header is trusted (e.g. "172.18.0.0/16" or "*")
+      # IPs of reverse proxies whose X-Forwarded-For header is trusted (e.g. "172.18.0.0/16").
+      # Never use "*" while port 5000 is reachable directly: anyone could then fake
+      # X-Forwarded-For and bypass the login rate limit.
       - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-127.0.0.1}
       - CODE_EXECUTOR_URL=http://executor:8080
       - CODE_EXECUTOR_TOKEN=${CODE_EXECUTOR_TOKEN:?Set CODE_EXECUTOR_TOKEN in .env}
