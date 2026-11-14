@@ -7,7 +7,7 @@ import uuid
 # db.py reads DATABASE_URL at module import time to build its engine.
 _tmpdir = tempfile.mkdtemp(prefix="ai-workspace-test-")
 os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(_tmpdir, 'test.db')}"
-os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-0123456789abcdef")
 os.environ.pop("GEMINI_API_KEY", None)
 
 import pytest  # noqa: E402

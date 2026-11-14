@@ -1,4 +1,6 @@
+import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -15,7 +17,26 @@ from routes import auth, chat, config, docs, folders, mcp, prompts, usage, voice
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
+_INSECURE_SECRET_KEYS = {"", "change-me-in-production", "your_random_secret_key_here"}
+
+
+def _resolve_secret_key() -> str:
+    key = os.getenv("SECRET_KEY", "").strip()
+    if key in _INSECURE_SECRET_KEYS or len(key) < 16:
+        # A known or guessable key would let anyone forge a session cookie for any
+        # user. Fall back to a random per-process key: secure, but logs everyone out
+        # on restart.
+        logging.getLogger(__name__).warning(
+            "SECRET_KEY is missing, a placeholder, or shorter than 16 characters. "
+            "Using a random key for this run; all sessions end on restart. "
+            "Set SECRET_KEY in .env to keep users logged in."
+        )
+        return secrets.token_hex(32)
+    return key
+
+
+SECRET_KEY = _resolve_secret_key()
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "").lower() in ("1", "true", "yes")
 
 _base = os.path.dirname(os.path.abspath(__file__))
 _dist = os.path.join(_base, "..", "dist")
@@ -35,7 +56,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    same_site="lax",
+    https_only=SESSION_COOKIE_SECURE,
+)
 
 # --- Routers ---
 
