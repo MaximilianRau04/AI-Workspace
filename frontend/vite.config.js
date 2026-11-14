@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    // e2e/ holds Playwright specs, run separately via `npm run e2e`
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
   build: {
     outDir: '../dist',
     emptyOutDir: true,

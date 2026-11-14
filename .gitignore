@@ -1,6 +1,8 @@
 .env
 .claude/
 .opencode/
+frontend/test-results/
+frontend/playwright-report/
 model_config.json
 mcp_servers.json
 venv/
