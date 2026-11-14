@@ -1,5 +1,6 @@
 .env
 .claude/
+.opencode/
 model_config.json
 mcp_servers.json
 venv/
