@@ -27,6 +27,15 @@ def isolated_mcp_store(tmp_path, monkeypatch):
     monkeypatch.setattr(mcp_store, "MCP_CONFIG_FILE", str(tmp_path / "mcp_servers.json"))
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    """All TestClient requests share one IP; don't let auth limits leak between tests."""
+    from routes import auth
+
+    for limiter in (auth.login_ip_limiter, auth.login_user_limiter, auth.register_limiter):
+        limiter.reset()
+
+
 @pytest.fixture
 def no_mcp_reconnect(monkeypatch):
     """Prevent the API layer from spawning real MCP subprocesses during route tests."""

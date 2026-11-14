@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
+from rate_limit import RateLimiter
 from services import auth as auth_service
 from utils import login_required
 
@@ -13,6 +14,26 @@ _base = os.path.dirname(os.path.abspath(__file__))
 _dist = os.path.join(_base, "..", "..", "dist")
 _frontend = os.path.join(_base, "..", "..", "frontend")
 _serve = _dist if os.path.isdir(_dist) else _frontend
+
+
+# Failed logins per client IP and per username, and new accounts per client IP.
+login_ip_limiter = RateLimiter(max_attempts=10, window_seconds=15 * 60)
+login_user_limiter = RateLimiter(max_attempts=5, window_seconds=15 * 60)
+register_limiter = RateLimiter(max_attempts=5, window_seconds=60 * 60)
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _check_limit(limiter: RateLimiter, key: str) -> None:
+    wait = limiter.retry_after(key)
+    if wait:
+        raise HTTPException(
+            status_code=429,
+            detail="Zu viele Versuche. Bitte später erneut versuchen.",
+            headers={"Retry-After": str(wait)},
+        )
 
 
 class AuthBody(BaseModel):
@@ -29,9 +50,17 @@ async def login_page(request: Request):
 
 @router.post("/login")
 async def login(request: Request, body: AuthBody):
-    user = auth_service.authenticate(body.username.strip(), body.password)
+    username = body.username.strip()
+    ip_key = _client_ip(request)
+    user_key = username.lower()
+    _check_limit(login_ip_limiter, ip_key)
+    _check_limit(login_user_limiter, user_key)
+    user = auth_service.authenticate(username, body.password)
     if not user:
+        login_ip_limiter.hit(ip_key)
+        login_user_limiter.hit(user_key)
         raise HTTPException(status_code=401, detail="Falscher Benutzername oder Passwort")
+    login_user_limiter.reset(user_key)
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     return {"ok": True}
@@ -40,6 +69,7 @@ async def login(request: Request, body: AuthBody):
 @router.post("/register")
 async def register(request: Request, body: AuthBody):
     username = body.username.strip()
+    _check_limit(register_limiter, _client_ip(request))
     if len(username) < 3:
         raise HTTPException(status_code=400, detail="Benutzername muss mindestens 3 Zeichen haben")
     if len(body.password) < 6:
@@ -47,6 +77,7 @@ async def register(request: Request, body: AuthBody):
     user = auth_service.register(username, body.password)
     if not user:
         raise HTTPException(status_code=409, detail="Benutzername bereits vergeben")
+    register_limiter.hit(_client_ip(request))
     request.session["user_id"] = user.id
     request.session["username"] = user.username
     return {"ok": True}
