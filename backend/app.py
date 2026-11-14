@@ -55,7 +55,8 @@ async def lifespan(app: FastAPI):
     mcp_manager.shutdown()
 
 
-app = FastAPI(lifespan=lifespan)
+# FastAPI's Swagger UI defaults to /docs, which would shadow the document list route.
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
 app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET_KEY,
