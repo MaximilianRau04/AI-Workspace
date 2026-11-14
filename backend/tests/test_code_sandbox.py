@@ -44,9 +44,79 @@ def test_run_code_uses_hardened_docker_flags(monkeypatch):
 
 def test_sandbox_runtime_is_configurable(monkeypatch):
     monkeypatch.setenv("SANDBOX_RUNTIME", "runsc")
-    cmd = sandbox.build_docker_cmd("alpine:latest", ["sh"])
+    cmd = sandbox.build_docker_cmd("alpine:latest", ["sh"], "sandbox-test")
     assert "--runtime=runsc" in cmd
     assert cmd.index("--runtime=runsc") < cmd.index("alpine:latest")
+
+
+def test_timeout_kills_the_container(monkeypatch):
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[:2] == ["docker", "run"]:
+            raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(sandbox.subprocess, "run", fake_run)
+    result = sandbox.run_code("while True: pass", "python")
+
+    assert result["exit_code"] == 124
+    name_flag = next(f for f in calls[0] if f.startswith("--name="))
+    name = name_flag.split("=", 1)[1]
+    assert name.startswith("sandbox-")
+    assert calls[1] == ["docker", "kill", name]
+
+
+def test_container_names_are_unique(monkeypatch):
+    names = []
+
+    def fake_run(cmd, **kwargs):
+        names.append(next(f for f in cmd if f.startswith("--name=")))
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(sandbox.subprocess, "run", fake_run)
+    sandbox.run_code("1", "python")
+    sandbox.run_code("1", "python")
+    assert len(set(names)) == 2
+
+
+def test_concurrent_runs_are_limited(monkeypatch):
+    limit = 2
+    monkeypatch.setattr(sandbox, "_slots", threading.BoundedSemaphore(limit))
+    monkeypatch.setattr(sandbox, "QUEUE_TIMEOUT_SECONDS", 0.2)
+    release = threading.Event()
+    running = []
+    lock = threading.Lock()
+    peak = [0]
+
+    def fake_run(cmd, **kwargs):
+        with lock:
+            running.append(1)
+            peak[0] = max(peak[0], len(running))
+        release.wait(5)
+        with lock:
+            running.pop()
+        return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(sandbox.subprocess, "run", fake_run)
+    results = []
+    threads = [
+        threading.Thread(target=lambda: results.append(sandbox.run_code("1", "python")))
+        for _ in range(limit + 1)
+    ]
+    for t in threads:
+        t.start()
+    # The extra request must give up while the others still hold their slots.
+    threads[-1].join(2)
+    busy = [r for r in results if "busy" in r["stderr"]]
+    release.set()
+    for t in threads:
+        t.join(5)
+
+    assert peak[0] == limit
+    assert len(busy) == 1
+    assert sum(r["stdout"] == "ok" for r in results) == limit
 
 
 def test_unsupported_language_does_not_start_a_container(monkeypatch):

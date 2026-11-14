@@ -6,6 +6,8 @@ Stdlib only: this module is also copied into the standalone executor service
 
 import os
 import subprocess
+import threading
+import uuid
 
 # (docker_image, command_inside_container)
 # Code is always passed via stdin so there are no shell-escaping issues.
@@ -77,10 +79,16 @@ DOCKER_LANGS: dict[str, tuple[str, list[str]]] = {
 SUPPORTED_LANGS = "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp"
 
 TIMEOUT_SECONDS = 30
+MAX_CONCURRENT_RUNS = int(os.getenv("SANDBOX_MAX_CONCURRENT", "4"))
+# Extra time a request may wait for a free slot before giving up.
+QUEUE_TIMEOUT_SECONDS = 30
+
+_slots = threading.BoundedSemaphore(MAX_CONCURRENT_RUNS)
 
 
-def build_docker_cmd(image: str, cmd: list[str]) -> list[str]:
+def build_docker_cmd(image: str, cmd: list[str], name: str) -> list[str]:
     flags = [
+        f"--name={name}",
         "--rm",
         "--interactive",
         "--network=none",
@@ -115,9 +123,31 @@ def run_code(code: str, language: str) -> dict:
         }
 
     image, cmd = entry
+    if not _slots.acquire(timeout=QUEUE_TIMEOUT_SECONDS):
+        return {
+            "stdout": "",
+            "stderr": "Code interpreter is busy (too many concurrent runs). Try again later.",
+            "exit_code": 1,
+        }
+    try:
+        return _run_container(image, cmd, code)
+    finally:
+        _slots.release()
+
+
+def _kill_container(name: str) -> None:
+    # subprocess.run(timeout=...) only kills the docker CLI, not the container itself.
+    try:
+        subprocess.run(["docker", "kill", name], capture_output=True, timeout=15)
+    except Exception:
+        pass
+
+
+def _run_container(image: str, cmd: list[str], code: str) -> dict:
+    name = f"sandbox-{uuid.uuid4().hex[:16]}"
     try:
         result = subprocess.run(
-            build_docker_cmd(image, cmd),
+            build_docker_cmd(image, cmd, name),
             input=code,
             capture_output=True,
             text=True,
@@ -129,7 +159,12 @@ def run_code(code: str, language: str) -> dict:
             "exit_code": result.returncode,
         }
     except subprocess.TimeoutExpired:
-        return {"stdout": "", "stderr": "Execution timed out (30s limit).", "exit_code": 124}
+        _kill_container(name)
+        return {
+            "stdout": "",
+            "stderr": f"Execution timed out ({TIMEOUT_SECONDS}s limit).",
+            "exit_code": 124,
+        }
     except FileNotFoundError:
         return {
             "stdout": "",
@@ -137,4 +172,5 @@ def run_code(code: str, language: str) -> dict:
             "exit_code": 127,
         }
     except Exception as exc:
+        _kill_container(name)
         return {"stdout": "", "stderr": f"Execution error: {exc}", "exit_code": 1}
