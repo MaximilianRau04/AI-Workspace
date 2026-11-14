@@ -45,7 +45,8 @@ class AuthBody(BaseModel):
 async def login_page(request: Request):
     if "user_id" in request.session:
         return RedirectResponse(url="/")
-    return FileResponse(os.path.join(_serve, "login.html"))
+    # The login page is a route of the React SPA, so it is served from index.html.
+    return FileResponse(os.path.join(_serve, "index.html"))
 
 
 @router.post("/login")
