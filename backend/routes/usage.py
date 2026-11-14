@@ -7,7 +7,7 @@ from sqlalchemy import func
 import llm
 from db import get_session
 from models.usage import UsageRecord
-from utils import login_required
+from utils import admin_required, login_required
 
 router = APIRouter(tags=["usage"])
 
@@ -101,7 +101,7 @@ async def get_pricing(current_user: dict = Depends(login_required)):
 
 
 @router.post("/usage/pricing")
-async def set_pricing(body: PricingBody, current_user: dict = Depends(login_required)):
+async def set_pricing(body: PricingBody, current_user: dict = Depends(admin_required)):
     cfg = llm.load_config()
     cfg["pricing"] = body.pricing
     llm.save_config(cfg)

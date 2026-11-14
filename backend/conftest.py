@@ -50,3 +50,15 @@ def authed_client(client):
     resp = client.post("/register", json={"username": username, "password": "testpass123"})
     assert resp.status_code == 200, resp.text
     return client
+
+
+@pytest.fixture
+def admin_client(authed_client):
+    """Like authed_client, but the logged-in user has the admin role."""
+    from db import get_session
+    from models.user import User
+
+    user_id = authed_client.get("/me").json()["user_id"]
+    with get_session() as db:
+        db.query(User).filter(User.id == user_id).update({"is_admin": True})
+    return authed_client

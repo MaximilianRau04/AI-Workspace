@@ -128,9 +128,14 @@ export default function SettingsModal({
   initialTab = "model",
   onClose,
 }: SettingsModalProps) {
-  const { config, setConfig, theme, setTheme } = useApp();
+  const { config, setConfig, theme, setTheme, user } = useApp();
+  const isAdmin = !!user?.is_admin;
 
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTab] = useState(
+    isAdmin || !["prompt", "model", "mcp"].includes(initialTab)
+      ? initialTab
+      : "profile",
+  );
   const [systemPrompt, setSystemPrompt] = useState("");
   const [profile, setProfile] = useState("");
   const [memory, setMemory] = useState("");
@@ -589,9 +594,18 @@ export default function SettingsModal({
   async function handleSave(): Promise<void> {
     setSaving(true);
 
-    await saveSystemPrompt(systemPrompt);
     await saveProfile(profile);
     await saveDisplayName(displayName);
+    localStorage.setItem("streamDelay", streamDelay);
+
+    if (!isAdmin) {
+      setConfig((c) => (c ? { ...c, profile, display_name: displayName } : c));
+      setSaving(false);
+      onClose();
+      return;
+    }
+
+    await saveSystemPrompt(systemPrompt);
     await saveVoiceConfig(sttBackend, ttsVoice, ttsRate);
 
     const currentPresets: Preset[] = config?.model?.presets || [];
@@ -653,6 +667,7 @@ export default function SettingsModal({
     "bg-bg-base border border-border rounded-lg text-txt-primary font-[inherit] text-[0.875rem] px-3 py-[0.55rem] outline-none w-full focus:border-accent transition-colors";
   const labelCls = "text-[0.8rem] text-[#888] font-medium";
 
+  const adminTabs = ["prompt", "model", "mcp"];
   const tabs: { id: string; label: string }[] = [
     { id: "prompt", label: "System Prompt" },
     { id: "prompts", label: "Prompt Library" },
@@ -661,7 +676,7 @@ export default function SettingsModal({
     { id: "mcp", label: "MCP Servers" },
     { id: "voice", label: "Voice & UI" },
     { id: "usage", label: "Usage" },
-  ];
+  ].filter((t) => isAdmin || !adminTabs.includes(t.id));
 
   return (
     <div

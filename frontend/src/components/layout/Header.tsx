@@ -9,7 +9,8 @@ interface HeaderProps {
 }
 
 export default function Header({ onOpenSettings }: HeaderProps) {
-  const { config, setConfig, sidebarOpen, toggleSidebar } = useApp();
+  const { config, setConfig, sidebarOpen, toggleSidebar, user } = useApp();
+  const isAdmin = !!user?.is_admin;
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -92,8 +93,9 @@ export default function Header({ onOpenSettings }: HeaderProps) {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setDropdownOpen((o) => !o);
+              if (isAdmin) setDropdownOpen((o) => !o);
             }}
+            title={isAdmin ? undefined : "Only admins can switch the model"}
             className={`flex items-center gap-[0.3rem] bg-bg-surface border border-border rounded-lg text-txt-dim cursor-pointer text-[0.78rem] font-[inherit] px-[0.55rem] py-[0.25rem] transition-all max-w-[180px] hover:text-txt-muted ${dropdownOpen ? "text-txt-primary bg-bg-muted dark:bg-[#222]" : ""}`}
           >
             <span className="overflow-hidden text-ellipsis whitespace-nowrap">
@@ -110,7 +112,7 @@ export default function Header({ onOpenSettings }: HeaderProps) {
             </svg>
           </button>
 
-          {dropdownOpen && (
+          {isAdmin && dropdownOpen && (
             <div className="absolute top-[calc(100%+6px)] left-0 z-[120] bg-bg-surface border border-border rounded-[0.65rem] shadow-[0_8px_28px_rgba(0,0,0,0.25)] min-w-[220px] max-w-[300px] overflow-hidden">
               <div className="p-[0.3rem] flex flex-col gap-[0.1rem] max-h-[260px] overflow-y-auto">
                 {!presets.length ? (

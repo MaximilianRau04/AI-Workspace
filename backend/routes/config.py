@@ -9,7 +9,7 @@ import llm
 import state
 from db import get_session
 from models.user import User
-from utils import login_required
+from utils import admin_required, login_required
 
 SYSTEM_PROMPT_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "system_prompt.txt")
 
@@ -115,10 +115,14 @@ async def get_config(current_user: dict = Depends(login_required)):
         "model": {
             "provider": model_cfg["provider"],
             "model": model_cfg["model"],
-            "api_key": model_cfg.get("api_key", ""),
+            "api_key": model_cfg.get("api_key", "") if current_user["is_admin"] else "",
             "base_url": model_cfg.get("base_url", ""),
             "reasoning": model_cfg.get("reasoning", False),
-            "presets": model_cfg.get("presets", []),
+            "presets": model_cfg.get("presets", [])
+            if current_user["is_admin"]
+            else [
+                {**p, "api_key": ""} for p in model_cfg.get("presets", []) if isinstance(p, dict)
+            ],
         },
         "stt_backend": model_cfg.get("stt_backend", "google"),
         "tts_voice": model_cfg.get("tts_voice", "de-DE-ConradNeural"),
@@ -127,7 +131,7 @@ async def get_config(current_user: dict = Depends(login_required)):
 
 
 @router.post("/config")
-async def set_config(body: ConfigBody, current_user: dict = Depends(login_required)):
+async def set_config(body: ConfigBody, current_user: dict = Depends(admin_required)):
     with open(SYSTEM_PROMPT_FILE, "w", encoding="utf-8") as f:
         f.write(body.system_prompt.strip())
     state.invalidate_all()
@@ -135,7 +139,7 @@ async def set_config(body: ConfigBody, current_user: dict = Depends(login_requir
 
 
 @router.post("/config/model")
-async def set_model_config(body: ModelConfigBody, current_user: dict = Depends(login_required)):
+async def set_model_config(body: ModelConfigBody, current_user: dict = Depends(admin_required)):
     cfg = llm.load_config()
     cfg.update(
         {
@@ -154,7 +158,7 @@ async def set_model_config(body: ModelConfigBody, current_user: dict = Depends(l
 
 
 @router.post("/config/presets")
-async def set_presets(body: PresetsBody, current_user: dict = Depends(login_required)):
+async def set_presets(body: PresetsBody, current_user: dict = Depends(admin_required)):
     cfg = llm.load_config()
     cfg["presets"] = body.presets
     llm.save_config(cfg)
@@ -162,7 +166,7 @@ async def set_presets(body: PresetsBody, current_user: dict = Depends(login_requ
 
 
 @router.post("/config/voice")
-async def set_voice_config(body: VoiceConfigBody, current_user: dict = Depends(login_required)):
+async def set_voice_config(body: VoiceConfigBody, current_user: dict = Depends(admin_required)):
     cfg = llm.load_config()
     if body.stt_backend is not None:
         cfg["stt_backend"] = body.stt_backend
@@ -212,7 +216,7 @@ async def delete_avatar(current_user: dict = Depends(login_required)):
 @router.get("/config/ollama-models")
 async def ollama_models(
     base_url: str = "http://localhost:11434/v1",
-    current_user: dict = Depends(login_required),
+    current_user: dict = Depends(admin_required),
 ):
     try:
         models = llm.list_ollama_models(base_url)

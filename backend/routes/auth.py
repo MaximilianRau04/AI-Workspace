@@ -1,10 +1,11 @@
 import os
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 
 from services import auth as auth_service
+from utils import login_required
 
 router = APIRouter(tags=["auth"])
 
@@ -58,7 +59,9 @@ async def logout(request: Request):
 
 
 @router.get("/me")
-async def me(request: Request):
-    if "user_id" not in request.session:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return {"username": request.session["username"], "user_id": request.session["user_id"]}
+async def me(current_user: dict = Depends(login_required)):
+    return {
+        "username": current_user["username"],
+        "user_id": current_user["user_id"],
+        "is_admin": current_user["is_admin"],
+    }
