@@ -16,7 +16,9 @@ _frontend = os.path.join(_base, "..", "..", "frontend")
 _serve = _dist if os.path.isdir(_dist) else _frontend
 
 
-# Failed logins per client IP and per username, and new accounts per client IP.
+# Failed logins per client IP and per (client IP, username), and new accounts per client IP.
+# The username limit is keyed by IP as well, so an attacker guessing someone else's
+# password cannot lock the real user out from their own address.
 login_ip_limiter = RateLimiter(max_attempts=10, window_seconds=15 * 60)
 login_user_limiter = RateLimiter(max_attempts=5, window_seconds=15 * 60)
 register_limiter = RateLimiter(max_attempts=5, window_seconds=60 * 60)
@@ -53,7 +55,7 @@ async def login_page(request: Request):
 async def login(request: Request, body: AuthBody):
     username = body.username.strip()
     ip_key = _client_ip(request)
-    user_key = username.lower()
+    user_key = f"{ip_key}|{username.lower()}"
     _check_limit(login_ip_limiter, ip_key)
     _check_limit(login_user_limiter, user_key)
     user = auth_service.authenticate(username, body.password)

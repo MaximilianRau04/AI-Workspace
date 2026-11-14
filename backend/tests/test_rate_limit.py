@@ -44,6 +44,24 @@ def test_login_locks_username_after_failed_attempts(client):
     assert int(resp.headers["Retry-After"]) > 0
 
 
+def test_failed_logins_from_other_ip_do_not_lock_out_the_user(client, monkeypatch):
+    from routes import auth
+
+    username = f"target_{uuid.uuid4().hex[:8]}"
+    client.post("/register", json={"username": username, "password": "right-pass"})
+    client.post("/logout")
+
+    monkeypatch.setattr(auth, "_client_ip", lambda request: "203.0.113.9")
+    for _ in range(5):
+        client.post("/login", json={"username": username, "password": "wrong"})
+    resp = client.post("/login", json={"username": username, "password": "right-pass"})
+    assert resp.status_code == 429
+
+    monkeypatch.setattr(auth, "_client_ip", lambda request: "198.51.100.7")
+    resp = client.post("/login", json={"username": username, "password": "right-pass"})
+    assert resp.status_code == 200
+
+
 def test_successful_login_resets_username_counter(client):
     username = f"user_{uuid.uuid4().hex[:8]}"
     client.post("/register", json={"username": username, "password": "right-pass"})
