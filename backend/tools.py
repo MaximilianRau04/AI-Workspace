@@ -72,6 +72,11 @@ EXECUTE_CODE_TOOL_DESCRIPTION = (
 )
 
 
+# The executor may first wait for a free slot, then run the code, then kill a
+# timed-out container; the app must wait at least that long for its answer.
+EXECUTOR_REQUEST_TIMEOUT = sandbox.QUEUE_TIMEOUT_SECONDS + sandbox.TIMEOUT_SECONDS + 20
+
+
 def execute_code(code: str, language: str) -> dict:
     executor_url = os.getenv("CODE_EXECUTOR_URL", "").strip()
     if not executor_url:
@@ -87,7 +92,7 @@ def execute_code(code: str, language: str) -> dict:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=sandbox.TIMEOUT_SECONDS + 15) as resp:
+        with urllib.request.urlopen(req, timeout=EXECUTOR_REQUEST_TIMEOUT) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except Exception as exc:
         return {"stdout": "", "stderr": f"Code executor unavailable: {exc}", "exit_code": 1}

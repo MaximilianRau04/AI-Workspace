@@ -119,6 +119,12 @@ def test_concurrent_runs_are_limited(monkeypatch):
     assert sum(r["stdout"] == "ok" for r in results) == limit
 
 
+def test_app_waits_longer_than_the_executor_can_take():
+    # queue wait + run time + `docker kill` (15s) must fit into the app's request timeout
+    worst_case = sandbox.QUEUE_TIMEOUT_SECONDS + sandbox.TIMEOUT_SECONDS + 15
+    assert tools.EXECUTOR_REQUEST_TIMEOUT > worst_case
+
+
 def test_unsupported_language_does_not_start_a_container(monkeypatch):
     def fail(*args, **kwargs):
         raise AssertionError("docker must not be called")
