@@ -41,6 +41,8 @@ def _chunk(text: str) -> list[str]:
     chunks, i = [], 0
     while i < len(words):
         chunks.append(" ".join(words[i : i + CHUNK_WORDS]))
+        if i + CHUNK_WORDS >= len(words):
+            break
         i += CHUNK_WORDS - OVERLAP
     return [c for c in chunks if c.strip()]
 
