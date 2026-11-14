@@ -16,7 +16,8 @@ import itertools
 import json
 import os
 import re
-from typing import Iterator
+from dataclasses import dataclass, field
+from typing import Callable, Iterator
 
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "..", "model_config.json")
 
@@ -312,6 +313,129 @@ def _dispatch_tool(name: str, args: dict) -> tuple[list[dict], str]:
 
 
 # ---------------------------------------------------------------------------
+# Shared agent loop
+# ---------------------------------------------------------------------------
+
+_CODE_LANGS = "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp"
+
+
+def _tool_specs(
+    web_search: bool, code_interpreter: bool, mcp_servers: list[str] | None
+) -> list[dict]:
+    """Provider-neutral tool definitions: [{name, description, input_schema}]."""
+    specs: list[dict] = []
+    if web_search:
+        specs += [
+            {
+                "name": "web_search",
+                "description": (
+                    "Search the web for current information. Use when the user asks about "
+                    "recent events, current prices, live data, news, or anything that may "
+                    "have changed after your training cutoff."
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"query": {"type": "string", "description": "The search query"}},
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "fetch_url",
+                "description": (
+                    "Fetch and read the content of a specific URL. Use when the user "
+                    "provides a link and wants to know what is on that page."
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"url": {"type": "string", "description": "The URL to fetch"}},
+                    "required": ["url"],
+                },
+            },
+        ]
+    if code_interpreter:
+        specs.append(
+            {
+                "name": "execute_code",
+                "description": (
+                    "Execute code in an isolated Docker container and return stdout/stderr. "
+                    f"Supported languages: {_CODE_LANGS}. "
+                    "Java: class must be named Main. C#: uses Mono (class-based programs)."
+                ),
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "language": {"type": "string", "description": _CODE_LANGS},
+                        "code": {"type": "string", "description": "The code to execute"},
+                    },
+                    "required": ["language", "code"],
+                },
+            }
+        )
+    if mcp_servers:
+        from mcp_manager import manager as mcp_manager
+
+        specs += [
+            {
+                "name": t["name"],
+                "description": t["description"],
+                "input_schema": t["input_schema"],
+            }
+            for t in mcp_manager.list_tools_cached(mcp_servers)
+        ]
+    return specs
+
+
+@dataclass
+class ToolCall:
+    id: str
+    name: str
+    args: dict
+    raw_args: str = ""
+
+
+@dataclass
+class StepResult:
+    """Filled in by a provider step while it streams one model turn."""
+
+    tool_calls: list[ToolCall] = field(default_factory=list)
+    prompt_tokens: int = 0
+    reply_tokens: int = 0
+
+
+def _agent_loop(
+    step: Callable[[StepResult], Iterator[str | dict]],
+    add_results: Callable[[list[tuple[ToolCall, str]]], None],
+) -> Iterator[str | dict]:
+    """Run model turns until no tool is called or MAX_AGENT_STEPS is reached.
+
+    step streams one turn (text/thinking) and records tool calls and token usage;
+    add_results feeds the tool outputs back into the provider's conversation.
+    """
+    total_prompt = total_reply = 0
+    for _ in range(MAX_AGENT_STEPS):
+        result = StepResult()
+        yield from step(result)
+        total_prompt += result.prompt_tokens
+        total_reply += result.reply_tokens
+        if not result.tool_calls:
+            break
+        outputs = []
+        for call in result.tool_calls:
+            events, result_text = _run_tool(call.name, call.args)
+            yield from events
+            outputs.append((call, result_text))
+        add_results(outputs)
+    if total_prompt or total_reply:
+        yield {
+            "usage": {
+                "prompt": total_prompt,
+                "reply": total_reply,
+                "total": total_prompt + total_reply,
+            }
+        }
+
+
+# ---------------------------------------------------------------------------
 # Gemini
 # ---------------------------------------------------------------------------
 
@@ -376,19 +500,6 @@ def _gemini_parts(m: dict) -> list:
     return parts or [""]
 
 
-def _mcp_fn_decls(genai, server_ids: list[str]):
-    from mcp_manager import manager as mcp_manager
-
-    return [
-        genai.protos.FunctionDeclaration(
-            name=tool["name"],
-            description=tool["description"],
-            parameters=_json_schema_to_gemini_schema(genai, tool["input_schema"]),
-        )
-        for tool in mcp_manager.list_tools_cached(server_ids)
-    ]
-
-
 def _stream_gemini(
     messages,
     system_prompt,
@@ -416,74 +527,14 @@ def _stream_gemini(
             (system_prompt + _cot_addendum()).strip() if system_prompt else _cot_addendum().strip()
         )
 
-    fn_decls = []
-    if web_search_enabled:
-        fn_decls.append(
-            genai.protos.FunctionDeclaration(
-                name="web_search",
-                description=(
-                    "Search the web for current information. Use when the user asks about "
-                    "recent events, current prices, live data, news, or anything that may "
-                    "have changed after your training cutoff."
-                ),
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "query": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            description="The search query",
-                        )
-                    },
-                    required=["query"],
-                ),
-            )
+    fn_decls = [
+        genai.protos.FunctionDeclaration(
+            name=t["name"],
+            description=t["description"],
+            parameters=_json_schema_to_gemini_schema(genai, t["input_schema"]),
         )
-        fn_decls.append(
-            genai.protos.FunctionDeclaration(
-                name="fetch_url",
-                description=(
-                    "Fetch and read the content of a specific URL. Use when the user "
-                    "provides a link and wants to know what is on that page."
-                ),
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "url": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            description="The URL to fetch",
-                        )
-                    },
-                    required=["url"],
-                ),
-            )
-        )
-    if code_interpreter:
-        fn_decls.append(
-            genai.protos.FunctionDeclaration(
-                name="execute_code",
-                description=(
-                    "Execute code in an isolated Docker container and return stdout/stderr. "
-                    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp. "
-                    "Java: class must be named Main. C#: uses Mono (class-based programs)."
-                ),
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "language": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            description="python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp",
-                        ),
-                        "code": genai.protos.Schema(
-                            type=genai.protos.Type.STRING,
-                            description="The code to execute",
-                        ),
-                    },
-                    required=["language", "code"],
-                ),
-            )
-        )
-    if mcp_servers:
-        fn_decls.extend(_mcp_fn_decls(genai, mcp_servers))
+        for t in _tool_specs(web_search_enabled, code_interpreter, mcp_servers)
+    ]
     tools_list = [genai.protos.Tool(function_declarations=fn_decls)] if fn_decls else None
 
     def _make_model(with_thinking):
@@ -502,96 +553,76 @@ def _stream_gemini(
         return m, with_thinking
 
     model, use_native = _make_model(use_native)
-    chat = model.start_chat(history=history)
+    loop = {
+        "chat": model.start_chat(history=history),
+        "input": _gemini_parts(messages[-1]),
+        "native": use_native,
+        "first": True,
+    }
 
-    current_input = _gemini_parts(messages[-1])
-    last_resp = None
-    total_prompt_tokens = 0
-    total_reply_tokens = 0
+    def _send():
+        if not loop["first"]:
+            resp = loop["chat"].send_message(loop["input"], stream=True)
+            return resp, iter(resp)
+        loop["first"] = False
+        try:
+            resp = loop["chat"].send_message(loop["input"], stream=True)
+            resp_iter = iter(resp)
+            first = next(resp_iter, None)
+        except Exception as e:
+            if not (loop["native"] and "thinking" in str(e).lower()):
+                raise
+            # Model rejected the thinking config: retry once without it.
+            loop["native"] = False
+            fallback, _ = _make_model(False)
+            loop["chat"] = fallback.start_chat(history=history)
+            resp = loop["chat"].send_message(loop["input"], stream=True)
+            resp_iter = iter(resp)
+            first = next(resp_iter, None)
+        return resp, itertools.chain([first] if first is not None else [], resp_iter)
 
-    for step in range(MAX_AGENT_STEPS):
-        if step == 0:
-            try:
-                resp = chat.send_message(current_input, stream=True)
-                resp_iter = iter(resp)
-                first = next(resp_iter, None)
-            except Exception as e:
-                if use_native and "thinking" in str(e).lower():
-                    use_native = False
-                    model, _ = _make_model(False)
-                    chat = model.start_chat(history=history)
-                    resp = chat.send_message(current_input, stream=True)
-                    resp_iter = iter(resp)
-                    first = next(resp_iter, None)
-                else:
-                    raise
-            full_iter = itertools.chain([first] if first is not None else [], resp_iter)
-        else:
-            resp = chat.send_message(current_input, stream=True)
-            full_iter = iter(resp)
+    def step(result: StepResult):
+        resp, full_iter = _send()
+        native = loop["native"]
 
-        last_resp = resp
-        fn_call = None
-
-        if use_native:
+        def parts():
             for chunk in full_iter:
                 if not chunk.candidates:
                     continue
                 for part in chunk.candidates[0].content.parts:
                     if hasattr(part, "function_call") and part.function_call.name:
-                        fn_call = part.function_call
+                        fc = part.function_call
+                        result.tool_calls.append(ToolCall(id="", name=fc.name, args=dict(fc.args)))
                     elif part.text:
-                        if getattr(part, "thought", False):
+                        if native and getattr(part, "thought", False):
                             yield {"thinking": part.text}
                         else:
                             yield part.text
+
+        if reasoning and not native:
+            yield from _parse_think_tags(parts())
         else:
-
-            def _chunks():
-                nonlocal fn_call
-                for chunk in full_iter:
-                    if not chunk.candidates:
-                        continue
-                    for part in chunk.candidates[0].content.parts:
-                        if hasattr(part, "function_call") and part.function_call.name:
-                            fn_call = part.function_call
-                        elif part.text:
-                            yield part.text
-
-            if reasoning:
-                yield from _parse_think_tags(_chunks())
-            else:
-                yield from _chunks()
+            yield from parts()
 
         try:
             u = resp.usage_metadata
-            total_prompt_tokens += u.prompt_token_count or 0
-            total_reply_tokens += u.candidates_token_count or 0
+            result.prompt_tokens = u.prompt_token_count or 0
+            result.reply_tokens = u.candidates_token_count or 0
         except Exception:
             pass
 
-        if fn_call is None:
-            break
-
-        events, result_text = _run_tool(fn_call.name, dict(fn_call.args))
-        for event in events:
-            yield event
-
-        current_input = genai.protos.Part(
-            function_response=genai.protos.FunctionResponse(
-                name=fn_call.name,
-                response={"result": result_text},
+    def add_results(outputs: list[tuple[ToolCall, str]]) -> None:
+        responses = [
+            genai.protos.Part(
+                function_response=genai.protos.FunctionResponse(
+                    name=c.name, response={"result": text}
+                )
             )
-        )
+            for c, text in outputs
+        ]
+        loop["input"] = responses[0] if len(responses) == 1 else responses
 
-    if last_resp is not None and (total_prompt_tokens or total_reply_tokens):
-        yield {
-            "usage": {
-                "prompt": total_prompt_tokens,
-                "reply": total_reply_tokens,
-                "total": total_prompt_tokens + total_reply_tokens,
-            }
-        }
+    yield from _agent_loop(step, add_results)
 
 
 def _generate_gemini(prompt, cfg):
@@ -673,219 +704,121 @@ def _stream_openai(
 
     oai_messages.extend(_to_openai_messages(messages))
 
-    total_prompt_tokens = 0
-    total_reply_tokens = 0
+    parse_think = is_think_tag_model or (reasoning and not is_native_reasoning)
+    current_messages = list(oai_messages)
 
-    # Prompt-based path for Ollama (agent loop)
+    # Prompt-based path for Ollama/LM Studio: tool calls are parsed from <tool_call> tags
     if use_prompt_tools:
-        current_messages = oai_messages
-        for step in range(MAX_AGENT_STEPS):
+
+        def prompt_step(result: StepResult):
             completion = client.chat.completions.create(
-                model=model, messages=current_messages, stream=False
+                model=model, messages=list(current_messages), stream=False
             )
             if completion.usage:
-                total_prompt_tokens += completion.usage.prompt_tokens or 0
-                total_reply_tokens += completion.usage.completion_tokens or 0
-            first_text = completion.choices[0].message.content or ""
-            tool_call = _parse_prompt_tool_call(first_text)
-            if not tool_call:
-                if is_think_tag_model or (reasoning and not is_native_reasoning):
-                    yield from _parse_think_tags(iter([first_text]))
-                else:
-                    yield first_text
-                break
-            events, result_text = _run_tool(tool_call.get("name", ""), tool_call.get("args", {}))
-            for event in events:
-                yield event
-            current_messages = current_messages + [
-                {
-                    "role": "assistant",
-                    "content": f"<tool_call>{json.dumps({'name': tool_call.get('name'), 'args': tool_call.get('args', {})})}</tool_call>",
-                },
-                {
-                    "role": "user",
-                    "content": f"Tool '{tool_call.get('name')}' returned:\n{result_text}\n\nNow continue or provide your final answer.",
-                },
-            ]
-        if total_prompt_tokens or total_reply_tokens:
-            yield {
-                "usage": {
-                    "prompt": total_prompt_tokens,
-                    "reply": total_reply_tokens,
-                    "total": total_prompt_tokens + total_reply_tokens,
-                }
-            }
+                result.prompt_tokens = completion.usage.prompt_tokens or 0
+                result.reply_tokens = completion.usage.completion_tokens or 0
+            text = completion.choices[0].message.content or ""
+            call = _parse_prompt_tool_call(text)
+            if call:
+                result.tool_calls.append(
+                    ToolCall(id="", name=call.get("name", ""), args=call.get("args", {}))
+                )
+            elif parse_think:
+                yield from _parse_think_tags(iter([text]))
+            else:
+                yield text
+
+        def prompt_add_results(outputs: list[tuple[ToolCall, str]]) -> None:
+            for c, text in outputs:
+                payload = json.dumps({"name": c.name, "args": c.args})
+                current_messages.append(
+                    {"role": "assistant", "content": f"<tool_call>{payload}</tool_call>"}
+                )
+                current_messages.append(
+                    {
+                        "role": "user",
+                        "content": f"Tool '{c.name}' returned:\n{text}\n\n"
+                        "Now continue or provide your final answer.",
+                    }
+                )
+
+        yield from _agent_loop(prompt_step, prompt_add_results)
         return
 
-    # Native tool-calling path (OpenAI cloud + reasoning models) with agent loop
-    tools_param: list[dict] | None = None
-    _oai_tools: list[dict] = []
-    if web_search_enabled:
-        _oai_tools += [
-            {
-                "type": "function",
-                "function": {
-                    "name": "web_search",
-                    "description": (
-                        "Search the web for current information. Use when the user asks about "
-                        "recent events, current prices, live data, news, or anything that may "
-                        "have changed after your training cutoff."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {"type": "string", "description": "The search query"}
-                        },
-                        "required": ["query"],
-                    },
-                },
+    # Native tool-calling path (OpenAI cloud + reasoning models)
+    tools_param = [
+        {
+            "type": "function",
+            "function": {
+                "name": t["name"],
+                "description": t["description"],
+                "parameters": t["input_schema"],
             },
-            {
-                "type": "function",
-                "function": {
-                    "name": "fetch_url",
-                    "description": (
-                        "Fetch and read the content of a specific URL. Use when the user "
-                        "provides a link and wants to know what is on that page."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "url": {"type": "string", "description": "The URL to fetch"}
-                        },
-                        "required": ["url"],
-                    },
-                },
-            },
-        ]
-    if code_interpreter:
-        _oai_tools.append(
-            {
-                "type": "function",
-                "function": {
-                    "name": "execute_code",
-                    "description": (
-                        "Execute code in a sandboxed subprocess and return stdout/stderr. "
-                        "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "language": {
-                                "type": "string",
-                                "description": "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp",
-                            },
-                            "code": {"type": "string", "description": "The code to execute"},
-                        },
-                        "required": ["language", "code"],
-                    },
-                },
-            }
-        )
-    if mcp_tools and not use_prompt_tools:
-        for tool in mcp_tools:
-            _oai_tools.append(
-                {
-                    "type": "function",
-                    "function": {
-                        "name": tool["name"],
-                        "description": tool["description"],
-                        "parameters": tool["input_schema"],
-                    },
-                }
-            )
-    if _oai_tools:
-        tools_param = _oai_tools
+        }
+        for t in _tool_specs(web_search_enabled, code_interpreter, mcp_servers)
+    ]
 
-    current_messages = oai_messages
-
-    for step in range(MAX_AGENT_STEPS):
-        create_kwargs: dict = {"model": model, "messages": current_messages, "stream": True}
+    def step(result: StepResult):
+        create_kwargs: dict = {"model": model, "messages": list(current_messages), "stream": True}
         if tools_param:
             create_kwargs["tools"] = tools_param
         if not is_ollama:
             create_kwargs["stream_options"] = {"include_usage": True}
-
         stream = client.chat.completions.create(**create_kwargs)
-        tool_calls_buf: dict[int, dict] = {}
-        step_usage: dict = {}
+        buf: dict[int, dict] = {}
 
-        def _text_gen():
+        def text_gen():
             for chunk in stream:
                 if getattr(chunk, "usage", None):
-                    step_usage["prompt"] = chunk.usage.prompt_tokens or 0
-                    step_usage["reply"] = chunk.usage.completion_tokens or 0
+                    result.prompt_tokens = chunk.usage.prompt_tokens or 0
+                    result.reply_tokens = chunk.usage.completion_tokens or 0
                 if not chunk.choices:
                     continue
                 choice = chunk.choices[0]
                 delta = choice.delta
-
-                if delta.tool_calls:
-                    for tc in delta.tool_calls:
-                        idx = tc.index
-                        if idx not in tool_calls_buf:
-                            tool_calls_buf[idx] = {"id": "", "name": "", "arguments": ""}
-                        if tc.id:
-                            tool_calls_buf[idx]["id"] = tc.id
-                        if tc.function:
-                            if tc.function.name:
-                                tool_calls_buf[idx]["name"] += tc.function.name
-                            if tc.function.arguments:
-                                tool_calls_buf[idx]["arguments"] += tc.function.arguments
-
+                for tc in delta.tool_calls or []:
+                    entry = buf.setdefault(tc.index, {"id": "", "name": "", "arguments": ""})
+                    if tc.id:
+                        entry["id"] = tc.id
+                    if tc.function:
+                        entry["name"] += tc.function.name or ""
+                        entry["arguments"] += tc.function.arguments or ""
                 if delta.content:
                     yield delta.content
-
                 if choice.finish_reason == "tool_calls":
                     return
 
-        if is_think_tag_model or (reasoning and not is_native_reasoning):
-            yield from _parse_think_tags(_text_gen())
-        else:
-            yield from _text_gen()
-
-        total_prompt_tokens += step_usage.get("prompt", 0)
-        total_reply_tokens += step_usage.get("reply", 0)
-
-        if not tool_calls_buf:
-            break
-
-        assistant_tool_calls = []
-        result_messages = []
-
-        for tc in tool_calls_buf.values():
-            args = json.loads(tc["arguments"] or "{}")
-            events, result_text = _run_tool(tc["name"], args)
-            for event in events:
-                yield event
-            assistant_tool_calls.append(
-                {
-                    "id": tc["id"],
-                    "type": "function",
-                    "function": {"name": tc["name"], "arguments": tc["arguments"]},
-                }
-            )
-            result_messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tc["id"],
-                    "content": result_text,
-                }
+        yield from _parse_think_tags(text_gen()) if parse_think else text_gen()
+        for tc in buf.values():
+            result.tool_calls.append(
+                ToolCall(
+                    id=tc["id"],
+                    name=tc["name"],
+                    args=json.loads(tc["arguments"] or "{}"),
+                    raw_args=tc["arguments"],
+                )
             )
 
-        current_messages = current_messages + [
-            {"role": "assistant", "content": None, "tool_calls": assistant_tool_calls},
-            *result_messages,
-        ]
-
-    if total_prompt_tokens or total_reply_tokens:
-        yield {
-            "usage": {
-                "prompt": total_prompt_tokens,
-                "reply": total_reply_tokens,
-                "total": total_prompt_tokens + total_reply_tokens,
+    def add_results(outputs: list[tuple[ToolCall, str]]) -> None:
+        current_messages.append(
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": c.id,
+                        "type": "function",
+                        "function": {"name": c.name, "arguments": c.raw_args},
+                    }
+                    for c, _ in outputs
+                ],
             }
-        }
+        )
+        current_messages.extend(
+            {"role": "tool", "tool_call_id": c.id, "content": text} for c, text in outputs
+        )
+
+    yield from _agent_loop(step, add_results)
 
 
 def _generate_openai(prompt, cfg):
@@ -944,163 +877,68 @@ def _stream_anthropic(
     if use_native:
         kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10000}
 
-    _ant_tools: list[dict] = []
-    if web_search_enabled:
-        _ant_tools += [
-            {
-                "name": "web_search",
-                "description": (
-                    "Search the web for current information. Use when the user asks about "
-                    "recent events, current prices, live data, news, or anything that may "
-                    "have changed after your training cutoff."
-                ),
-                "input_schema": {
-                    "type": "object",
-                    "properties": {"query": {"type": "string", "description": "The search query"}},
-                    "required": ["query"],
-                },
-            },
-            {
-                "name": "fetch_url",
-                "description": (
-                    "Fetch and read the content of a specific URL. Use when the user "
-                    "provides a link and wants to know what is on that page."
-                ),
-                "input_schema": {
-                    "type": "object",
-                    "properties": {"url": {"type": "string", "description": "The URL to fetch"}},
-                    "required": ["url"],
-                },
-            },
-        ]
-    if code_interpreter:
-        _ant_tools.append(
-            {
-                "name": "execute_code",
-                "description": (
-                    "Execute code in an isolated Docker container and return stdout/stderr. "
-                    "Supported languages: python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp. "
-                    "Java: class must be named Main. C#: uses Mono (class-based programs)."
-                ),
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "language": {
-                            "type": "string",
-                            "description": "python, javascript, typescript, bash, ruby, php, perl, elixir, lua, c, cpp, java, go, rust, csharp",
-                        },
-                        "code": {"type": "string", "description": "The code to execute"},
-                    },
-                    "required": ["language", "code"],
-                },
-            }
-        )
-    if mcp_servers:
-        from mcp_manager import manager as mcp_manager
-
-        for tool in mcp_manager.list_tools_cached(mcp_servers):
-            _ant_tools.append(
-                {
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "input_schema": tool["input_schema"],
-                }
-            )
-    if _ant_tools:
-        kwargs["tools"] = _ant_tools
-
+    tools = _tool_specs(web_search_enabled, code_interpreter, mcp_servers)
+    if tools:
+        kwargs["tools"] = tools
     current_messages = list(kwargs["messages"])
-    total_prompt_tokens = 0
-    total_reply_tokens = 0
 
-    for step in range(MAX_AGENT_STEPS):
-        loop_kwargs = {**kwargs, "messages": current_messages}
-
-        tool_use_blocks: list[dict] = []
+    def step(result: StepResult):
         current_tool: dict | None = None
         current_tool_input = ""
-
-        with client.messages.stream(**loop_kwargs) as stream:
-            if use_native:
-                current_block_type = "text"
-                for event in stream:
-                    etype = getattr(event, "type", "")
-                    if etype == "content_block_start":
-                        block = event.content_block
-                        current_block_type = getattr(block, "type", "text")
-                        if current_block_type == "tool_use":
-                            current_tool = {"id": block.id, "name": block.name}
-                            current_tool_input = ""
-                    elif etype == "content_block_delta":
-                        delta = event.delta
-                        dtype = getattr(delta, "type", "")
-                        if dtype == "thinking_delta":
-                            yield {"thinking": delta.thinking}
-                        elif dtype == "text_delta" and current_block_type == "text":
-                            yield delta.text
-                        elif dtype == "input_json_delta" and current_block_type == "tool_use":
-                            current_tool_input += delta.partial_json
-                    elif etype == "content_block_stop" and current_tool is not None:
-                        current_tool["input"] = current_tool_input
-                        tool_use_blocks.append(current_tool)
-                        current_tool = None
-            else:
-                current_block_type = "text"
-                for event in stream:
-                    etype = getattr(event, "type", "")
-                    if etype == "content_block_start":
-                        block = event.content_block
-                        current_block_type = getattr(block, "type", "text")
-                        if current_block_type == "tool_use":
-                            current_tool = {"id": block.id, "name": block.name}
-                            current_tool_input = ""
-                    elif etype == "content_block_delta":
-                        delta = event.delta
-                        dtype = getattr(delta, "type", "")
-                        if dtype == "text_delta" and current_block_type == "text":
-                            yield delta.text
-                        elif dtype == "input_json_delta" and current_block_type == "tool_use":
-                            current_tool_input += delta.partial_json
-                    elif etype == "content_block_stop" and current_tool is not None:
-                        current_tool["input"] = current_tool_input
-                        tool_use_blocks.append(current_tool)
-                        current_tool = None
+        current_block_type = "text"
+        with client.messages.stream(**{**kwargs, "messages": list(current_messages)}) as stream:
+            for event in stream:
+                etype = getattr(event, "type", "")
+                if etype == "content_block_start":
+                    block = event.content_block
+                    current_block_type = getattr(block, "type", "text")
+                    if current_block_type == "tool_use":
+                        current_tool = {"id": block.id, "name": block.name}
+                        current_tool_input = ""
+                elif etype == "content_block_delta":
+                    delta = event.delta
+                    dtype = getattr(delta, "type", "")
+                    if dtype == "thinking_delta" and use_native:
+                        yield {"thinking": delta.thinking}
+                    elif dtype == "text_delta" and current_block_type == "text":
+                        yield delta.text
+                    elif dtype == "input_json_delta" and current_block_type == "tool_use":
+                        current_tool_input += delta.partial_json
+                elif etype == "content_block_stop" and current_tool is not None:
+                    result.tool_calls.append(
+                        ToolCall(
+                            id=current_tool["id"],
+                            name=current_tool["name"],
+                            args=json.loads(current_tool_input or "{}"),
+                        )
+                    )
+                    current_tool = None
 
             final_msg = stream.get_final_message()
-            total_prompt_tokens += final_msg.usage.input_tokens or 0
-            total_reply_tokens += final_msg.usage.output_tokens or 0
+            result.prompt_tokens = final_msg.usage.input_tokens or 0
+            result.reply_tokens = final_msg.usage.output_tokens or 0
 
-        if not tool_use_blocks:
-            break
-
-        assistant_content = []
-        user_content = []
-
-        for tb in tool_use_blocks:
-            args = json.loads(tb["input"] or "{}")
-            events, result_text = _run_tool(tb["name"], args)
-            for event in events:
-                yield event
-            assistant_content.append(
-                {"type": "tool_use", "id": tb["id"], "name": tb["name"], "input": args}
-            )
-            user_content.append(
-                {"type": "tool_result", "tool_use_id": tb["id"], "content": result_text}
-            )
-
-        current_messages = current_messages + [
-            {"role": "assistant", "content": assistant_content},
-            {"role": "user", "content": user_content},
-        ]
-
-    if total_prompt_tokens or total_reply_tokens:
-        yield {
-            "usage": {
-                "prompt": total_prompt_tokens,
-                "reply": total_reply_tokens,
-                "total": total_prompt_tokens + total_reply_tokens,
+    def add_results(outputs: list[tuple[ToolCall, str]]) -> None:
+        current_messages.append(
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "tool_use", "id": c.id, "name": c.name, "input": c.args}
+                    for c, _ in outputs
+                ],
             }
-        }
+        )
+        current_messages.append(
+            {
+                "role": "user",
+                "content": [
+                    {"type": "tool_result", "tool_use_id": c.id, "content": text}
+                    for c, text in outputs
+                ],
+            }
+        )
+
+    yield from _agent_loop(step, add_results)
 
 
 def _generate_anthropic(prompt, cfg):
