@@ -1,0 +1,8 @@
+# Code executor: the only container with access to the Docker socket.
+# It only accepts {code, language} and starts hardened sandbox containers itself.
+FROM python:3.12-alpine
+RUN apk add --no-cache docker-cli
+WORKDIR /executor
+COPY backend/sandbox.py backend/executor_server.py ./
+EXPOSE 8080
+CMD ["python", "executor_server.py"]
