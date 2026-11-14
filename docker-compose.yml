@@ -39,6 +39,8 @@ services:
     environment:
       - CODE_EXECUTOR_TOKEN=${CODE_EXECUTOR_TOKEN:?Set CODE_EXECUTOR_TOKEN in .env}
       - SANDBOX_RUNTIME=${SANDBOX_RUNTIME:-}
+      # Max. code runs at the same time; further requests wait up to 30s for a slot
+      - SANDBOX_MAX_CONCURRENT=${SANDBOX_MAX_CONCURRENT:-4}
     networks:
       - executor
     restart: unless-stopped
