@@ -265,7 +265,10 @@ Servers with static secrets (tokens, API keys) should pass them via the **Env** 
 ## Security
 
 - Passwords are hashed with `werkzeug.security` (scrypt + salt) - never stored in plain text.
-- The session cookie is signed with `SECRET_KEY` via Starlette's `SessionMiddleware`; use a long random value in production.
+- The session cookie is signed with `SECRET_KEY` via Starlette's `SessionMiddleware`. If `SECRET_KEY` is missing, a known placeholder, or shorter than 16 characters, the app logs a warning and uses a random key for that run instead (everyone is logged out on restart). Set `SESSION_COOKIE_SECURE=true` when serving over HTTPS so the cookie is never sent over plain HTTP.
+- **Admin role:** the first registered account becomes the admin (on existing installs, the oldest account is promoted automatically). Only admins can change global settings: model/provider and API keys, system prompt, voice defaults, pricing, and MCP servers (stdio servers run arbitrary commands on the host). Regular users never receive API keys or MCP secrets (env, headers, args, OAuth tokens) from the API.
+- Login and registration are rate-limited (5 failed logins per username and 10 per IP within 15 minutes, 5 new accounts per IP per hour). Limits are kept in memory and reset on restart.
+- Code interpreter containers run without network, as user `nobody`, with a read-only root filesystem, all capabilities dropped, `no-new-privileges`, and limits on memory, CPU, processes, open files and file size. Note that the app container itself needs the host's Docker socket for this, which effectively grants root on the host - don't expose the app to untrusted users without further isolation.
 - API keys and `SECRET_KEY` live in `.env` and are excluded from version control.
 - Model config (including any API key entered via the UI) is stored in `model_config.json`, which is also excluded from version control.
 - MCP server config (including any tokens entered in the Env/Headers field, and any OAuth tokens obtained via the Sign in flow) is stored in `mcp_servers.json`, also excluded from version control. MCP servers run as local subprocesses or remote connections with full access to whatever the server implementation exposes - only add servers you trust.
