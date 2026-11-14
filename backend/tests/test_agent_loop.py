@@ -223,6 +223,24 @@ def test_ollama_prompt_based_tool_call(monkeypatch, tool_calls):
     assert _usage(events) == {"prompt": 2, "reply": 2, "total": 4}
 
 
+def test_prompt_tool_call_parser_repairs_missing_closing_quote():
+    broken = '<tool_call>{"name": "execute_code", "args": {"language": "python", "code": "print(17 * 23)}}</tool_call>'
+    assert llm._parse_prompt_tool_call(broken) == {
+        "name": "execute_code",
+        "args": {"language": "python", "code": "print(17 * 23)"},
+    }
+    assert llm._parse_prompt_tool_call("<tool_call>not json</tool_call>") is None
+    assert llm._parse_prompt_tool_call("no tool call here") is None
+
+
+def test_prompt_tool_call_parser_accepts_bare_json():
+    bare = '{"name": "web_search", "args": {"query": "q"}}'
+    assert llm._parse_prompt_tool_call(bare) == {"name": "web_search", "args": {"query": "q"}}
+    # Ordinary JSON answers must not be mistaken for tool calls.
+    assert llm._parse_prompt_tool_call('{"result": 391}') is None
+    assert llm._parse_prompt_tool_call('{"name": "Max"}') is None
+
+
 # --- Gemini -----------------------------------------------------------------
 
 

@@ -77,11 +77,30 @@ def _build_tool_addendum(
 def _parse_prompt_tool_call(text: str) -> dict | None:
     m = re.search(r"<tool_call>(.*?)</tool_call>", text, re.DOTALL)
     if not m:
+        # Some local models answer with the bare JSON object and omit the tags.
+        bare = text.strip()
+        if bare.startswith("{") and bare.endswith("}"):
+            try:
+                data = json.loads(bare)
+            except Exception:
+                return None
+            if isinstance(data, dict) and isinstance(data.get("name"), str) and "args" in data:
+                return data
         return None
+    raw = m.group(1).strip()
     try:
-        return json.loads(m.group(1).strip())
+        return json.loads(raw)
     except Exception:
-        return None
+        pass
+    # Small local models (e.g. qwen3:8b) sometimes drop the closing quote of the last
+    # string value: {"args": {"code": "print(1)}}. Close it before the trailing braces.
+    if re.sub(r"\\.", "", raw).count('"') % 2 == 1:
+        body = raw.rstrip("}")
+        try:
+            return json.loads(body + '"' + raw[len(body) :])
+        except Exception:
+            pass
+    return None
 
 
 def load_config() -> dict:
