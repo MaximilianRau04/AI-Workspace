@@ -13,6 +13,7 @@ import rag
 import state
 from db import get_session
 from models.chat import ChatSession
+from models.folder import Folder
 from schemas.chat import MessageSchema
 from services import chat as chat_service
 from utils import login_required
@@ -151,6 +152,14 @@ async def move_to_folder(
         )
         if not sess:
             raise HTTPException(status_code=404, detail="Chat not found")
+        if body.folder_id is not None:
+            folder = (
+                db.query(Folder)
+                .filter(Folder.id == body.folder_id, Folder.user_id == user_id)
+                .first()
+            )
+            if not folder:
+                raise HTTPException(status_code=404, detail="Folder not found")
         sess.folder_id = body.folder_id
     return {"ok": True}
 
