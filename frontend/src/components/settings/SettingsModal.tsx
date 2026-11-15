@@ -128,9 +128,14 @@ export default function SettingsModal({
   initialTab = "model",
   onClose,
 }: SettingsModalProps) {
-  const { config, setConfig, theme, setTheme } = useApp();
+  const { config, setConfig, theme, setTheme, user } = useApp();
+  const isAdmin = !!user?.is_admin;
 
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTab] = useState(
+    isAdmin || !["prompt", "model", "mcp"].includes(initialTab)
+      ? initialTab
+      : "profile",
+  );
   const [systemPrompt, setSystemPrompt] = useState("");
   const [profile, setProfile] = useState("");
   const [memory, setMemory] = useState("");
@@ -589,9 +594,18 @@ export default function SettingsModal({
   async function handleSave(): Promise<void> {
     setSaving(true);
 
-    await saveSystemPrompt(systemPrompt);
     await saveProfile(profile);
     await saveDisplayName(displayName);
+    localStorage.setItem("streamDelay", streamDelay);
+
+    if (!isAdmin) {
+      setConfig((c) => (c ? { ...c, profile, display_name: displayName } : c));
+      setSaving(false);
+      onClose();
+      return;
+    }
+
+    await saveSystemPrompt(systemPrompt);
     await saveVoiceConfig(sttBackend, ttsVoice, ttsRate);
 
     const currentPresets: Preset[] = config?.model?.presets || [];
@@ -653,6 +667,7 @@ export default function SettingsModal({
     "bg-bg-base border border-border rounded-lg text-txt-primary font-[inherit] text-[0.875rem] px-3 py-[0.55rem] outline-none w-full focus:border-accent transition-colors";
   const labelCls = "text-[0.8rem] text-[#888] font-medium";
 
+  const adminTabs = ["prompt", "model", "mcp"];
   const tabs: { id: string; label: string }[] = [
     { id: "prompt", label: "System Prompt" },
     { id: "prompts", label: "Prompt Library" },
@@ -661,7 +676,7 @@ export default function SettingsModal({
     { id: "mcp", label: "MCP Servers" },
     { id: "voice", label: "Voice & UI" },
     { id: "usage", label: "Usage" },
-  ];
+  ].filter((t) => isAdmin || !adminTabs.includes(t.id));
 
   return (
     <div
@@ -1471,86 +1486,97 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-[0.35rem] border-t border-border pt-4">
-                  <label className={labelCls}>Voice output (TTS)</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={ttsLocale}
-                      onChange={(e) => {
-                        const locale = e.target.value;
-                        setTtsLocale(locale);
-                        const firstForLocale = ttsVoices.find(
-                          (v) => v.locale === locale,
-                        );
-                        if (firstForLocale)
-                          setTtsVoice(firstForLocale.short_name);
-                      }}
-                      className={`${inputCls} flex-1`}
-                    >
-                      {Array.from(
-                        new Map(
-                          ttsVoices.map((v) => [v.locale, v.locale_name]),
-                        ).entries(),
-                      ).map(([locale, localeName]) => (
-                        <option key={locale} value={locale}>
-                          {localeName}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={ttsVoice}
-                      onChange={(e) => setTtsVoice(e.target.value)}
-                      className={`${inputCls} flex-1`}
-                    >
-                      {ttsVoices
-                        .filter((v) => v.locale === ttsLocale)
-                        .map((v) => (
-                          <option key={v.short_name} value={v.short_name}>
-                            {v.short_name
-                              .split("-")
-                              .pop()
-                              ?.replace("Neural", "")}{" "}
-                            ({v.gender})
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-row items-center justify-between mt-1">
-                    <span className="text-[0.75rem] text-[#888]">Speed</span>
-                    <select
-                      value={ttsRate}
-                      onChange={(e) => setTtsRate(e.target.value)}
-                      className="bg-bg-base border border-border rounded-lg text-txt-primary font-[inherit] text-[0.875rem] px-3 py-[0.55rem] outline-none focus:border-accent transition-colors"
-                    >
-                      <option value="-25%">Slow</option>
-                      <option value="+0%">Normal</option>
-                      <option value="+25%">Fast</option>
-                      <option value="+50%">Very fast</option>
-                    </select>
-                  </div>
-                </div>
+                {!isAdmin && (
+                  <p className="text-[0.75rem] text-[#888] border-t border-border pt-4">
+                    Voice output and speech-to-text are configured by an admin.
+                  </p>
+                )}
+                {isAdmin && (
+                  <>
+                    <div className="flex flex-col gap-[0.35rem] border-t border-border pt-4">
+                      <label className={labelCls}>Voice output (TTS)</label>
+                      <div className="flex gap-2">
+                        <select
+                          value={ttsLocale}
+                          onChange={(e) => {
+                            const locale = e.target.value;
+                            setTtsLocale(locale);
+                            const firstForLocale = ttsVoices.find(
+                              (v) => v.locale === locale,
+                            );
+                            if (firstForLocale)
+                              setTtsVoice(firstForLocale.short_name);
+                          }}
+                          className={`${inputCls} flex-1`}
+                        >
+                          {Array.from(
+                            new Map(
+                              ttsVoices.map((v) => [v.locale, v.locale_name]),
+                            ).entries(),
+                          ).map(([locale, localeName]) => (
+                            <option key={locale} value={locale}>
+                              {localeName}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={ttsVoice}
+                          onChange={(e) => setTtsVoice(e.target.value)}
+                          className={`${inputCls} flex-1`}
+                        >
+                          {ttsVoices
+                            .filter((v) => v.locale === ttsLocale)
+                            .map((v) => (
+                              <option key={v.short_name} value={v.short_name}>
+                                {v.short_name
+                                  .split("-")
+                                  .pop()
+                                  ?.replace("Neural", "")}{" "}
+                                ({v.gender})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-row items-center justify-between mt-1">
+                        <span className="text-[0.75rem] text-[#888]">
+                          Speed
+                        </span>
+                        <select
+                          value={ttsRate}
+                          onChange={(e) => setTtsRate(e.target.value)}
+                          className="bg-bg-base border border-border rounded-lg text-txt-primary font-[inherit] text-[0.875rem] px-3 py-[0.55rem] outline-none focus:border-accent transition-colors"
+                        >
+                          <option value="-25%">Slow</option>
+                          <option value="+0%">Normal</option>
+                          <option value="+25%">Fast</option>
+                          <option value="+50%">Very fast</option>
+                        </select>
+                      </div>
+                    </div>
 
-                <div className="flex flex-col gap-[0.35rem] border-t border-border pt-4">
-                  <label className={labelCls}>Speech-to-Text backend</label>
-                  <select
-                    value={sttBackend}
-                    onChange={(e) => setSttBackend(e.target.value)}
-                    className={inputCls}
-                  >
-                    <option value="google">
-                      Google (online, no install required)
-                    </option>
-                    <option value="whisper">
-                      Whisper (local, privacy-friendly)
-                    </option>
-                  </select>
-                  {sttBackend === "whisper" && (
-                    <p className="text-[0.75rem] text-[#888] mt-1">
-                      Requires <code>openai-whisper</code> and{" "}
-                      <code>ffmpeg</code> installed on the server.
-                    </p>
-                  )}
-                </div>
+                    <div className="flex flex-col gap-[0.35rem] border-t border-border pt-4">
+                      <label className={labelCls}>Speech-to-Text backend</label>
+                      <select
+                        value={sttBackend}
+                        onChange={(e) => setSttBackend(e.target.value)}
+                        className={inputCls}
+                      >
+                        <option value="google">
+                          Google (online, no install required)
+                        </option>
+                        <option value="whisper">
+                          Whisper (local, privacy-friendly)
+                        </option>
+                      </select>
+                      {sttBackend === "whisper" && (
+                        <p className="text-[0.75rem] text-[#888] mt-1">
+                          Requires <code>openai-whisper</code> and{" "}
+                          <code>ffmpeg</code> installed on the server.
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <div className="flex flex-row items-center justify-between">
                   <label className={labelCls}>Streaming speed</label>
@@ -1657,7 +1683,8 @@ export default function SettingsModal({
                                       e.target.value,
                                     )
                                   }
-                                  className="w-20 bg-bg-surface border border-border rounded-md text-txt-primary text-[0.8rem] px-2 py-1 outline-none focus:border-accent"
+                                  disabled={!isAdmin}
+                                  className="w-20 bg-bg-surface border border-border rounded-md text-txt-primary text-[0.8rem] px-2 py-1 outline-none focus:border-accent disabled:opacity-60"
                                 />
                               </label>
                               <label className="flex items-center gap-1 text-[0.72rem] text-txt-dim">
@@ -1674,7 +1701,8 @@ export default function SettingsModal({
                                       e.target.value,
                                     )
                                   }
-                                  className="w-20 bg-bg-surface border border-border rounded-md text-txt-primary text-[0.8rem] px-2 py-1 outline-none focus:border-accent"
+                                  disabled={!isAdmin}
+                                  className="w-20 bg-bg-surface border border-border rounded-md text-txt-primary text-[0.8rem] px-2 py-1 outline-none focus:border-accent disabled:opacity-60"
                                 />
                               </label>
                               <span className="text-[0.72rem] text-txt-dim ml-auto">
@@ -1686,7 +1714,7 @@ export default function SettingsModal({
                       })}
                     </div>
 
-                    {usageSummary.by_model.length > 0 && (
+                    {isAdmin && usageSummary.by_model.length > 0 && (
                       <button
                         type="button"
                         onClick={() => {

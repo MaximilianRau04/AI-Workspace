@@ -7,7 +7,7 @@ import uuid
 # db.py reads DATABASE_URL at module import time to build its engine.
 _tmpdir = tempfile.mkdtemp(prefix="ai-workspace-test-")
 os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(_tmpdir, 'test.db')}"
-os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-0123456789abcdef")
 os.environ.pop("GEMINI_API_KEY", None)
 
 import pytest  # noqa: E402
@@ -25,6 +25,15 @@ def pytest_sessionfinish(session, exitstatus):
 def isolated_mcp_store(tmp_path, monkeypatch):
     """Every test gets its own mcp_servers.json so nothing touches the repo's real file."""
     monkeypatch.setattr(mcp_store, "MCP_CONFIG_FILE", str(tmp_path / "mcp_servers.json"))
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    """All TestClient requests share one IP; don't let auth limits leak between tests."""
+    from routes import auth
+
+    for limiter in (auth.login_ip_limiter, auth.login_user_limiter, auth.register_limiter):
+        limiter.reset()
 
 
 @pytest.fixture
@@ -50,3 +59,15 @@ def authed_client(client):
     resp = client.post("/register", json={"username": username, "password": "testpass123"})
     assert resp.status_code == 200, resp.text
     return client
+
+
+@pytest.fixture
+def admin_client(authed_client):
+    """Like authed_client, but the logged-in user has the admin role."""
+    from db import get_session
+    from models.user import User
+
+    user_id = authed_client.get("/me").json()["user_id"]
+    with get_session() as db:
+        db.query(User).filter(User.id == user_id).update({"is_admin": True})
+    return authed_client

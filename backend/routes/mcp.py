@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 import mcp_store
 from mcp_manager import manager
-from utils import login_required
+from utils import admin_required, login_required
 
 router = APIRouter(prefix="/mcp", tags=["mcp"])
 
@@ -46,11 +46,21 @@ def _reconnect() -> None:
 async def list_servers(current_user: dict = Depends(login_required)):
     servers = mcp_store.load_mcp_servers()
     status_by_id = {s["server_id"]: s for s in manager.get_status()}
+    if not current_user["is_admin"]:
+        # env/headers/oauth hold secrets; regular users only need enough to pick servers.
+        servers = [
+            {
+                k: v
+                for k, v in s.items()
+                if k not in ("env", "headers", "args", "oauth_client_info", "oauth_tokens")
+            }
+            for s in servers
+        ]
     return {"servers": [{**s, "status": status_by_id.get(s["id"])} for s in servers]}
 
 
 @router.post("/servers")
-async def create_server(body: ServerBody, current_user: dict = Depends(login_required)):
+async def create_server(body: ServerBody, current_user: dict = Depends(admin_required)):
     name = body.name.strip()
     transport = body.transport if body.transport in TRANSPORTS else "stdio"
     auth = body.auth if body.auth in AUTH_MODES else "none"
@@ -74,7 +84,7 @@ async def create_server(body: ServerBody, current_user: dict = Depends(login_req
 
 @router.patch("/servers/{server_id}")
 async def edit_server(
-    server_id: str, body: ServerUpdateBody, current_user: dict = Depends(login_required)
+    server_id: str, body: ServerUpdateBody, current_user: dict = Depends(admin_required)
 ):
     updates = body.model_dump(exclude_none=True)
     if "transport" in updates and updates["transport"] not in TRANSPORTS:
@@ -89,7 +99,7 @@ async def edit_server(
 
 
 @router.delete("/servers/{server_id}")
-async def remove_server(server_id: str, current_user: dict = Depends(login_required)):
+async def remove_server(server_id: str, current_user: dict = Depends(admin_required)):
     if not mcp_store.delete_server(server_id):
         raise HTTPException(status_code=404, detail="Server not found")
     _reconnect()
@@ -98,7 +108,7 @@ async def remove_server(server_id: str, current_user: dict = Depends(login_requi
 
 @router.post("/servers/{server_id}/authorize")
 async def authorize_server(
-    server_id: str, request: Request, current_user: dict = Depends(login_required)
+    server_id: str, request: Request, current_user: dict = Depends(admin_required)
 ):
     server = mcp_store.get_server(server_id)
     if not server:

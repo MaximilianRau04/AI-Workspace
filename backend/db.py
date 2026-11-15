@@ -38,6 +38,7 @@ def _migrate_columns() -> None:
         ("users", "memory", "TEXT DEFAULT ''"),
         ("users", "display_name", "TEXT DEFAULT ''"),
         ("users", "avatar", "TEXT DEFAULT ''"),
+        ("users", "is_admin", "INTEGER DEFAULT 0"),
         ("sessions", "pinned", "INTEGER DEFAULT 0"),
         ("sessions", "folder_id", "TEXT"),
         ("sessions", "prompt_id", "TEXT"),
@@ -51,6 +52,14 @@ def _migrate_columns() -> None:
             if col not in existing:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_def}"))
                 conn.commit()
+        # Installs from before the admin role existed have no admin yet: promote the
+        # oldest account so the owner keeps access to the global settings.
+        has_admin = conn.execute(text("SELECT 1 FROM users WHERE is_admin = 1 LIMIT 1")).first()
+        if not has_admin:
+            conn.execute(
+                text("UPDATE users SET is_admin = 1 WHERE rowid = (SELECT MIN(rowid) FROM users)")
+            )
+            conn.commit()
 
 
 @contextmanager

@@ -22,9 +22,21 @@ SECRET_KEY=your_random_secret_key_here
 GEMINI_API_KEY=your_gemini_api_key_here
 OPENAI_API_KEY=your_openai_api_key_here
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Shared secret between the app and the code executor service (required for Docker)
+CODE_EXECUTOR_TOKEN=another_random_secret_here
+
+# Optional: behind a reverse proxy, trust its X-Forwarded-For header
+# FORWARDED_ALLOW_IPS=172.18.0.0/16
+# Optional: serve the session cookie over HTTPS only
+# SESSION_COOKIE_SECURE=true
+# Optional: run sandbox containers under gVisor (must be installed on the host)
+# SANDBOX_RUNTIME=runsc
+# Optional: max. concurrent code interpreter runs (default 4)
+# SANDBOX_MAX_CONCURRENT=4
 ```
 
-Generate a secure `SECRET_KEY`:
+Generate a secure `SECRET_KEY` and `CODE_EXECUTOR_TOKEN` (run once for each):
 
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
@@ -46,7 +58,7 @@ docker compose up --build
 
 Open `http://localhost:5000`. Data (database, config, uploads) is stored in the project root and persists across container restarts.
 
-> **Note:** The code interpreter runs user code in isolated Docker containers with no network access. Docker must be running on the host for this feature to work.
+> **Note:** The code interpreter runs user code in isolated Docker containers with no network access. Docker must be running on the host for this feature to work. With Docker Compose, a separate `executor` service (`Dockerfile.executor`) is the only container with access to the Docker socket; the app talks to it over an internal network and only sends `{code, language}`. Without Docker (`CODE_EXECUTOR_URL` unset), the backend starts the sandbox containers itself.
 
 ---
 
@@ -265,7 +277,12 @@ Servers with static secrets (tokens, API keys) should pass them via the **Env** 
 ## Security
 
 - Passwords are hashed with `werkzeug.security` (scrypt + salt) - never stored in plain text.
-- The session cookie is signed with `SECRET_KEY` via Starlette's `SessionMiddleware`; use a long random value in production.
+- The session cookie is signed with `SECRET_KEY` via Starlette's `SessionMiddleware`. If `SECRET_KEY` is missing, a known placeholder, or shorter than 16 characters, the app logs a warning and uses a random key for that run instead (everyone is logged out on restart). Set `SESSION_COOKIE_SECURE=true` when serving over HTTPS so the cookie is never sent over plain HTTP.
+- **Admin role:** the first registered account becomes the admin (on existing installs, the oldest account is promoted automatically). Only admins can change global settings: model/provider and API keys, system prompt, voice defaults, pricing, and MCP servers (stdio servers run arbitrary commands on the host). Regular users never receive API keys or MCP secrets (env, headers, args, OAuth tokens) from the API.
+- Login and registration are rate-limited (5 failed logins per username from the same IP and 10 per IP within 15 minutes, 5 new accounts per IP per hour). The per-username limit is scoped to the client IP, so failed attempts from elsewhere cannot lock the real user out. Limits are kept in memory and reset on restart.
+- Code interpreter containers run without network, as user `nobody`, with a read-only root filesystem, all capabilities dropped, `no-new-privileges`, and limits on memory, CPU, processes, open files and file size. With Docker Compose, the Docker socket is mounted only into the small `executor` service, which accepts nothing but code and a language (authenticated via `CODE_EXECUTOR_TOKEN`) and builds the hardened `docker run` itself, so a compromised app container cannot start arbitrary containers. The executor still has root-equivalent access to the host; for stronger isolation, install [gVisor](https://gvisor.dev) and set `SANDBOX_RUNTIME=runsc`.
+- Each run is limited to 30 seconds; timed-out containers are killed. At most `SANDBOX_MAX_CONCURRENT` runs (default 4) execute at the same time, further requests wait up to 30 seconds for a free slot and are then rejected. The limit applies per process: with Docker Compose that is the single `executor` service. Without the executor (`CODE_EXECUTOR_URL` unset), every uvicorn worker has its own limit, so the effective maximum is workers × `SANDBOX_MAX_CONCURRENT`.
+- Behind a reverse proxy, set `FORWARDED_ALLOW_IPS` to the proxy's address so the rate limit sees real client IPs instead of the proxy. Don't set it to `*` while the app port is reachable without the proxy, otherwise clients can fake `X-Forwarded-For` and bypass the rate limit.
 - API keys and `SECRET_KEY` live in `.env` and are excluded from version control.
 - Model config (including any API key entered via the UI) is stored in `model_config.json`, which is also excluded from version control.
 - MCP server config (including any tokens entered in the Env/Headers field, and any OAuth tokens obtained via the Sign in flow) is stored in `mcp_servers.json`, also excluded from version control. MCP servers run as local subprocesses or remote connections with full access to whatever the server implementation exposes - only add servers you trust.

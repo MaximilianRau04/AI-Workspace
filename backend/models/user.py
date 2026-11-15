@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import String, Text
+from sqlalchemy import Boolean, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from models.base import Base
@@ -16,6 +16,7 @@ class User(Base):
     memory: Mapped[str] = mapped_column(Text, default="", server_default="")
     display_name: Mapped[str] = mapped_column(Text, default="", server_default="")
     avatar: Mapped[str] = mapped_column(Text, default="", server_default="")
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     sessions: Mapped[list[ChatSession]] = relationship(  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"

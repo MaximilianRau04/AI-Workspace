@@ -11,8 +11,8 @@ def test_create_requires_auth(client):
     assert resp.status_code == 401
 
 
-def test_create_list_update_delete_flow(authed_client):
-    c = authed_client
+def test_create_list_update_delete_flow(admin_client):
+    c = admin_client
 
     # starts empty
     assert c.get("/mcp/servers").json()["servers"] == []
@@ -64,18 +64,18 @@ def test_create_list_update_delete_flow(authed_client):
     assert c.get("/mcp/servers").json()["servers"] == []
 
 
-def test_create_missing_name_returns_400(authed_client):
-    resp = authed_client.post("/mcp/servers", json={"name": "  ", "command": "npx"})
+def test_create_missing_name_returns_400(admin_client):
+    resp = admin_client.post("/mcp/servers", json={"name": "  ", "command": "npx"})
     assert resp.status_code == 400
 
 
-def test_create_missing_command_returns_400(authed_client):
-    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "  "})
+def test_create_missing_command_returns_400(admin_client):
+    resp = admin_client.post("/mcp/servers", json={"name": "X", "command": "  "})
     assert resp.status_code == 400
 
 
-def test_create_http_server(authed_client):
-    resp = authed_client.post(
+def test_create_http_server(admin_client):
+    resp = admin_client.post(
         "/mcp/servers",
         json={
             "name": "Remote",
@@ -92,41 +92,41 @@ def test_create_http_server(authed_client):
     assert server["command"] == ""
 
 
-def test_create_remote_missing_url_returns_400(authed_client):
-    resp = authed_client.post(
+def test_create_remote_missing_url_returns_400(admin_client):
+    resp = admin_client.post(
         "/mcp/servers", json={"name": "Remote", "transport": "sse", "url": "  "}
     )
     assert resp.status_code == 400
 
 
-def test_create_invalid_transport_falls_back_to_stdio(authed_client):
-    resp = authed_client.post(
+def test_create_invalid_transport_falls_back_to_stdio(admin_client):
+    resp = admin_client.post(
         "/mcp/servers", json={"name": "X", "transport": "carrier-pigeon", "command": "npx"}
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["transport"] == "stdio"
 
 
-def test_update_invalid_transport_returns_400(authed_client):
-    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
+def test_update_invalid_transport_returns_400(admin_client):
+    resp = admin_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
     server_id = resp.json()["id"]
 
-    resp = authed_client.patch(f"/mcp/servers/{server_id}", json={"transport": "carrier-pigeon"})
+    resp = admin_client.patch(f"/mcp/servers/{server_id}", json={"transport": "carrier-pigeon"})
     assert resp.status_code == 400
 
 
-def test_update_unknown_server_returns_404(authed_client):
-    resp = authed_client.patch("/mcp/servers/does-not-exist", json={"enabled": False})
+def test_update_unknown_server_returns_404(admin_client):
+    resp = admin_client.patch("/mcp/servers/does-not-exist", json={"enabled": False})
     assert resp.status_code == 404
 
 
-def test_delete_unknown_server_returns_404(authed_client):
-    resp = authed_client.delete("/mcp/servers/does-not-exist")
+def test_delete_unknown_server_returns_404(admin_client):
+    resp = admin_client.delete("/mcp/servers/does-not-exist")
     assert resp.status_code == 404
 
 
-def test_create_oauth_server(authed_client):
-    resp = authed_client.post(
+def test_create_oauth_server(admin_client):
+    resp = admin_client.post(
         "/mcp/servers",
         json={
             "name": "Remote",
@@ -139,16 +139,16 @@ def test_create_oauth_server(authed_client):
     assert resp.json()["auth"] == "oauth"
 
 
-def test_create_oauth_with_stdio_transport_returns_400(authed_client):
-    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "npx", "auth": "oauth"})
+def test_create_oauth_with_stdio_transport_returns_400(admin_client):
+    resp = admin_client.post("/mcp/servers", json={"name": "X", "command": "npx", "auth": "oauth"})
     assert resp.status_code == 400
 
 
-def test_update_invalid_auth_returns_400(authed_client):
-    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
+def test_update_invalid_auth_returns_400(admin_client):
+    resp = admin_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
     server_id = resp.json()["id"]
 
-    resp = authed_client.patch(f"/mcp/servers/{server_id}", json={"auth": "carrier-pigeon"})
+    resp = admin_client.patch(f"/mcp/servers/{server_id}", json={"auth": "carrier-pigeon"})
     assert resp.status_code == 400
 
 
@@ -157,21 +157,21 @@ def test_authorize_requires_auth(client):
     assert resp.status_code == 401
 
 
-def test_authorize_unknown_server_returns_404(authed_client):
-    resp = authed_client.post("/mcp/servers/does-not-exist/authorize")
+def test_authorize_unknown_server_returns_404(admin_client):
+    resp = admin_client.post("/mcp/servers/does-not-exist/authorize")
     assert resp.status_code == 404
 
 
-def test_authorize_non_oauth_server_returns_400(authed_client):
-    resp = authed_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
+def test_authorize_non_oauth_server_returns_400(admin_client):
+    resp = admin_client.post("/mcp/servers", json={"name": "X", "command": "npx"})
     server_id = resp.json()["id"]
 
-    resp = authed_client.post(f"/mcp/servers/{server_id}/authorize")
+    resp = admin_client.post(f"/mcp/servers/{server_id}/authorize")
     assert resp.status_code == 400
 
 
-def test_authorize_oauth_server(authed_client):
-    resp = authed_client.post(
+def test_authorize_oauth_server(admin_client):
+    resp = admin_client.post(
         "/mcp/servers",
         json={
             "name": "Remote",
@@ -182,7 +182,7 @@ def test_authorize_oauth_server(authed_client):
     )
     server_id = resp.json()["id"]
 
-    resp = authed_client.post(f"/mcp/servers/{server_id}/authorize")
+    resp = admin_client.post(f"/mcp/servers/{server_id}/authorize")
     assert resp.status_code == 200, resp.text
     assert resp.json() == {"ok": True}
 
